@@ -1,0 +1,160 @@
+package routes
+
+import (
+	"net/http"
+
+	"disaster_alert_backend/internal/handlers"
+	"disaster_alert_backend/internal/middleware"
+	"disaster_alert_backend/internal/services"
+	"disaster_alert_backend/internal/utils"
+
+	"github.com/gin-gonic/gin"
+)
+
+func RegisterRoutes(
+	router *gin.Engine,
+	authHandler *handlers.AuthHandler,
+	notificationHandler *handlers.NotificationHandler,
+	reportHandler *handlers.ReportHandler,
+	assistanceHandler *handlers.AssistanceHandler,
+	sosHandler *handlers.SOSHandler,
+	alertHandler *handlers.AlertHandler,
+	aggregatorHandler *handlers.AggregatorHandler,
+	weatherHandler *handlers.WeatherHandler,
+	cleanupHandler *handlers.CleanupHandler,
+	externalSourceHandler *handlers.ExternalSourceHandler,
+	emergencyContactHandler *handlers.EmergencyContactHandler,
+	emergencyMessageHandler *handlers.EmergencyMessageHandler,
+	alertPreferenceHandler *handlers.AlertPreferenceHandler,
+	userLocationHandler *handlers.UserLocationHandler,
+	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
+	jwtService *services.JWTService,
+) {
+	api := router.Group("/api/v1")
+
+	// Health check
+	api.GET("/health", func(c *gin.Context) {
+		utils.SuccessResponse(
+			c,
+			http.StatusOK,
+			"Disaster Alert API is running",
+			gin.H{
+				"status": "healthy",
+			},
+		)
+	})
+
+	// -------------------------
+	// Public Auth Routes
+	// -------------------------
+	auth := api.Group("/auth")
+	{
+		auth.POST("/register", authHandler.Register)
+		auth.POST("/login", authHandler.Login)
+		auth.GET("/me", middleware.AuthMiddleware(jwtService), authHandler.Me)
+	}
+
+	// -------------------------
+	// Public / Semi-public Routes
+	// -------------------------
+
+	weather := api.Group("/weather")
+	{
+		weather.GET("/alerts", weatherHandler.GetWeatherAlerts)
+	}
+
+	externalSources := api.Group("/external-sources")
+	{
+		externalSources.GET("/status", externalSourceHandler.GetExternalSourceStatus)
+	}
+
+	// -------------------------
+	// Protected Routes
+	// Everything inside this group requires JWT
+	// -------------------------
+	protected := api.Group("")
+	protected.Use(middleware.AuthMiddleware(jwtService))
+	{
+		notifications := protected.Group("/notifications")
+		{
+			notifications.POST("/token", notificationHandler.SaveFCMToken)
+			notifications.POST("/test/me", notificationHandler.SendTestToMe)
+			notifications.POST("/test/all", notificationHandler.SendTestToAll)
+		}
+
+		reports := protected.Group("/reports")
+		{
+			reports.POST("", reportHandler.CreateReport)
+			reports.GET("", reportHandler.GetReports)
+			reports.GET("/:id", reportHandler.GetReportByID)
+		}
+
+		assistance := protected.Group("/assistance")
+		{
+			assistance.POST("", assistanceHandler.CreateAssistanceRequest)
+			assistance.GET("", assistanceHandler.GetAssistanceRequests)
+			assistance.GET("/:id", assistanceHandler.GetAssistanceRequestByID)
+		}
+
+		sos := protected.Group("/sos")
+		{
+			sos.POST("", sosHandler.CreateSOSRequest)
+			sos.GET("", sosHandler.GetSOSRequests)
+			sos.GET("/:id", sosHandler.GetSOSByID)
+			sos.PUT("/:id/status", sosHandler.UpdateSOSStatus)
+		}
+
+		alerts := protected.Group("/alerts")
+		{
+			alerts.POST("", alertHandler.CreateAlert)
+			alerts.GET("", alertHandler.GetAlerts)
+
+			// Important: these specific routes must come before /:id
+			alerts.GET("/active", alertHandler.GetActiveAlerts)
+			alerts.GET("/nearby", alertHandler.GetNearbyAlerts)
+			alerts.GET("/critical-global", alertHandler.GetCriticalGlobalAlerts)
+			alerts.POST("/sync-external", aggregatorHandler.SyncExternalAlerts)
+
+			alerts.GET("/:id", alertHandler.GetAlertByID)
+			alerts.PUT("/:id/status", alertHandler.UpdateAlertStatus)
+			alerts.DELETE("/:id", alertHandler.DeleteAlert)
+		}
+
+		maintenance := protected.Group("/maintenance")
+		{
+			maintenance.POST("/cleanup-expired-alerts", cleanupHandler.CleanupExpiredExternalAlerts)
+		}
+
+		emergencyContacts := protected.Group("/emergency-contacts")
+		{
+			emergencyContacts.POST("", emergencyContactHandler.CreateContact)
+			emergencyContacts.GET("", emergencyContactHandler.GetContacts)
+			emergencyContacts.GET("/:id", emergencyContactHandler.GetContactByID)
+			emergencyContacts.PUT("/:id", emergencyContactHandler.UpdateContact)
+			emergencyContacts.DELETE("/:id", emergencyContactHandler.DeleteContact)
+		}
+
+		emergencyMessages := protected.Group("/emergency-messages")
+		{
+			emergencyMessages.POST("", emergencyMessageHandler.CreateMessage)
+			emergencyMessages.GET("", emergencyMessageHandler.GetMessages)
+			emergencyMessages.POST("/send", emergencyMessageHandler.SendMessage)
+
+			emergencyMessages.GET("/:id", emergencyMessageHandler.GetMessageByID)
+			emergencyMessages.DELETE("/:id", emergencyMessageHandler.DeleteMessage)
+
+		}
+
+		user := protected.Group("/user")
+		{
+			user.GET("/alert-preferences", alertPreferenceHandler.GetPreferences)
+			user.PUT("/alert-preferences", alertPreferenceHandler.UpdatePreferences)
+
+			user.GET("/location", userLocationHandler.GetLocation)
+			user.PUT("/location", userLocationHandler.UpdateLocation)
+
+			user.GET("/profile-details", userProfileDetailsHandler.GetProfileDetails)
+			user.PUT("/profile-details", userProfileDetailsHandler.UpdateProfileDetails)
+		}
+	}
+}
