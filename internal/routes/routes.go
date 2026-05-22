@@ -30,6 +30,18 @@ func RegisterRoutes(
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
 	jwtService *services.JWTService,
 ) {
+
+	router.GET("/health", func(c *gin.Context) {
+		utils.SuccessResponse(
+			c,
+			http.StatusOK,
+			"Disaster Alert API is running",
+			gin.H{
+				"status": "healthy",
+			},
+		)
+	})
+	
 	api := router.Group("/api/v1")
 
 	// Health check
