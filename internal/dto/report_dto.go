@@ -1,11 +1,16 @@
 package dto
 
+import "disaster_alert_backend/internal/models"
+
 type CreateReportRequest struct {
-	Category         string   `json:"category" validate:"required"`
-	Description      string   `json:"description" validate:"required,min=5"`
-	TimeOfOccurrence string   `json:"timeOfOccurrence" validate:"required"`
-	Latitude         float64  `json:"latitude" validate:"required"`
-	Longitude        float64  `json:"longitude" validate:"required"`
-	Address          string   `json:"address,omitempty"`
-	MediaURLs        []string `json:"mediaUrls,omitempty"`
+	Category         string `json:"category" binding:"required"`
+	Description      string `json:"description" binding:"required"`
+	TimeOfOccurrence string `json:"timeOfOccurrence" binding:"required"`
+
+	Latitude  float64 `json:"latitude" binding:"required"`
+	Longitude float64 `json:"longitude" binding:"required"`
+	Address   string  `json:"address"`
+
+	MediaURLs []string             `json:"mediaUrls,omitempty"`
+	Media     []models.ReportMedia `json:"media,omitempty"`
 }

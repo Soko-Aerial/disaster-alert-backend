@@ -42,6 +42,11 @@ func main() {
 		log.Fatal("Failed to initialize Firebase:", err)
 	}
 
+	cloudinaryService, err := services.NewCloudinaryService(cfg)
+	if err != nil {
+		log.Fatal("Failed to initialize Cloudinary:", err)
+	}
+
 	userRepository := repositories.NewUserRepository(db.Database)
 	fcmTokenRepository := repositories.NewFCMTokenRepository(db.Database)
 	reportRepository := repositories.NewReportRepository(db.Database)
@@ -185,7 +190,7 @@ func main() {
 		userRepository,
 	)
 
-	reportHandler := handlers.NewReportHandler(reportService)
+	reportHandler := handlers.NewReportHandler(reportService, cloudinaryService)
 	assistanceHandler := handlers.NewAssistanceHandler(assistanceService)
 	sosHandler := handlers.NewSOSHandler(sosService)
 	alertHandler := handlers.NewAlertHandler(alertService)

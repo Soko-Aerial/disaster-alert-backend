@@ -43,6 +43,7 @@ func (s *ReportService) CreateReport(
 			Address:   req.Address,
 		},
 		MediaURLs: req.MediaURLs,
+		Media:     req.Media,
 		Status:    "pending",
 		CreatedAt: now,
 		UpdatedAt: now,

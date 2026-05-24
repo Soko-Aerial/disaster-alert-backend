@@ -33,6 +33,10 @@ type Config struct{
 	NASAFIRMSEnabled   string
 	GDELTEnabled       string
 	OpenWeatherEnabled string
+	CloudinaryCloudName    string
+	CloudinaryAPIKey       string
+	CloudinaryAPISecret    string
+	CloudinaryUploadFolder string
 }	
 
 func LoadConfig() *Config {
@@ -67,6 +71,10 @@ func LoadConfig() *Config {
 		NASAFIRMSEnabled:   	 getEnv("NASA_FIRMS_ENABLED", ""),
 		GDELTEnabled:       	 getEnv("GDELT_ENABLED", ""),
 		OpenWeatherEnabled: 	 getEnv("OPENWEATHER_ENABLED", ""),
+		CloudinaryCloudName:    getEnv("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryAPIKey:       getEnv("CLOUDINARY_API_KEY", ""),
+		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
+		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "disaster_alert/reports"),
 		
 	}
 }

@@ -12,6 +12,12 @@ type ReportLocation struct {
 	Address   string  `bson:"address,omitempty" json:"address,omitempty"`
 }
 
+type ReportMedia struct {
+	URL      string `bson:"url" json:"url"`
+	Type     string `bson:"type" json:"type"`        
+	PublicID string `bson:"publicId" json:"publicId"`
+}
+
 type Report struct {
 	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	UserID           primitive.ObjectID `bson:"userId" json:"userId"`
@@ -19,8 +25,11 @@ type Report struct {
 	Description      string             `bson:"description" json:"description"`
 	TimeOfOccurrence string             `bson:"timeOfOccurrence" json:"timeOfOccurrence"`
 	Location         ReportLocation     `bson:"location" json:"location"`
-	MediaURLs        []string           `bson:"mediaUrls,omitempty" json:"mediaUrls,omitempty"`
-	Status           string             `bson:"status" json:"status"`
-	CreatedAt        time.Time          `bson:"createdAt" json:"createdAt"`
-	UpdatedAt        time.Time          `bson:"updatedAt" json:"updatedAt"`
+
+	MediaURLs []string      `bson:"mediaUrls,omitempty" json:"mediaUrls,omitempty"`
+	Media     []ReportMedia `bson:"media,omitempty" json:"media,omitempty"`
+
+	Status    string    `bson:"status" json:"status"`
+	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
+	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 }
