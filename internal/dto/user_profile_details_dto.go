@@ -1,5 +1,16 @@
 package dto
 
+type UpdateUserLocationRequest struct {
+	Name      string  `json:"name"`
+	Country   string  `json:"country"`
+	Region    string  `json:"region"`
+	Address   string  `json:"address"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Source    string  `json:"source"`
+	IsDefault bool    `json:"isDefault"`
+}
+
 type UpdateUserMedicalInfoRequest struct {
 	BloodType         string   `json:"bloodType"`
 	MedicalCondition string   `json:"medicalCondition"`
@@ -23,8 +34,12 @@ type UpdateUserWorkplaceInfoRequest struct {
 }
 
 type UpdateUserProfileDetailsRequest struct {
-	Phone       string                          `json:"phone"`
-	MedicalInfo *UpdateUserMedicalInfoRequest  `json:"medicalInfo"`
+	Name     string                     `json:"name"`
+	Email    string                     `json:"email"`
+	Phone    string                     `json:"phone"`
+	Location *UpdateUserLocationRequest `json:"location"`
+
+	MedicalInfo *UpdateUserMedicalInfoRequest   `json:"medicalInfo"`
 	Insurance   *UpdateUserInsuranceInfoRequest `json:"insurance"`
 	Workplace   *UpdateUserWorkplaceInfoRequest `json:"workplace"`
 }

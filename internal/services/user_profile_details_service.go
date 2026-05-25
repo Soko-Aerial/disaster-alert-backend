@@ -12,6 +12,21 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// cleanStringSlice trims strings and removes empty entries
+func cleanStringSlice(in []string) []string {
+	if in == nil {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		t := strings.TrimSpace(s)
+		if t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 type UserProfileDetailsService struct {
 	userRepo *repositories.UserRepository
 }
@@ -36,8 +51,29 @@ func (s *UserProfileDetailsService) UpdateProfileDetails(
 ) (*models.User, error) {
 	update := bson.M{}
 
+	if strings.TrimSpace(req.Name) != "" {
+		update["name"] = strings.TrimSpace(req.Name)
+	}
+
+	if strings.TrimSpace(req.Email) != "" {
+		update["email"] = strings.TrimSpace(req.Email)
+	}
+
 	if strings.TrimSpace(req.Phone) != "" {
 		update["phone"] = strings.TrimSpace(req.Phone)
+	}
+
+	if req.Location != nil {
+		update["location"] = models.UserLocation{
+			Name:      strings.TrimSpace(req.Location.Name),
+			Country:   strings.TrimSpace(req.Location.Country),
+			Region:    strings.TrimSpace(req.Location.Region),
+			Address:   strings.TrimSpace(req.Location.Address),
+			Latitude:  req.Location.Latitude,
+			Longitude: req.Location.Longitude,
+			Source:    strings.TrimSpace(req.Location.Source),
+			IsDefault: req.Location.IsDefault,
+		}
 	}
 
 	if req.MedicalInfo != nil {
@@ -73,19 +109,4 @@ func (s *UserProfileDetailsService) UpdateProfileDetails(
 	}
 
 	return s.userRepo.UpdateProfileDetailsByUserID(userID, update)
-}
-
-func cleanStringSlice(values []string) []string {
-	cleaned := make([]string, 0)
-
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-
-		cleaned = append(cleaned, value)
-	}
-
-	return cleaned
 }
