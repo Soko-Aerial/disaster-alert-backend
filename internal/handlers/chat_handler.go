@@ -43,7 +43,7 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 	utils.SuccessResponse(
 		c,
 		http.StatusCreated,
-		"Conversation created successfully",
+		"Conversation ready successfully",
 		conversation,
 	)
 }

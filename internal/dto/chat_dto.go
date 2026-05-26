@@ -1,9 +1,10 @@
 package dto
 
 type CreateConversationRequest struct {
-	Title    string `json:"title" binding:"required"`
-	CaseType string `json:"caseType"`
-	CaseID   string `json:"caseId"`
+	Title     string `json:"title" binding:"required"`
+	CaseType  string `json:"caseType"`
+	CaseID    string `json:"caseId"`
+	ContactID string `json:"contactId"`
 }
 
 type SendChatMessageRequest struct {

@@ -42,6 +42,7 @@ func (s *ChatService) CreateConversation(
 	}
 
 	var caseID *primitive.ObjectID
+	var contactID *primitive.ObjectID
 
 	if strings.TrimSpace(req.CaseID) != "" {
 		parsedCaseID, err := primitive.ObjectIDFromHex(req.CaseID)
@@ -52,11 +53,36 @@ func (s *ChatService) CreateConversation(
 		caseID = &parsedCaseID
 	}
 
+	if strings.TrimSpace(req.ContactID) != "" {
+		parsedContactID, err := primitive.ObjectIDFromHex(req.ContactID)
+		if err != nil {
+			return nil, errors.New("invalid contact id")
+		}
+
+		contactID = &parsedContactID
+	}
+
+	if caseType == "contact" {
+		if contactID == nil {
+			return nil, errors.New("contact id is required for contact conversation")
+		}
+
+		existingConversation, err := s.conversationRepo.FindContactConversation(
+			userID,
+			*contactID,
+		)
+
+		if err == nil && existingConversation != nil {
+			return existingConversation, nil
+		}
+	}
+
 	conversation := models.Conversation{
 		UserID:         userID,
 		Title:          title,
 		CaseType:       caseType,
 		CaseID:         caseID,
+		ContactID:      contactID,
 		ParticipantIDs: []primitive.ObjectID{userID},
 		Status:         "open",
 	}

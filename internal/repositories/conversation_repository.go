@@ -109,3 +109,26 @@ func (r *ConversationRepository) UpdateLastMessage(
 	_, err := r.collection.UpdateByID(ctx, id, update)
 	return err
 }
+
+func (r *ConversationRepository) FindContactConversation(
+	userID primitive.ObjectID,
+	contactID primitive.ObjectID,
+) (*models.Conversation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"userId":    userID,
+		"caseType":  "contact",
+		"contactId": contactID,
+	}
+
+	var conversation models.Conversation
+
+	err := r.collection.FindOne(ctx, filter).Decode(&conversation)
+	if err != nil {
+		return nil, err
+	}
+
+	return &conversation, nil
+}

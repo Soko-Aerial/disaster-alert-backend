@@ -13,7 +13,8 @@ type Conversation struct {
 
 	CaseID   *primitive.ObjectID `bson:"caseId,omitempty" json:"caseId,omitempty"`
 	CaseType string              `bson:"caseType" json:"caseType"`
-	// sos, assistance, report, general, contact
+
+	ContactID *primitive.ObjectID `bson:"contactId,omitempty" json:"contactId,omitempty"`
 
 	Title string `bson:"title" json:"title"`
 
@@ -23,7 +24,6 @@ type Conversation struct {
 	LastMessageAt *time.Time `bson:"lastMessageAt,omitempty" json:"lastMessageAt,omitempty"`
 
 	Status string `bson:"status" json:"status"`
-	// open, closed, archived
 
 	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
