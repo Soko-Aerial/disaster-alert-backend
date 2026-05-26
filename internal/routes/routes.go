@@ -28,6 +28,7 @@ func RegisterRoutes(
 	alertPreferenceHandler *handlers.AlertPreferenceHandler,
 	userLocationHandler *handlers.UserLocationHandler,
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
+	chatHandler *handlers.ChatHandler,
 	jwtService *services.JWTService,
 ) {
 
@@ -167,6 +168,17 @@ func RegisterRoutes(
 
 			user.GET("/profile-details", userProfileDetailsHandler.GetProfileDetails)
 			user.PUT("/profile-details", userProfileDetailsHandler.UpdateProfileDetails)
+		}
+
+		chats := protected.Group("/chats")
+		{
+			chats.POST("/conversations", chatHandler.CreateConversation)
+			chats.GET("/conversations", chatHandler.GetConversations)
+
+			chats.GET("/conversations/:id/messages", chatHandler.GetConversationMessages)
+			chats.POST("/conversations/:id/messages", chatHandler.SendMessage)
+			
+			chats.PUT("/conversations/:id/read", chatHandler.MarkConversationRead)
 		}
 	}
 }

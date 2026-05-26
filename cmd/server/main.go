@@ -56,6 +56,9 @@ func main() {
 	emergencyContactRepository := repositories.NewEmergencyContactRepository(db.Database)
 	emergencyMessageRepository := repositories.NewEmergencyMessageRepository(db.Database)
 	alertPreferenceRepository := repositories.NewAlertPreferenceRepository(db.Database)
+	conversationRepo := repositories.NewConversationRepository(db.Database)
+	chatMessageRepo := repositories.NewChatMessageRepository(db.Database)
+
 
 	//mockAlertSource := sources.NewMockAlertSource()
 	externalSources := make([]sources.AlertSource, 0)
@@ -190,6 +193,11 @@ func main() {
 		userRepository,
 	)
 
+	chatService := services.NewChatService(
+		conversationRepo,
+		chatMessageRepo,
+	)
+
 	reportHandler := handlers.NewReportHandler(reportService, cloudinaryService)
 	assistanceHandler := handlers.NewAssistanceHandler(assistanceService)
 	sosHandler := handlers.NewSOSHandler(sosService)
@@ -216,6 +224,8 @@ func main() {
 		userProfileDetailsService,
 	)
 
+	chatHandler := handlers.NewChatHandler(chatService)
+
 
 
 	router := app.SetupRouter(
@@ -234,6 +244,7 @@ func main() {
 		alertPreferenceHandler,
 		userLocationHandler,
 		userProfileDetailsHandler,
+		chatHandler,
 		jwtService,
 	)
 

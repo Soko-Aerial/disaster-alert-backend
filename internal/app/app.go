@@ -25,6 +25,7 @@ func SetupRouter(
 	alertPreferenceHandler *handlers.AlertPreferenceHandler,
 	userLocationHandler *handlers.UserLocationHandler,
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
+	chatHandler *handlers.ChatHandler,
 	jwtService *services.JWTService) *gin.Engine {
 	router := gin.Default()
 
@@ -52,6 +53,7 @@ func SetupRouter(
 		alertPreferenceHandler,
 		userLocationHandler,
 		userProfileDetailsHandler,
+		chatHandler,
 		jwtService,
 	)
 
