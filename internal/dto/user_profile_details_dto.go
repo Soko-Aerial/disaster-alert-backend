@@ -37,6 +37,8 @@ type UpdateUserProfileDetailsRequest struct {
 	Name     string                     `json:"name"`
 	Email    string                     `json:"email"`
 	Phone    string                     `json:"phone"`
+	Gender       string                     `json:"gender"`
+	DateOfBirth  string                     `json:"dateOfBirth"`
 	Location *UpdateUserLocationRequest `json:"location"`
 
 	MedicalInfo *UpdateUserMedicalInfoRequest   `json:"medicalInfo"`

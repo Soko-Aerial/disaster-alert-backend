@@ -56,6 +56,8 @@ func (h *UserProfileDetailsHandler) GetProfileDetails(c *gin.Context) {
 			"role":        user.Role,
 			"createdAt":   user.CreatedAt,
 			"updatedAt":   user.UpdatedAt,
+			"gender":      user.Gender,
+			"dateOfBirth": user.DateOfBirth,
 		},
 	)
 }
@@ -94,6 +96,8 @@ func (h *UserProfileDetailsHandler) UpdateProfileDetails(c *gin.Context) {
 			"workplace":   user.Workplace,
 			"role":        user.Role,
 			"updatedAt":   user.UpdatedAt,
+			"gender":      user.Gender,
+			"dateOfBirth": user.DateOfBirth,
 		},
 	)
 }

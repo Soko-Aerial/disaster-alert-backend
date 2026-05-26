@@ -63,6 +63,14 @@ func (s *UserProfileDetailsService) UpdateProfileDetails(
 		update["phone"] = strings.TrimSpace(req.Phone)
 	}
 
+	if strings.TrimSpace(req.Gender) != "" {
+		update["gender"] = strings.TrimSpace(req.Gender)
+	}
+
+	if strings.TrimSpace(req.DateOfBirth) != "" {
+		update["dateOfBirth"] = strings.TrimSpace(req.DateOfBirth)
+	}
+
 	if req.Location != nil {
 		update["location"] = models.UserLocation{
 			Name:      strings.TrimSpace(req.Location.Name),

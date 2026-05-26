@@ -45,12 +45,16 @@ type User struct {
 	Email        string             `bson:"email" json:"email"`
 	PasswordHash string             `bson:"passwordHash" json:"-"`
 	Phone        string             `bson:"phone,omitempty" json:"phone,omitempty"`
+	Gender       string             `bson:"gender,omitempty" json:"gender,omitempty"`
+	DateOfBirth  string             `bson:"dateOfBirth,omitempty" json:"dateOfBirth,omitempty"`
 	Role         string             `bson:"role" json:"role"`
+
 	Location     *UserLocation      `bson:"location,omitempty" json:"location,omitempty"`
 	MedicalInfo *UserMedicalInfo    `bson:"medicalInfo,omitempty" json:"medicalInfo,omitempty"`
 	Insurance   *UserInsuranceInfo  `bson:"insurance,omitempty" json:"insurance,omitempty"`
 	Workplace   *UserWorkplaceInfo  `bson:"workplace,omitempty" json:"workplace,omitempty"`
 	FCMTokens    []string           `bson:"fcmTokens,omitempty" json:"fcmTokens,omitempty"`
+
 	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt    time.Time          `bson:"updatedAt" json:"updatedAt"`
 	
