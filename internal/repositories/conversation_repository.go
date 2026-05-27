@@ -132,3 +132,25 @@ func (r *ConversationRepository) FindContactConversation(
 
 	return &conversation, nil
 }
+
+func (r *ConversationRepository) FindUserConversationByType(
+	userID primitive.ObjectID,
+	caseType string,
+) (*models.Conversation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"userId":   userID,
+		"caseType": caseType,
+	}
+
+	var conversation models.Conversation
+
+	err := r.collection.FindOne(ctx, filter).Decode(&conversation)
+	if err != nil {
+		return nil, err
+	}
+
+	return &conversation, nil
+}

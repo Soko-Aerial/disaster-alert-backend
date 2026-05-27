@@ -41,6 +41,17 @@ func (s *ChatService) CreateConversation(
 		caseType = "general"
 	}
 
+	if caseType == "response_center" {
+		existingConversation, err := s.conversationRepo.FindUserConversationByType(
+			userID,
+			"response_center",
+		)
+
+		if err == nil && existingConversation != nil {
+			return existingConversation, nil
+		}
+	}
+
 	var caseID *primitive.ObjectID
 	var contactID *primitive.ObjectID
 
