@@ -100,6 +100,7 @@ func RegisterRoutes(
 			reports.POST("", reportHandler.CreateReport)
 			reports.GET("", reportHandler.GetReports)
 			reports.GET("/:id", reportHandler.GetReportByID)
+			reports.PUT("/:id/approve", reportHandler.ApproveReport)
 		}
 
 		assistance := protected.Group("/assistance")
@@ -124,9 +125,13 @@ func RegisterRoutes(
 
 			// Important: these specific routes must come before /:id
 			alerts.GET("/active", alertHandler.GetActiveAlerts)
-			alerts.GET("/nearby", alertHandler.GetNearbyAlerts)
-			alerts.GET("/critical-global", alertHandler.GetCriticalGlobalAlerts)
+			// alerts.GET("/nearby", alertHandler.GetNearbyAlerts)
+			// alerts.GET("/critical-global", alertHandler.GetCriticalGlobalAlerts)
 			alerts.POST("/sync-external", aggregatorHandler.SyncExternalAlerts)
+			alerts.GET("/local", alertHandler.GetLocalAlerts)
+			alerts.GET("/global", alertHandler.GetGlobalAlerts)
+			alerts.GET("/weather", alertHandler.GetWeatherAlerts)
+			alerts.GET("/health", alertHandler.GetHealthAlerts)
 
 			alerts.GET("/:id", alertHandler.GetAlertByID)
 			alerts.PUT("/:id/status", alertHandler.UpdateAlertStatus)

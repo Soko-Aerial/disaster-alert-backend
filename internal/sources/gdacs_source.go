@@ -32,7 +32,7 @@ func (s *GDACSSource) Name() string {
 
 func (s *GDACSSource) FetchAlerts() ([]models.Alert, error) {
 	toDate := time.Now().UTC()
-	fromDate := toDate.AddDate(0, -6, 0)
+	fromDate := toDate.AddDate(0, 0, -7)
 
 	url := fmt.Sprintf(
 		"%s?eventlist=EQ;TC;FL;VO;DR;WF&fromdate=%s&todate=%s&alertlevel=green;orange;red",

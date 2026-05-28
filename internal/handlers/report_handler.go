@@ -274,3 +274,25 @@ func (h *ReportHandler) GetReportByID(c *gin.Context) {
 		report,
 	)
 }
+
+func (h *ReportHandler) ApproveReport(c *gin.Context) {
+	reportID := c.Param("id")
+
+	alert, err := h.reportService.ApproveReport(reportID)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Report approved and alert published successfully",
+		alert,
+	)
+}

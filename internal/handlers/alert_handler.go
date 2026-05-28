@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"disaster_alert_backend/internal/dto"
+	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
-	"disaster_alert_backend/internal/repositories"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -110,27 +110,7 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 }
 
 func (h *AlertHandler) GetActiveAlerts(c *gin.Context) {
-	limit := 50
-
-	limitQuery := c.Query("limit")
-	if limitQuery != "" {
-		parsedLimit, err := strconv.Atoi(limitQuery)
-		if err != nil || parsedLimit <= 0 {
-			utils.ErrorResponse(
-				c,
-				http.StatusBadRequest,
-				"Invalid limit value",
-				err,
-			)
-			return
-		}
-
-		if parsedLimit > 200 {
-			parsedLimit = 200
-		}
-
-		limit = parsedLimit
-	}
+	limit := parseAlertLimit(c, 50, 200)
 
 	filter := repositories.AlertFilter{
 		Category:   c.Query("category"),
@@ -156,6 +136,108 @@ func (h *AlertHandler) GetActiveAlerts(c *gin.Context) {
 		c,
 		http.StatusOK,
 		"Active alerts fetched successfully",
+		alerts,
+	)
+}
+
+func (h *AlertHandler) GetLocalAlerts(c *gin.Context) {
+	country := c.Query("country")
+	limit := parseAlertLimit(c, 50, 200)
+
+	if country == "" {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Country is required for local alerts",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetLocalAlerts(country, limit)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch local alerts",
+			err,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Local alerts fetched successfully",
+		alerts,
+	)
+}
+
+func (h *AlertHandler) GetGlobalAlerts(c *gin.Context) {
+	country := c.Query("country")
+	limit := parseAlertLimit(c, 50, 200)
+
+	alerts, err := h.alertService.GetGlobalAlerts(country, limit)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch global alerts",
+			err,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Global alerts fetched successfully",
+		alerts,
+	)
+}
+
+func (h *AlertHandler) GetWeatherAlerts(c *gin.Context) {
+	country := c.Query("country")
+	limit := parseAlertLimit(c, 50, 200)
+
+	alerts, err := h.alertService.GetWeatherAlerts(country, limit)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch weather alerts",
+			err,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Weather alerts fetched successfully",
+		alerts,
+	)
+}
+
+func (h *AlertHandler) GetHealthAlerts(c *gin.Context) {
+	country := c.Query("country")
+	limit := parseAlertLimit(c, 50, 200)
+
+	alerts, err := h.alertService.GetHealthAlerts(country, limit)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch health alerts",
+			err,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Health alerts fetched successfully",
 		alerts,
 	)
 }
@@ -248,130 +330,20 @@ func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 	)
 }
 
-func (h *AlertHandler) GetNearbyAlerts(c *gin.Context) {
-	latQuery := c.Query("lat")
-	lngQuery := c.Query("lng")
-	radiusQuery := c.DefaultQuery("radiusKm", "100")
-	limitQuery := c.DefaultQuery("limit", "50")
-
-	lat, err := strconv.ParseFloat(latQuery, 64)
-	if err != nil {
-		utils.ErrorResponse(
-			c,
-			http.StatusBadRequest,
-			"Invalid latitude value",
-			err,
-		)
-		return
-	}
-
-	lng, err := strconv.ParseFloat(lngQuery, 64)
-	if err != nil {
-		utils.ErrorResponse(
-			c,
-			http.StatusBadRequest,
-			"Invalid longitude value",
-			err,
-		)
-		return
-	}
-
-	radiusKm, err := strconv.ParseFloat(radiusQuery, 64)
-	if err != nil || radiusKm <= 0 {
-		utils.ErrorResponse(
-			c,
-			http.StatusBadRequest,
-			"Invalid radiusKm value",
-			err,
-		)
-		return
-	}
-
-	limit, err := strconv.Atoi(limitQuery)
-	if err != nil || limit <= 0 {
-		utils.ErrorResponse(
-			c,
-			http.StatusBadRequest,
-			"Invalid limit value",
-			err,
-		)
-		return
-	}
-
-	if limit > 200 {
-		limit = 200
-	}
-
-	filter := repositories.AlertFilter{
-		Category:   c.Query("category"),
-		Severity:   c.Query("severity"),
-		SourceName: c.Query("sourceName"),
-		SourceType: c.Query("sourceType"),
-		Country:    c.Query("country"),
-		Limit:      limit,
-	}
-
-	alerts, err := h.alertService.GetNearbyAlertsWithFilters(
-		lat,
-		lng,
-		radiusKm,
-		filter,
-	)
-	if err != nil {
-		utils.ErrorResponse(
-			c,
-			http.StatusInternalServerError,
-			"Failed to fetch nearby alerts",
-			err,
-		)
-		return
-	}
-
-	utils.SuccessResponse(
-		c,
-		http.StatusOK,
-		"Nearby alerts fetched successfully",
-		alerts,
-	)
-}
-func (h *AlertHandler) GetCriticalGlobalAlerts(c *gin.Context) {
-	limit := 20
+func parseAlertLimit(c *gin.Context, defaultLimit int, maxLimit int) int {
+	limit := defaultLimit
 
 	limitQuery := c.Query("limit")
 	if limitQuery != "" {
 		parsedLimit, err := strconv.Atoi(limitQuery)
-		if err != nil || parsedLimit <= 0 {
-			utils.ErrorResponse(
-				c,
-				http.StatusBadRequest,
-				"Invalid limit value",
-				err,
-			)
-			return
-		}
+		if err == nil && parsedLimit > 0 {
+			if parsedLimit > maxLimit {
+				parsedLimit = maxLimit
+			}
 
-		if parsedLimit > 100 {
-			parsedLimit = 100
+			limit = parsedLimit
 		}
-
-		limit = parsedLimit
 	}
 
-	alerts, err := h.alertService.GetCriticalGlobalAlerts(limit)
-	if err != nil {
-		utils.ErrorResponse(
-			c,
-			http.StatusInternalServerError,
-			"Failed to fetch critical global alerts",
-			err,
-		)
-		return
-	}
-
-	utils.SuccessResponse(
-		c,
-		http.StatusOK,
-		"Critical global alerts fetched successfully",
-		alerts,
-	)
+	return limit
 }

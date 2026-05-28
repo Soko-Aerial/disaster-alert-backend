@@ -13,7 +13,7 @@ type CreateAlertRequest struct {
 	Region             string   `json:"region,omitempty"`
 	RadiusKm           float64  `json:"radiusKm,omitempty"`
 	SafetyInstructions []string `json:"safetyInstructions,omitempty"`
-	SourceType         string   `json:"sourceType,omitempty" validate:"omitempty,oneof=internal external system"`
+	SourceType 		   string   `json:"sourceType,omitempty" validate:"omitempty,oneof=internal external system user_report weather health news admin"`
 	SourceName         string   `json:"sourceName,omitempty"`
 	ExternalID         string   `json:"externalId,omitempty"`
 	SourceURL          string   `json:"sourceUrl,omitempty"`

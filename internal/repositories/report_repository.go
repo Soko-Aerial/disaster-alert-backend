@@ -88,3 +88,38 @@ func (r *ReportRepository) FindByID(reportID primitive.ObjectID) (*models.Report
 
 	return &report, nil
 }
+
+func (r *ReportRepository) UpdateStatus(
+	reportID primitive.ObjectID,
+	status string,
+) (*models.Report, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	now := time.Now().UTC()
+
+	update := bson.M{
+		"$set": bson.M{
+			"status":    status,
+			"updatedAt": now,
+		},
+	}
+
+	options := options.FindOneAndUpdate().
+		SetReturnDocument(options.After)
+
+	var report models.Report
+
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		bson.M{"_id": reportID},
+		update,
+		options,
+	).Decode(&report)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &report, nil
+}

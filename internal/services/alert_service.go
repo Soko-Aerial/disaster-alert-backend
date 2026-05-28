@@ -2,8 +2,8 @@ package services
 
 import (
 	"errors"
-	"time"
 	"strconv"
+	"time"
 
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/jobs"
@@ -14,7 +14,7 @@ import (
 )
 
 type AlertService struct {
-	alertRepo         *repositories.AlertRepository
+	alertRepo              *repositories.AlertRepository
 	notificationDispatcher NotificationDispatcher
 }
 
@@ -23,7 +23,7 @@ func NewAlertService(
 	notificationDispatcher NotificationDispatcher,
 ) *AlertService {
 	return &AlertService{
-		alertRepo:         alertRepo,
+		alertRepo:              alertRepo,
 		notificationDispatcher: notificationDispatcher,
 	}
 }
@@ -37,7 +37,7 @@ func (s *AlertService) CreateAlert(
 		return nil, errors.New("invalid user id")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	status := req.Status
 	if status == "" {
@@ -55,7 +55,12 @@ func (s *AlertService) CreateAlert(
 	}
 
 	eventTime := parseOptionalTime(req.EventTime)
+
 	expiresAt := parseOptionalTime(req.ExpiresAt)
+	if expiresAt == nil {
+		defaultExpiry := now.Add(7 * 24 * time.Hour)
+		expiresAt = &defaultExpiry
+	}
 
 	radiusKm := req.RadiusKm
 	if radiusKm <= 0 {
@@ -68,11 +73,11 @@ func (s *AlertService) CreateAlert(
 	}
 
 	alert := models.Alert{
-		Title:              req.Title,
-		Description:        req.Description,
-		Category:           req.Category,
-		Severity:           req.Severity,
-		Status:             status,
+		Title:       req.Title,
+		Description: req.Description,
+		Category:    req.Category,
+		Severity:    req.Severity,
+		Status:      status,
 		Location: models.AlertLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
@@ -114,6 +119,84 @@ func (s *AlertService) GetActiveAlerts() ([]models.Alert, error) {
 	return s.alertRepo.FindActive()
 }
 
+func (s *AlertService) GetActiveAlertsWithFilters(
+	filter repositories.AlertFilter,
+) ([]models.Alert, error) {
+	return s.alertRepo.FindActiveWithFilters(filter)
+}
+
+func (s *AlertService) GetLocalAlerts(
+	country string,
+	limit int,
+) ([]models.Alert, error) {
+	if country == "" {
+		return []models.Alert{}, nil
+	}
+
+	if limit <= 0 {
+		limit = 50
+	}
+
+	return s.alertRepo.FindActiveWithFilters(repositories.AlertFilter{
+		Country: country,
+		Limit:   limit,
+	})
+}
+
+func (s *AlertService) GetGlobalAlerts(
+	userCountry string,
+	limit int,
+) ([]models.Alert, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	return s.alertRepo.FindActiveWithFilters(repositories.AlertFilter{
+		ExcludeCountry: userCountry,
+		Limit:          limit,
+	})
+}
+
+func (s *AlertService) GetWeatherAlerts(
+	country string,
+	limit int,
+) ([]models.Alert, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	filter := repositories.AlertFilter{
+		Category: "weather",
+		Limit:    limit,
+	}
+
+	if country != "" {
+		filter.Country = country
+	}
+
+	return s.alertRepo.FindActiveWithFilters(filter)
+}
+
+func (s *AlertService) GetHealthAlerts(
+	country string,
+	limit int,
+) ([]models.Alert, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	filter := repositories.AlertFilter{
+		Category: "health",
+		Limit:    limit,
+	}
+
+	if country != "" {
+		filter.Country = country
+	}
+
+	return s.alertRepo.FindActiveWithFilters(filter)
+}
+
 func (s *AlertService) GetAlertByID(alertID string) (*models.Alert, error) {
 	objectID, err := primitive.ObjectIDFromHex(alertID)
 	if err != nil {
@@ -153,6 +236,46 @@ func (s *AlertService) DeleteAlert(alertID string) error {
 	return s.alertRepo.Delete(objectID)
 }
 
+func (s *AlertService) GetNearbyAlerts(
+	latitude float64,
+	longitude float64,
+	radiusKm float64,
+) ([]models.Alert, error) {
+	if radiusKm <= 0 {
+		radiusKm = 100
+	}
+
+	return s.alertRepo.FindActiveNearby(latitude, longitude, radiusKm)
+}
+
+func (s *AlertService) GetNearbyAlertsWithFilters(
+	latitude float64,
+	longitude float64,
+	radiusKm float64,
+	filter repositories.AlertFilter,
+) ([]models.Alert, error) {
+	if radiusKm <= 0 {
+		radiusKm = 100
+	}
+
+	return s.alertRepo.FindActiveNearbyWithFilters(
+		latitude,
+		longitude,
+		radiusKm,
+		filter,
+	)
+}
+
+func (s *AlertService) GetCriticalGlobalAlerts(
+	limit int,
+) ([]models.Alert, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	return s.alertRepo.FindCriticalGlobal(limit)
+}
+
 func (s *AlertService) queueAlertNotification(alert *models.Alert) {
 	if s.notificationDispatcher == nil {
 		return
@@ -181,7 +304,6 @@ func (s *AlertService) queueAlertNotification(alert *models.Alert) {
 	})
 
 	if !queued {
-	
 		return
 	}
 }
@@ -201,33 +323,4 @@ func parseOptionalTime(value string) *time.Time {
 
 func floatToString(value float64) string {
 	return strconv.FormatFloat(value, 'f', 6, 64)
-}
-
-func (s *AlertService) GetNearbyAlerts(
-	latitude float64,
-	longitude float64,
-	radiusKm float64,
-) ([]models.Alert, error) {
-	if radiusKm <= 0 {
-		radiusKm = 100
-	}
-
-	return s.alertRepo.FindActiveNearby(latitude, longitude, radiusKm)
-}
-
-func (s *AlertService) GetCriticalGlobalAlerts(limit int) ([]models.Alert, error) {
-	return s.alertRepo.FindCriticalGlobal(limit)
-}
-
-func (s *AlertService) GetActiveAlertsWithFilters(filter repositories.AlertFilter) ([]models.Alert, error) {
-	return s.alertRepo.FindActiveWithFilters(filter)
-}
-
-func (s *AlertService) GetNearbyAlertsWithFilters(
-	lat float64,
-	lng float64,
-	radiusKm float64,
-	filter repositories.AlertFilter,
-) ([]models.Alert, error) {
-	return s.alertRepo.FindActiveNearbyWithFilters(lat, lng, radiusKm, filter)
 }

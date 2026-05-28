@@ -10,6 +10,8 @@ type ReportLocation struct {
 	Latitude  float64 `bson:"latitude" json:"latitude"`
 	Longitude float64 `bson:"longitude" json:"longitude"`
 	Address   string  `bson:"address,omitempty" json:"address,omitempty"`
+	Country   string  `bson:"country,omitempty" json:"country,omitempty"`
+	Region    string  `bson:"region,omitempty" json:"region,omitempty"`
 }
 
 type ReportMedia struct {

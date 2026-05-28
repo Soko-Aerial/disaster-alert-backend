@@ -115,12 +115,23 @@ func main() {
 		externalSources,
 	)
 
-	alertSyncScheduler := scheduler.NewAlertSyncScheduler(
-		alertAggregator,
-		30*time.Minute,
-	)
+	if isEnabled(cfg.AlertSyncEnabled) {
+		alertSyncScheduler := scheduler.NewAlertSyncSchedulerWithDelay(
+			alertAggregator,
+			time.Duration(cfg.AlertSyncIntervalMinutes)*time.Minute,
+			time.Duration(cfg.AlertSyncInitialDelaySeconds)*time.Second,
+		)
 
-	go alertSyncScheduler.Start(ctx)
+		go alertSyncScheduler.Start(ctx)
+
+		log.Printf(
+			"Alert sync scheduler enabled. Interval: %dm InitialDelay: %ds\n",
+			cfg.AlertSyncIntervalMinutes,
+			cfg.AlertSyncInitialDelaySeconds,
+		)
+	} else {
+		log.Println("Alert sync scheduler disabled")
+	}
 
 	passwordService := services.NewPasswordService()
 	jwtService := services.NewJWTService(cfg)
@@ -149,7 +160,7 @@ func main() {
 	notificationQueue.Start(ctx)
 	defer notificationQueue.Stop()
 
-	reportService := services.NewReportService(reportRepository)
+	reportService := services.NewReportService(reportRepository, alertRepository)
 	assistanceService := services.NewAssistanceService(assistanceRepository)
 	sosService := services.NewSOSService(sosRepository)
 	weatherService := services.NewWeatherService(

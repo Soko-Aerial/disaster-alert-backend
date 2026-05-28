@@ -10,6 +10,8 @@ type CreateReportRequest struct {
 	Latitude  float64 `json:"latitude" binding:"required"`
 	Longitude float64 `json:"longitude" binding:"required"`
 	Address   string  `json:"address"`
+	Country string `json:"country"`
+	Region  string `json:"region"`
 
 	MediaURLs []string             `json:"mediaUrls,omitempty"`
 	Media     []models.ReportMedia `json:"media,omitempty"`

@@ -3,6 +3,7 @@ package config
 import(
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -37,6 +38,9 @@ type Config struct{
 	CloudinaryAPIKey       string
 	CloudinaryAPISecret    string
 	CloudinaryUploadFolder string
+	AlertSyncEnabled             string
+	AlertSyncInitialDelaySeconds int
+	AlertSyncIntervalMinutes     int
 }	
 
 func LoadConfig() *Config {
@@ -75,6 +79,9 @@ func LoadConfig() *Config {
 		CloudinaryAPIKey:       getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "disaster_alert/reports"),
+		AlertSyncEnabled:             getEnv("ALERT_SYNC_ENABLED", "true"),
+		AlertSyncInitialDelaySeconds: getEnvAsInt("ALERT_SYNC_INITIAL_DELAY_SECONDS", 120),
+		AlertSyncIntervalMinutes:     getEnvAsInt("ALERT_SYNC_INTERVAL_MINUTES", 30),
 		
 	}
 }
@@ -87,4 +94,18 @@ func getEnv(key string, fallback string) string {
 	}
 
 	return value
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return parsed
 }
