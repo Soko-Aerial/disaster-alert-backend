@@ -5,15 +5,18 @@ import (
 	"strings"
 	"time"
 
+	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/sources"
 )
 
 type AlertAggregator struct {
-	alertRepo *repositories.AlertRepository
-	sources   []sources.AlertSource
+	alertRepo    *repositories.AlertRepository
+	sources      []sources.AlertSource
 	maxPerSource int
-	sourceDelay   time.Duration
+	sourceDelay  time.Duration
+	writeDelay   time.Duration
+	maxAlertAge  time.Duration
 }
 
 func NewAlertAggregator(
@@ -21,10 +24,12 @@ func NewAlertAggregator(
 	sources []sources.AlertSource,
 ) *AlertAggregator {
 	return &AlertAggregator{
-		alertRepo:     alertRepo,
-		sources:       sources,
-		maxPerSource:  50,
+		alertRepo:    alertRepo,
+		sources:      sources,
+		maxPerSource: 50,
 		sourceDelay:  6 * time.Second,
+		writeDelay:   100 * time.Millisecond,
+		maxAlertAge:  7 * 24 * time.Hour,
 	}
 }
 
@@ -41,6 +46,7 @@ func (a *AlertAggregator) SyncExternalAlerts() error {
 	totalFetched := 0
 	totalProcessed := 0
 	totalSynced := 0
+	totalSkippedOld := 0
 	totalFailed := 0
 
 	for index, source := range a.sources {
@@ -73,6 +79,11 @@ func (a *AlertAggregator) SyncExternalAlerts() error {
 		fetchedCount := len(alerts)
 		totalFetched += fetchedCount
 
+		alerts = filterRecentExternalAlerts(alerts, a.maxAlertAge)
+
+		skippedOldCount := fetchedCount - len(alerts)
+		totalSkippedOld += skippedOldCount
+
 		if a.maxPerSource > 0 && len(alerts) > a.maxPerSource {
 			alerts = alerts[:a.maxPerSource]
 		}
@@ -95,13 +106,16 @@ func (a *AlertAggregator) SyncExternalAlerts() error {
 			sourceSynced++
 			totalSynced++
 
-			time.Sleep(100 * time.Millisecond)
+			if a.writeDelay > 0 {
+				time.Sleep(a.writeDelay)
+			}
 		}
 
 		log.Printf(
-			"External source sync completed: source=%s fetched=%d processed=%d synced=%d failed=%d duration=%s\n",
+			"External source sync completed: source=%s fetched=%d skippedOld=%d processed=%d synced=%d failed=%d duration=%s\n",
 			source.Name(),
 			fetchedCount,
+			skippedOldCount,
 			processedCount,
 			sourceSynced,
 			sourceFailed,
@@ -110,8 +124,9 @@ func (a *AlertAggregator) SyncExternalAlerts() error {
 	}
 
 	log.Printf(
-		"External alert sync completed: fetched=%d processed=%d synced=%d failed=%d duration=%s\n",
+		"External alert sync completed: fetched=%d skippedOld=%d processed=%d synced=%d failed=%d duration=%s\n",
 		totalFetched,
+		totalSkippedOld,
 		totalProcessed,
 		totalSynced,
 		totalFailed,
@@ -121,14 +136,44 @@ func (a *AlertAggregator) SyncExternalAlerts() error {
 	return nil
 }
 
+func filterRecentExternalAlerts(
+	alerts []models.Alert,
+	maxAge time.Duration,
+) []models.Alert {
+	if maxAge <= 0 {
+		return alerts
+	}
+
+	now := time.Now().UTC()
+	cutoff := now.Add(-maxAge)
+
+	filteredAlerts := make([]models.Alert, 0, len(alerts))
+
+	for _, alert := range alerts {
+		if alert.EventTime == nil {
+			filteredAlerts = append(filteredAlerts, alert)
+			continue
+		}
+
+		if alert.EventTime.Before(cutoff) {
+			continue
+		}
+
+		filteredAlerts = append(filteredAlerts, alert)
+	}
+
+	return filteredAlerts
+}
+
 func isRateLimitError(err error) bool {
 	if err == nil {
 		return false
 	}
 
 	message := err.Error()
+	lowerMessage := strings.ToLower(message)
 
 	return strings.Contains(message, "429") ||
-		strings.Contains(strings.ToLower(message), "rate limit") ||
-		strings.Contains(strings.ToLower(message), "limit requests")
+		strings.Contains(lowerMessage, "rate limit") ||
+		strings.Contains(lowerMessage, "limit requests")
 }

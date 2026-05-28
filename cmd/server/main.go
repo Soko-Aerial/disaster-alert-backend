@@ -59,6 +59,12 @@ func main() {
 	conversationRepo := repositories.NewConversationRepository(db.Database)
 	chatMessageRepo := repositories.NewChatMessageRepository(db.Database)
 
+	if err := alertRepository.EnsureIndexes(); err != nil {
+		log.Println("Failed to ensure alert indexes:", err)
+	} else {
+		log.Println("Alert indexes ensured successfully")
+	}
+
 
 	//mockAlertSource := sources.NewMockAlertSource()
 	externalSources := make([]sources.AlertSource, 0)
@@ -132,6 +138,7 @@ func main() {
 	} else {
 		log.Println("Alert sync scheduler disabled")
 	}
+	
 
 	passwordService := services.NewPasswordService()
 	jwtService := services.NewJWTService(cfg)

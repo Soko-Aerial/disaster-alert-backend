@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"disaster_alert_backend/internal/models"
+	"disaster_alert_backend/internal/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -53,6 +54,8 @@ func (r *AlertRepository) Create(alert models.Alert) (*models.Alert, error) {
 		alert.Status = "active"
 	}
 
+	alert.Location.Country = utils.NormalizeCountryCode(alert.Location.Country)
+
 	if alert.ExpiresAt == nil {
 		expiresAt := now.Add(7 * 24 * time.Hour)
 		alert.ExpiresAt = &expiresAt
@@ -72,6 +75,7 @@ func (r *AlertRepository) FindAll() ([]models.Alert, error) {
 
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "createdAt", Value: -1}})
+	findOptions.SetLimit(100)
 
 	cursor, err := r.collection.Find(ctx, bson.M{}, findOptions)
 	if err != nil {
@@ -98,7 +102,9 @@ func (r *AlertRepository) FindAll() ([]models.Alert, error) {
 }
 
 func (r *AlertRepository) FindActive() ([]models.Alert, error) {
-	return r.FindActiveWithFilters(AlertFilter{})
+	return r.FindActiveWithFilters(AlertFilter{
+		Limit: 100,
+	})
 }
 
 func (r *AlertRepository) FindActiveWithFilters(
@@ -110,10 +116,15 @@ func (r *AlertRepository) FindActiveWithFilters(
 	filter := buildActiveAlertFilter(filterOptions)
 
 	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "createdAt", Value: -1}})
+	findOptions.SetSort(bson.D{
+		{Key: "eventTime", Value: -1},
+		{Key: "createdAt", Value: -1},
+	})
 
 	if filterOptions.Limit > 0 {
 		findOptions.SetLimit(int64(filterOptions.Limit))
+	} else {
+		findOptions.SetLimit(50)
 	}
 
 	cursor, err := r.collection.Find(ctx, filter, findOptions)
@@ -209,12 +220,20 @@ func (r *AlertRepository) UpsertExternalAlert(
 
 	now := time.Now().UTC()
 
+	alert.Location.Country = utils.NormalizeCountryCode(alert.Location.Country)
+
 	if alert.Status == "" {
 		alert.Status = "active"
 	}
 
 	if alert.ExpiresAt == nil {
-		expiresAt := now.Add(7 * 24 * time.Hour)
+		baseTime := now
+
+		if alert.EventTime != nil {
+			baseTime = *alert.EventTime
+		}
+
+		expiresAt := baseTime.Add(7 * 24 * time.Hour)
 		alert.ExpiresAt = &expiresAt
 	}
 
@@ -272,6 +291,44 @@ func (r *AlertRepository) UpsertExternalAlert(
 	}
 
 	return &upsertedAlert, nil
+}
+
+func (r *AlertRepository) DeactivateExpiredExternalAlerts() (int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	now := time.Now().UTC()
+
+	filter := bson.M{
+		"sourceType": bson.M{
+			"$in": []string{
+				"external",
+				"external_api",
+				"weather",
+				"news",
+				"system",
+				"user_report",
+			},
+		},
+		"status": "active",
+		"expiresAt": bson.M{
+			"$lte": now,
+		},
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"status":    "expired",
+			"updatedAt": now,
+		},
+	}
+
+	result, err := r.collection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.ModifiedCount, nil
 }
 
 func (r *AlertRepository) FindActiveNearby(
@@ -342,6 +399,40 @@ func (r *AlertRepository) FindCriticalGlobal(
 	})
 }
 
+func (r *AlertRepository) EnsureIndexes() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	indexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "status", Value: 1},
+				{Key: "expiresAt", Value: 1},
+				{Key: "location.country", Value: 1},
+				{Key: "createdAt", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "eventTime", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "sourceType", Value: 1},
+				{Key: "sourceName", Value: 1},
+				{Key: "externalId", Value: 1},
+			},
+			Options: options.Index().
+				SetUnique(true).
+				SetSparse(true),
+		},
+	}
+
+	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
+	return err
+}
+
 func buildActiveAlertFilter(filterOptions AlertFilter) bson.M {
 	now := time.Now().UTC()
 
@@ -371,10 +462,15 @@ func buildActiveAlertFilter(filterOptions AlertFilter) bson.M {
 	}
 
 	if filterOptions.Country != "" {
-		filter["location.country"] = filterOptions.Country
+		filter["location.country"] = utils.NormalizeCountryCode(
+			filterOptions.Country,
+		)
 	} else if filterOptions.ExcludeCountry != "" {
 		filter["location.country"] = bson.M{
-			"$ne": filterOptions.ExcludeCountry,
+			"$ne": utils.NormalizeCountryCode(
+				filterOptions.ExcludeCountry,
+			),
+			"$exists": true,
 		}
 	}
 
@@ -406,41 +502,4 @@ func distanceKm(
 
 func degreesToRadians(value float64) float64 {
 	return value * math.Pi / 180
-}
-
-func (r *AlertRepository) DeactivateExpiredExternalAlerts() (int64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	now := time.Now().UTC()
-
-	filter := bson.M{
-		"sourceType": bson.M{
-			"$in": []string{
-				"external",
-				"external_api",
-				"weather",
-				"news",
-				"system",
-			},
-		},
-		"status": "active",
-		"expiresAt": bson.M{
-			"$lte": now,
-		},
-	}
-
-	update := bson.M{
-		"$set": bson.M{
-			"status":    "expired",
-			"updatedAt": now,
-		},
-	}
-
-	result, err := r.collection.UpdateMany(ctx, filter, update)
-	if err != nil {
-		return 0, err
-	}
-
-	return result.ModifiedCount, nil
 }
