@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	firebase.google.com/go/v4 v4.20.0
+	github.com/biter777/countries v1.7.5
 	github.com/cloudinary/cloudinary-go/v2 v2.15.0
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-gonic/gin v1.12.0
@@ -30,7 +31,6 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.56.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
-	github.com/biter777/countries v1.7.5 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
