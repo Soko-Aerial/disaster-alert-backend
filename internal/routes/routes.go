@@ -15,6 +15,7 @@ func RegisterRoutes(
 	router *gin.Engine,
 	authHandler *handlers.AuthHandler,
 	notificationHandler *handlers.NotificationHandler,
+	appNotificationHandler *handlers.AppNotificationHandler,
 	reportHandler *handlers.ReportHandler,
 	assistanceHandler *handlers.AssistanceHandler,
 	sosHandler *handlers.SOSHandler,
@@ -93,6 +94,11 @@ func RegisterRoutes(
 			notifications.POST("/token", notificationHandler.SaveFCMToken)
 			notifications.POST("/test/me", notificationHandler.SendTestToMe)
 			notifications.POST("/test/all", notificationHandler.SendTestToAll)
+
+			notifications.GET("", appNotificationHandler.GetMyNotifications)
+			notifications.GET("/unread-count", appNotificationHandler.GetUnreadCount)
+			notifications.PUT("/read", appNotificationHandler.MarkRead)
+			notifications.PUT("/read-all", appNotificationHandler.MarkAllRead)
 		}
 
 		reports := protected.Group("/reports")

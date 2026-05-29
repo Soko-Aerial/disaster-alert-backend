@@ -177,3 +177,35 @@ func (r *UserRepository) UpdateProfileDetailsByUserID(
 
 	return &updatedUser, nil
 }
+
+
+func (r *UserRepository) FindUsersByCountry(
+	country string,
+) ([]models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"location.country": country,
+	}
+
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	users := make([]models.User, 0)
+
+	for cursor.Next(ctx) {
+		var user models.User
+
+		if err := cursor.Decode(&user); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, cursor.Err()
+}

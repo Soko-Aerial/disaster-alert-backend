@@ -49,6 +49,7 @@ func main() {
 
 	userRepository := repositories.NewUserRepository(db.Database)
 	fcmTokenRepository := repositories.NewFCMTokenRepository(db.Database)
+	appNotificationRepository := repositories.NewAppNotificationRepository(db.Database)
 	reportRepository := repositories.NewReportRepository(db.Database)
 	assistanceRepository := repositories.NewAssistanceRepository(db.Database)
 	sosRepository := repositories.NewSOSRepository(db.Database)
@@ -63,6 +64,12 @@ func main() {
 		log.Println("Failed to ensure alert indexes:", err)
 	} else {
 		log.Println("Alert indexes ensured successfully")
+	}
+
+	if err := appNotificationRepository.EnsureIndexes(); err != nil {
+		log.Println("Failed to ensure app notification indexes:", err)
+	} else {
+		log.Println("App notification indexes ensured successfully")
 	}
 
 
@@ -153,6 +160,10 @@ func main() {
 		fcmTokenRepository,
 	)
 
+	appNotificationService := services.NewAppNotificationService(
+		appNotificationRepository,
+	)
+
 	firebaseMessagingService := services.NewFirebaseMessagingService(
 		firebaseApp.MessagingClient,
 		fcmTokenRepository,
@@ -178,7 +189,9 @@ func main() {
 	
 	alertService := services.NewAlertService(
 		alertRepository,
+		userRepository,
 		notificationQueue,
+		appNotificationService,
 	)
 
 	emergencyMessageService := services.NewEmergencyMessageService(
@@ -188,15 +201,6 @@ func main() {
 
 	alertPreferenceService := services.NewAlertPreferenceService(
 		alertPreferenceRepository,
-	)
-	
-
-	authHandler := handlers.NewAuthHandler(authService)
-
-	notificationHandler := handlers.NewNotificationHandler(
-		notificationService,
-		firebaseMessagingService,
-		notificationQueue,
 	)
 
 	emergencyContactService := services.NewEmergencyContactService(
@@ -216,6 +220,15 @@ func main() {
 		chatMessageRepo,
 	)
 
+	authHandler := handlers.NewAuthHandler(authService)
+		notificationHandler := handlers.NewNotificationHandler(
+		notificationService,
+		firebaseMessagingService,
+		notificationQueue,
+	)
+	appNotificationHandler := handlers.NewAppNotificationHandler(
+		appNotificationService,
+	)
 	reportHandler := handlers.NewReportHandler(reportService, cloudinaryService)
 	assistanceHandler := handlers.NewAssistanceHandler(assistanceService)
 	sosHandler := handlers.NewSOSHandler(sosService)
@@ -246,9 +259,11 @@ func main() {
 
 
 
+
 	router := app.SetupRouter(
 		authHandler,
 		notificationHandler,
+		appNotificationHandler,
 		reportHandler,
 		assistanceHandler,
 		sosHandler,

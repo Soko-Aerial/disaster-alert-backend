@@ -12,6 +12,7 @@ import (
 func SetupRouter(
 	authHandler *handlers.AuthHandler, 
 	notificationHandler *handlers.NotificationHandler,
+	appNotificationHandler *handlers.AppNotificationHandler,
 	reportHandler *handlers.ReportHandler,
 	assistanceHandler *handlers.AssistanceHandler,
 	sosHandler *handlers.SOSHandler,
@@ -40,6 +41,7 @@ func SetupRouter(
 		router, 
 		authHandler, 
 		notificationHandler, 
+		appNotificationHandler,
 		reportHandler, 
 		assistanceHandler, 
 		sosHandler,

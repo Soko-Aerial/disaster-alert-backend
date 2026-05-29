@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"disaster_alert_backend/internal/dto"
@@ -15,16 +16,22 @@ import (
 
 type AlertService struct {
 	alertRepo              *repositories.AlertRepository
+	userRepo               *repositories.UserRepository
 	notificationDispatcher NotificationDispatcher
+	appNotificationService *AppNotificationService
 }
 
 func NewAlertService(
 	alertRepo *repositories.AlertRepository,
+	userRepo *repositories.UserRepository,
 	notificationDispatcher NotificationDispatcher,
+	appNotificationService *AppNotificationService,
 ) *AlertService {
 	return &AlertService{
 		alertRepo:              alertRepo,
+		userRepo:               userRepo,
 		notificationDispatcher: notificationDispatcher,
+		appNotificationService: appNotificationService,
 	}
 }
 
@@ -39,17 +46,17 @@ func (s *AlertService) CreateAlert(
 
 	now := time.Now().UTC()
 
-	status := req.Status
+	status := strings.TrimSpace(req.Status)
 	if status == "" {
 		status = "active"
 	}
 
-	sourceType := req.SourceType
+	sourceType := strings.TrimSpace(req.SourceType)
 	if sourceType == "" {
 		sourceType = "internal"
 	}
 
-	sourceName := req.SourceName
+	sourceName := strings.TrimSpace(req.SourceName)
 	if sourceName == "" {
 		sourceName = "manual"
 	}
@@ -73,24 +80,24 @@ func (s *AlertService) CreateAlert(
 	}
 
 	alert := models.Alert{
-		Title:       req.Title,
-		Description: req.Description,
-		Category:    req.Category,
-		Severity:    req.Severity,
+		Title:       strings.TrimSpace(req.Title),
+		Description: strings.TrimSpace(req.Description),
+		Category:    strings.TrimSpace(req.Category),
+		Severity:    strings.TrimSpace(req.Severity),
 		Status:      status,
 		Location: models.AlertLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
-			Address:   req.Address,
-			Country:   req.Country,
-			Region:    req.Region,
+			Address:   strings.TrimSpace(req.Address),
+			Country:   strings.TrimSpace(req.Country),
+			Region:    strings.TrimSpace(req.Region),
 		},
 		RadiusKm:           radiusKm,
 		SafetyInstructions: req.SafetyInstructions,
 		SourceType:         sourceType,
 		SourceName:         sourceName,
-		ExternalID:         req.ExternalID,
-		SourceURL:          req.SourceURL,
+		ExternalID:         strings.TrimSpace(req.ExternalID),
+		SourceURL:          strings.TrimSpace(req.SourceURL),
 		CreatedBy:          &creatorID,
 		EventTime:          eventTime,
 		ExpiresAt:          expiresAt,
@@ -105,7 +112,7 @@ func (s *AlertService) CreateAlert(
 	}
 
 	if createdAlert.Status == "active" {
-		s.queueAlertNotification(createdAlert)
+		go s.notifyUsersInAlertCountry(createdAlert)
 	}
 
 	return createdAlert, nil
@@ -129,7 +136,7 @@ func (s *AlertService) GetLocalAlerts(
 	country string,
 	limit int,
 ) ([]models.Alert, error) {
-	if country == "" {
+	if strings.TrimSpace(country) == "" {
 		return []models.Alert{}, nil
 	}
 
@@ -170,7 +177,7 @@ func (s *AlertService) GetWeatherAlerts(
 		Limit:    limit,
 	}
 
-	if country != "" {
+	if strings.TrimSpace(country) != "" {
 		filter.Country = country
 	}
 
@@ -190,7 +197,7 @@ func (s *AlertService) GetHealthAlerts(
 		Limit:    limit,
 	}
 
-	if country != "" {
+	if strings.TrimSpace(country) != "" {
 		filter.Country = country
 	}
 
@@ -221,7 +228,7 @@ func (s *AlertService) UpdateAlertStatus(
 	}
 
 	if updatedAlert.Status == "active" {
-		s.queueAlertNotification(updatedAlert)
+		go s.notifyUsersInAlertCountry(updatedAlert)
 	}
 
 	return updatedAlert, nil
@@ -276,39 +283,89 @@ func (s *AlertService) GetCriticalGlobalAlerts(
 	return s.alertRepo.FindCriticalGlobal(limit)
 }
 
-func (s *AlertService) queueAlertNotification(alert *models.Alert) {
-	if s.notificationDispatcher == nil {
+func (s *AlertService) notifyUsersInAlertCountry(alert *models.Alert) {
+	if alert == nil {
 		return
 	}
 
-	title := alert.Title
-	body := alert.Description
+	if s.userRepo == nil {
+		return
+	}
 
+	country := strings.TrimSpace(alert.Location.Country)
+	if country == "" {
+		return
+	}
+
+	users, err := s.userRepo.FindUsersByCountry(country)
+	if err != nil {
+		return
+	}
+
+	if len(users) == 0 {
+		return
+	}
+
+	title := strings.TrimSpace(alert.Title)
+	if title == "" {
+		title = "New Disaster Alert"
+	}
+
+	body := strings.TrimSpace(alert.Description)
 	if body == "" {
-		body = "New disaster alert near your area"
+		body = "A new emergency alert has been issued in your country."
 	}
 
-	queued := s.notificationDispatcher.Dispatch(jobs.NotificationJob{
-		TargetType: jobs.TargetAll,
-		Title:      title,
-		Body:       body,
-		Data: map[string]string{
-			"type":      "alert",
-			"alertId":   alert.ID.Hex(),
-			"category":  alert.Category,
-			"severity":  alert.Severity,
-			"source":    alert.SourceName,
-			"latitude":  floatToString(alert.Location.Latitude),
-			"longitude": floatToString(alert.Location.Longitude),
-		},
-	})
+	data := map[string]string{
+		"type":        "alert",
+		"referenceId": alert.ID.Hex(),
+		"alertId":     alert.ID.Hex(),
+		"category":    alert.Category,
+		"severity":    alert.Severity,
+		"source":      alert.SourceName,
+		"country":     alert.Location.Country,
+		"latitude":    floatToString(alert.Location.Latitude),
+		"longitude":   floatToString(alert.Location.Longitude),
+	}
 
-	if !queued {
+	userIDs := make([]primitive.ObjectID, 0, len(users))
+
+	for _, user := range users {
+		if user.ID.IsZero() {
+			continue
+		}
+
+		userIDs = append(userIDs, user.ID)
+
+		if s.notificationDispatcher != nil {
+			s.notificationDispatcher.Dispatch(jobs.NotificationJob{
+				TargetType: jobs.TargetUser,
+				UserID:     user.ID.Hex(),
+				Title:      title,
+				Body:       body,
+				Data:       data,
+			})
+		}
+	}
+
+	if len(userIDs) == 0 {
 		return
+	}
+
+	if s.appNotificationService != nil {
+		_ = s.appNotificationService.CreateManyForUsers(
+			userIDs,
+			title,
+			body,
+			"alert",
+			alert.ID.Hex(),
+			data,
+		)
 	}
 }
 
 func parseOptionalTime(value string) *time.Time {
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil
 	}
