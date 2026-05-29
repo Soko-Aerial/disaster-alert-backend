@@ -425,7 +425,13 @@ func (r *AlertRepository) EnsureIndexes() error {
 			},
 			Options: options.Index().
 				SetUnique(true).
-				SetSparse(true),
+				SetPartialFilterExpression(bson.M{
+					"externalId": bson.M{
+						"$exists": true,
+						"$type":   "string",
+						"$ne":     "",
+					},
+				}),
 		},
 	}
 
