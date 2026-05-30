@@ -192,10 +192,12 @@ func main() {
 	reportService := services.NewReportService(
 		reportRepository,
 		alertRepository,
+		eventNotificationService,
 	)
 
 	assistanceService := services.NewAssistanceService(
 		assistanceRepository,
+		eventNotificationService,
 	)
 
 	sosService := services.NewSOSService(
@@ -240,6 +242,7 @@ func main() {
 	chatService := services.NewChatService(
 		conversationRepo,
 		chatMessageRepo,
+		eventNotificationService,
 	)
 
 	// Handlers

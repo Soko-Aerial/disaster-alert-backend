@@ -13,17 +13,20 @@ import (
 )
 
 type ChatService struct {
-	conversationRepo *repositories.ConversationRepository
-	messageRepo      *repositories.ChatMessageRepository
+	conversationRepo         *repositories.ConversationRepository
+	messageRepo              *repositories.ChatMessageRepository
+	eventNotificationService *EventNotificationService
 }
 
 func NewChatService(
 	conversationRepo *repositories.ConversationRepository,
 	messageRepo *repositories.ChatMessageRepository,
+	eventNotificationService *EventNotificationService,
 ) *ChatService {
 	return &ChatService{
-		conversationRepo: conversationRepo,
-		messageRepo:      messageRepo,
+		conversationRepo:         conversationRepo,
+		messageRepo:              messageRepo,
+		eventNotificationService: eventNotificationService,
 	}
 }
 
@@ -103,15 +106,25 @@ func (s *ChatService) CreateConversation(
 
 func (s *ChatService) GetUserConversations(
 	userID primitive.ObjectID,
+	role string,
 ) ([]models.Conversation, error) {
+	if isStaffRole(role) {
+		return s.conversationRepo.FindAll()
+	}
+
 	return s.conversationRepo.FindByUserID(userID)
 }
 
 func (s *ChatService) GetConversationMessages(
 	userID primitive.ObjectID,
 	conversationID primitive.ObjectID,
+	role string,
 ) ([]models.ChatMessage, error) {
-	_, err := s.conversationRepo.FindByID(conversationID, userID)
+	_, err := s.conversationRepo.FindByIDWithAccess(
+		conversationID,
+		userID,
+		role,
+	)
 	if err != nil {
 		return nil, errors.New("conversation not found")
 	}
@@ -130,7 +143,16 @@ func (s *ChatService) SendMessage(
 		return nil, errors.New("message is required")
 	}
 
-	_, err := s.conversationRepo.FindByID(conversationID, userID)
+	cleanRole := strings.TrimSpace(role)
+	if cleanRole == "" {
+		cleanRole = "user"
+	}
+
+	conversation, err := s.conversationRepo.FindByIDWithAccess(
+		conversationID,
+		userID,
+		cleanRole,
+	)
 	if err != nil {
 		return nil, errors.New("conversation not found")
 	}
@@ -140,7 +162,7 @@ func (s *ChatService) SendMessage(
 	message := models.ChatMessage{
 		ConversationID: conversationID,
 		SenderID:       userID,
-		SenderRole:     role,
+		SenderRole:     cleanRole,
 		Message:        messageText,
 		Status:         "sent",
 	}
@@ -156,15 +178,29 @@ func (s *ChatService) SendMessage(
 		now,
 	)
 
+	if s.eventNotificationService != nil {
+		s.notifyChatReceiverAsync(
+			conversation,
+			userID,
+			cleanRole,
+			messageText,
+		)
+	}
+
 	return createdMessage, nil
 }
 
 func (s *ChatService) MarkConversationRead(
 	userID primitive.ObjectID,
 	conversationID primitive.ObjectID,
+	role string,
 	req dto.MarkConversationReadRequest,
 ) error {
-	_, err := s.conversationRepo.FindByID(conversationID, userID)
+	_, err := s.conversationRepo.FindByIDWithAccess(
+		conversationID,
+		userID,
+		role,
+	)
 	if err != nil {
 		return errors.New("conversation not found")
 	}
@@ -189,4 +225,66 @@ func (s *ChatService) MarkConversationRead(
 		userID,
 		messageIDs,
 	)
+}
+
+func (s *ChatService) notifyChatReceiverAsync(
+	conversation *models.Conversation,
+	senderID primitive.ObjectID,
+	senderRole string,
+	messageText string,
+) {
+	if conversation == nil {
+		return
+	}
+
+	role := strings.ToLower(strings.TrimSpace(senderRole))
+
+	// Admin/responder reply should notify the user who owns the conversation.
+	if isStaffRole(role) {
+		if conversation.UserID.IsZero() || conversation.UserID == senderID {
+			return
+		}
+
+		go s.eventNotificationService.NotifyUserForChatResponse(
+			conversation.UserID,
+			conversation.ID,
+			"Emergency Response",
+			shortMessagePreview(messageText),
+		)
+
+		return
+	}
+
+	// Fallback for future multi-participant conversations.
+	for _, participantID := range conversation.ParticipantIDs {
+		if participantID.IsZero() || participantID == senderID {
+			continue
+		}
+
+		go s.eventNotificationService.NotifyUserForChatResponse(
+			participantID,
+			conversation.ID,
+			"Emergency Chat",
+			shortMessagePreview(messageText),
+		)
+	}
+}
+
+func shortMessagePreview(message string) string {
+	message = strings.TrimSpace(message)
+
+	if len(message) <= 120 {
+		return message
+	}
+
+	return message[:120] + "..."
+}
+
+func isStaffRole(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "admin", "super_admin", "responder":
+		return true
+	default:
+		return false
+	}
 }

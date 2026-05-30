@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"disaster_alert_backend/internal/dto"
@@ -12,14 +13,17 @@ import (
 )
 
 type AssistanceService struct {
-	assistanceRepo *repositories.AssistanceRepository
+	assistanceRepo          *repositories.AssistanceRepository
+	eventNotificationService *EventNotificationService
 }
 
 func NewAssistanceService(
 	assistanceRepo *repositories.AssistanceRepository,
+	eventNotificationService *EventNotificationService,
 ) *AssistanceService {
 	return &AssistanceService{
-		assistanceRepo: assistanceRepo,
+		assistanceRepo:          assistanceRepo,
+		eventNotificationService: eventNotificationService,
 	}
 }
 
@@ -32,25 +36,52 @@ func (s *AssistanceService) CreateAssistanceRequest(
 		return nil, errors.New("invalid user id")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	assistanceRequest := models.AssistanceRequest{
 		UserID:             objectID,
-		AssistanceType:     req.AssistanceType,
-		UrgencyLevel:        req.UrgencyLevel,
+		AssistanceType:     strings.TrimSpace(req.AssistanceType),
+		UrgencyLevel:        strings.TrimSpace(req.UrgencyLevel),
 		AffectedIndividuals: req.AffectedIndividuals,
-		OtherInformation:    req.OtherInformation,
+		OtherInformation:    strings.TrimSpace(req.OtherInformation),
 		Location: models.AssistanceLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
-			Address:   req.Address,
+			Address:   strings.TrimSpace(req.Address),
 		},
 		Status:    "pending",
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 
-	return s.assistanceRepo.Create(assistanceRequest)
+	createdRequest, err := s.assistanceRepo.Create(assistanceRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.eventNotificationService != nil {
+		locationText := strings.TrimSpace(createdRequest.Location.Address)
+		if locationText == "" {
+			locationText = "Lat: " +
+				floatToString(createdRequest.Location.Latitude) +
+				", Lng: " +
+				floatToString(createdRequest.Location.Longitude)
+		}
+
+		assistanceType := createdRequest.AssistanceType
+		if assistanceType == "" {
+			assistanceType = "assistance"
+		}
+
+		go s.eventNotificationService.NotifyAdminsForAssistance(
+			createdRequest.ID,
+			"User",
+			assistanceType,
+			locationText,
+		)
+	}
+
+	return createdRequest, nil
 }
 
 func (s *AssistanceService) GetAssistanceRequests() ([]models.AssistanceRequest, error) {

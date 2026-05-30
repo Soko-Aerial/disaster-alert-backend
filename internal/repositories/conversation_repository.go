@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"time"
+	"strings"
 
 	"disaster_alert_backend/internal/models"
 
@@ -153,4 +154,64 @@ func (r *ConversationRepository) FindUserConversationByType(
 	}
 
 	return &conversation, nil
+}
+
+func isConversationStaffRole(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "admin", "super_admin", "responder":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *ConversationRepository) FindByIDWithAccess(
+	id primitive.ObjectID,
+	userID primitive.ObjectID,
+	role string,
+) (*models.Conversation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"_id": id,
+	}
+
+	if !isConversationStaffRole(role) {
+		filter["userId"] = userID
+	}
+
+	var conversation models.Conversation
+
+	err := r.collection.FindOne(ctx, filter).Decode(&conversation)
+	if err != nil {
+		return nil, err
+	}
+
+	return &conversation, nil
+}
+
+func (r *ConversationRepository) FindAll() ([]models.Conversation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := r.collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	conversations := make([]models.Conversation, 0)
+
+	for cursor.Next(ctx) {
+		var conversation models.Conversation
+
+		if err := cursor.Decode(&conversation); err != nil {
+			return nil, err
+		}
+
+		conversations = append(conversations, conversation)
+	}
+
+	return conversations, cursor.Err()
 }

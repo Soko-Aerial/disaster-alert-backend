@@ -6,6 +6,7 @@ import (
 
 	"disaster_alert_backend/internal/jobs"
 	"disaster_alert_backend/internal/repositories"
+	"disaster_alert_backend/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -265,4 +266,56 @@ func buildEventBody(
 	}
 
 	return fmt.Sprintf("%s submitted a %s request at %s.", name, event, location)
+}
+
+func (s *EventNotificationService) NotifyUsersForApprovedAlert(
+	alert *models.Alert,
+) {
+	if alert == nil || alert.ID.IsZero() {
+		return
+	}
+
+	country := strings.TrimSpace(alert.Location.Country)
+	if country == "" {
+		return
+	}
+
+	users, err := s.userRepo.FindUsersByCountry(country)
+	if err != nil {
+		return
+	}
+
+	title := strings.TrimSpace(alert.Title)
+	if title == "" {
+		title = "New Disaster Alert"
+	}
+
+	body := strings.TrimSpace(alert.Description)
+	if body == "" {
+		body = "A verified alert has been issued in your country."
+	}
+
+	data := map[string]string{
+		"type":        "alert",
+		"referenceId": alert.ID.Hex(),
+		"alertId":     alert.ID.Hex(),
+		"category":    alert.Category,
+		"severity":    alert.Severity,
+		"country":     country,
+	}
+
+	for _, user := range users {
+		if user.ID.IsZero() {
+			continue
+		}
+
+		s.notifyUser(
+			user.ID,
+			title,
+			body,
+			"alert",
+			alert.ID.Hex(),
+			data,
+		)
+	}
 }

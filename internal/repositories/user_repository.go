@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"time"
+	"regexp"
+	"strings"
 
 	"disaster_alert_backend/internal/models"
 
@@ -185,8 +187,19 @@ func (r *UserRepository) FindUsersByCountry(
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	country = strings.TrimSpace(country)
+	if country == "" {
+		return []models.User{}, nil
+	}
+
 	filter := bson.M{
-		"location.country": country,
+		"location.country": bson.M{
+			"$regex":   "^" + regexp.QuoteMeta(country) + "$",
+			"$options": "i",
+		},
+		"role": bson.M{
+			"$nin": []string{"admin", "super_admin"},
+		},
 	}
 
 	cursor, err := r.collection.Find(ctx, filter)

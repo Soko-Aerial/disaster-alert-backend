@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"disaster_alert_backend/internal/dto"
@@ -12,14 +13,20 @@ import (
 )
 
 type ReportService struct {
-	reportRepo *repositories.ReportRepository
-	alertRepo  *repositories.AlertRepository
+	reportRepo               *repositories.ReportRepository
+	alertRepo                *repositories.AlertRepository
+	eventNotificationService *EventNotificationService
 }
 
-func NewReportService(reportRepo *repositories.ReportRepository, alertRepo *repositories.AlertRepository) *ReportService {
+func NewReportService(
+	reportRepo *repositories.ReportRepository,
+	alertRepo *repositories.AlertRepository,
+	eventNotificationService *EventNotificationService,
+) *ReportService {
 	return &ReportService{
-		reportRepo: reportRepo,
-		alertRepo:  alertRepo,
+		reportRepo:               reportRepo,
+		alertRepo:                alertRepo,
+		eventNotificationService: eventNotificationService,
 	}
 }
 
@@ -32,19 +39,19 @@ func (s *ReportService) CreateReport(
 		return nil, errors.New("invalid user id")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	report := models.Report{
 		UserID:           objectID,
-		Category:         req.Category,
-		Description:      req.Description,
+		Category:         strings.TrimSpace(req.Category),
+		Description:      strings.TrimSpace(req.Description),
 		TimeOfOccurrence: req.TimeOfOccurrence,
 		Location: models.ReportLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
-			Address:   req.Address,
-			Country:   req.Country,
-			Region:    req.Region,
+			Address:   strings.TrimSpace(req.Address),
+			Country:   strings.TrimSpace(req.Country),
+			Region:    strings.TrimSpace(req.Region),
 		},
 		MediaURLs: req.MediaURLs,
 		Media:     req.Media,
@@ -53,7 +60,34 @@ func (s *ReportService) CreateReport(
 		UpdatedAt: now,
 	}
 
-	return s.reportRepo.Create(report)
+	createdReport, err := s.reportRepo.Create(report)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.eventNotificationService != nil {
+		locationText := strings.TrimSpace(createdReport.Location.Address)
+		if locationText == "" {
+			locationText = "Lat: " +
+				floatToString(createdReport.Location.Latitude) +
+				", Lng: " +
+				floatToString(createdReport.Location.Longitude)
+		}
+
+		reportType := createdReport.Category
+		if reportType == "" {
+			reportType = "incident"
+		}
+
+		go s.eventNotificationService.NotifyAdminsForReport(
+			createdReport.ID,
+			"User",
+			reportType,
+			locationText,
+		)
+	}
+
+	return createdReport, nil
 }
 
 func (s *ReportService) GetReports() ([]models.Report, error) {
@@ -121,6 +155,10 @@ func (s *ReportService) ApproveReport(
 	createdAlert, err := s.alertRepo.Create(alert)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.eventNotificationService != nil {
+		go s.eventNotificationService.NotifyUsersForApprovedAlert(createdAlert)
 	}
 
 	return createdAlert, nil

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/services"
@@ -55,9 +56,19 @@ func (h *ChatHandler) GetConversations(c *gin.Context) {
 		return
 	}
 
-	conversations, err := h.chatService.GetUserConversations(userID)
+	role := getRoleFromContext(c)
+
+	conversations, err := h.chatService.GetUserConversations(
+		userID,
+		role,
+	)
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch conversations", err)
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch conversations",
+			err,
+		)
 		return
 	}
 
@@ -76,13 +87,19 @@ func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 		return
 	}
 
+	role := getRoleFromContext(c)
+
 	conversationID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid conversation ID", err)
 		return
 	}
 
-	messages, err := h.chatService.GetConversationMessages(userID, conversationID)
+	messages, err := h.chatService.GetConversationMessages(
+		userID,
+		conversationID,
+		role,
+	)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, err.Error(), err)
 		return
@@ -103,12 +120,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	roleValue, _ := c.Get("role")
-	role, _ := roleValue.(string)
-
-	if role == "" {
-		role = "user"
-	}
+	role := getRoleFromContext(c)
 
 	conversationID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -122,7 +134,12 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	message, err := h.chatService.SendMessage(userID, conversationID, role, req)
+	message, err := h.chatService.SendMessage(
+		userID,
+		conversationID,
+		role,
+		req,
+	)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, err.Error(), err)
 		return
@@ -143,6 +160,8 @@ func (h *ChatHandler) MarkConversationRead(c *gin.Context) {
 		return
 	}
 
+	role := getRoleFromContext(c)
+
 	conversationID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid conversation ID", err)
@@ -155,7 +174,12 @@ func (h *ChatHandler) MarkConversationRead(c *gin.Context) {
 		return
 	}
 
-	if err := h.chatService.MarkConversationRead(userID, conversationID, req); err != nil {
+	if err := h.chatService.MarkConversationRead(
+		userID,
+		conversationID,
+		role,
+		req,
+	); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, err.Error(), err)
 		return
 	}
@@ -166,4 +190,22 @@ func (h *ChatHandler) MarkConversationRead(c *gin.Context) {
 		"Messages marked as read",
 		nil,
 	)
+}
+
+func getRoleFromContext(c *gin.Context) string {
+	roleValue, exists := c.Get("role")
+	if exists {
+		if role, ok := roleValue.(string); ok && strings.TrimSpace(role) != "" {
+			return strings.TrimSpace(role)
+		}
+	}
+
+	userRoleValue, exists := c.Get("userRole")
+	if exists {
+		if role, ok := userRoleValue.(string); ok && strings.TrimSpace(role) != "" {
+			return strings.TrimSpace(role)
+		}
+	}
+
+	return "user"
 }
