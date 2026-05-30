@@ -426,10 +426,10 @@ func (r *AlertRepository) EnsureIndexes() error {
 			Options: options.Index().
 				SetUnique(true).
 				SetPartialFilterExpression(bson.M{
+					"sourceType": "external",
 					"externalId": bson.M{
-						"$exists": true,
-						"$type":   "string",
-						"$ne":     "",
+						"$type": "string",
+						"$gt":   "",
 					},
 				}),
 		},

@@ -5,20 +5,20 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
-	"strings"
 
 	"disaster_alert_backend/config"
+	"disaster_alert_backend/internal/aggregator"
 	"disaster_alert_backend/internal/app"
 	"disaster_alert_backend/internal/database"
 	"disaster_alert_backend/internal/handlers"
 	"disaster_alert_backend/internal/queue"
 	"disaster_alert_backend/internal/repositories"
-	"disaster_alert_backend/internal/services"
-	"disaster_alert_backend/internal/aggregator"
-	"disaster_alert_backend/internal/sources"
 	"disaster_alert_backend/internal/scheduler"
+	"disaster_alert_backend/internal/services"
+	"disaster_alert_backend/internal/sources"
 )
 
 func main() {
@@ -47,19 +47,24 @@ func main() {
 		log.Fatal("Failed to initialize Cloudinary:", err)
 	}
 
+	// Repositories
 	userRepository := repositories.NewUserRepository(db.Database)
 	fcmTokenRepository := repositories.NewFCMTokenRepository(db.Database)
 	appNotificationRepository := repositories.NewAppNotificationRepository(db.Database)
+
 	reportRepository := repositories.NewReportRepository(db.Database)
 	assistanceRepository := repositories.NewAssistanceRepository(db.Database)
 	sosRepository := repositories.NewSOSRepository(db.Database)
 	alertRepository := repositories.NewAlertRepository(db.Database)
+
 	emergencyContactRepository := repositories.NewEmergencyContactRepository(db.Database)
 	emergencyMessageRepository := repositories.NewEmergencyMessageRepository(db.Database)
 	alertPreferenceRepository := repositories.NewAlertPreferenceRepository(db.Database)
+
 	conversationRepo := repositories.NewConversationRepository(db.Database)
 	chatMessageRepo := repositories.NewChatMessageRepository(db.Database)
 
+	// Indexes
 	if err := alertRepository.EnsureIndexes(); err != nil {
 		log.Println("Failed to ensure alert indexes:", err)
 	} else {
@@ -72,8 +77,7 @@ func main() {
 		log.Println("App notification indexes ensured successfully")
 	}
 
-
-	//mockAlertSource := sources.NewMockAlertSource()
+	// External alert sources
 	externalSources := make([]sources.AlertSource, 0)
 
 	if isEnabled(cfg.GDACSEnabled) {
@@ -145,8 +149,8 @@ func main() {
 	} else {
 		log.Println("Alert sync scheduler disabled")
 	}
-	
 
+	// Core services
 	passwordService := services.NewPasswordService()
 	jwtService := services.NewJWTService(cfg)
 
@@ -158,10 +162,6 @@ func main() {
 
 	notificationService := services.NewNotificationService(
 		fcmTokenRepository,
-	)
-
-	appNotificationService := services.NewAppNotificationService(
-		appNotificationRepository,
 	)
 
 	firebaseMessagingService := services.NewFirebaseMessagingService(
@@ -178,15 +178,37 @@ func main() {
 	notificationQueue.Start(ctx)
 	defer notificationQueue.Stop()
 
-	reportService := services.NewReportService(reportRepository, alertRepository)
-	assistanceService := services.NewAssistanceService(assistanceRepository)
-	sosService := services.NewSOSService(sosRepository)
+	appNotificationService := services.NewAppNotificationService(
+		appNotificationRepository,
+	)
+
+	eventNotificationService := services.NewEventNotificationService(
+		userRepository,
+		notificationQueue,
+		appNotificationService,
+	)
+
+	// Feature services
+	reportService := services.NewReportService(
+		reportRepository,
+		alertRepository,
+	)
+
+	assistanceService := services.NewAssistanceService(
+		assistanceRepository,
+	)
+
+	sosService := services.NewSOSService(
+		sosRepository,
+		eventNotificationService,
+	)
+
 	weatherService := services.NewWeatherService(
 		cfg.OpenWeatherAPIKey,
 		isEnabled(cfg.OpenWeatherEnabled),
 		alertRepository,
 	)
-	
+
 	alertService := services.NewAlertService(
 		alertRepository,
 		userRepository,
@@ -220,29 +242,60 @@ func main() {
 		chatMessageRepo,
 	)
 
+	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
-		notificationHandler := handlers.NewNotificationHandler(
+
+	notificationHandler := handlers.NewNotificationHandler(
 		notificationService,
 		firebaseMessagingService,
 		notificationQueue,
 	)
+
 	appNotificationHandler := handlers.NewAppNotificationHandler(
 		appNotificationService,
 	)
-	reportHandler := handlers.NewReportHandler(reportService, cloudinaryService)
-	assistanceHandler := handlers.NewAssistanceHandler(assistanceService)
-	sosHandler := handlers.NewSOSHandler(sosService)
-	alertHandler := handlers.NewAlertHandler(alertService)
-	aggregatorHandler := handlers.NewAggregatorHandler(alertAggregator)
-	weatherHandler := handlers.NewWeatherHandler(weatherService)
-	cleanupHandler := handlers.NewCleanupHandler(alertRepository)
-	externalSourceHandler := handlers.NewExternalSourceHandler(cfg)
+
+	reportHandler := handlers.NewReportHandler(
+		reportService,
+		cloudinaryService,
+	)
+
+	assistanceHandler := handlers.NewAssistanceHandler(
+		assistanceService,
+	)
+
+	sosHandler := handlers.NewSOSHandler(
+		sosService,
+	)
+
+	alertHandler := handlers.NewAlertHandler(
+		alertService,
+	)
+
+	aggregatorHandler := handlers.NewAggregatorHandler(
+		alertAggregator,
+	)
+
+	weatherHandler := handlers.NewWeatherHandler(
+		weatherService,
+	)
+
+	cleanupHandler := handlers.NewCleanupHandler(
+		alertRepository,
+	)
+
+	externalSourceHandler := handlers.NewExternalSourceHandler(
+		cfg,
+	)
+
 	emergencyContactHandler := handlers.NewEmergencyContactHandler(
 		emergencyContactService,
 	)
+
 	emergencyMessageHandler := handlers.NewEmergencyMessageHandler(
 		emergencyMessageService,
 	)
+
 	alertPreferenceHandler := handlers.NewAlertPreferenceHandler(
 		alertPreferenceService,
 	)
@@ -255,10 +308,9 @@ func main() {
 		userProfileDetailsService,
 	)
 
-	chatHandler := handlers.NewChatHandler(chatService)
-
-
-
+	chatHandler := handlers.NewChatHandler(
+		chatService,
+	)
 
 	router := app.SetupRouter(
 		authHandler,
@@ -280,7 +332,6 @@ func main() {
 		chatHandler,
 		jwtService,
 	)
-
 
 	port := os.Getenv("PORT")
 	if port == "" {

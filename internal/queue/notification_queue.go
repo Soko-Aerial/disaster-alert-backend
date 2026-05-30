@@ -7,7 +7,6 @@ import (
 
 	"disaster_alert_backend/internal/jobs"
 	"disaster_alert_backend/internal/services"
-	
 )
 
 type NotificationQueue struct {

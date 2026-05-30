@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"disaster_alert_backend/internal/dto"
@@ -12,12 +13,17 @@ import (
 )
 
 type SOSService struct {
-	sosRepo *repositories.SOSRepository
+	sosRepo                  *repositories.SOSRepository
+	eventNotificationService *EventNotificationService
 }
 
-func NewSOSService(sosRepo *repositories.SOSRepository) *SOSService {
+func NewSOSService(
+	sosRepo *repositories.SOSRepository,
+	eventNotificationService *EventNotificationService,
+) *SOSService {
 	return &SOSService{
-		sosRepo: sosRepo,
+		sosRepo:                  sosRepo,
+		eventNotificationService: eventNotificationService,
 	}
 }
 
@@ -30,16 +36,16 @@ func (s *SOSService) CreateSOSRequest(
 		return nil, errors.New("invalid user id")
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	sos := models.SOSRequest{
 		UserID:        objectID,
-		EmergencyType: req.EmergencyType,
-		Message:       req.Message,
+		EmergencyType: strings.TrimSpace(req.EmergencyType),
+		Message:       strings.TrimSpace(req.Message),
 		Location: models.SOSLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
-			Address:   req.Address,
+			Address:   strings.TrimSpace(req.Address),
 			Accuracy:  req.Accuracy,
 		},
 		Status:         "active",
@@ -48,7 +54,29 @@ func (s *SOSService) CreateSOSRequest(
 		UpdatedAt:     now,
 	}
 
-	return s.sosRepo.Create(sos)
+	createdSOS, err := s.sosRepo.Create(sos)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.eventNotificationService != nil {
+		locationText := strings.TrimSpace(createdSOS.Location.Address)
+		if locationText == "" {
+			locationText = "Lat: " +
+				floatToString(createdSOS.Location.Latitude) +
+				", Lng: " +
+				floatToString(createdSOS.Location.Longitude)
+		}
+
+		go s.eventNotificationService.NotifyAdminsForSOS(
+			createdSOS.ID,
+			"User",
+			createdSOS.EmergencyType,
+			locationText,
+		)
+	}
+
+	return createdSOS, nil
 }
 
 func (s *SOSService) GetSOSRequests() ([]models.SOSRequest, error) {
