@@ -75,6 +75,8 @@ func RegisterRoutes(
 	weather := api.Group("/weather")
 	{
 		weather.GET("/alerts", weatherHandler.GetWeatherAlerts)
+		weather.GET("/current", weatherHandler.GetCurrentWeather)
+		weather.GET("/forecast", weatherHandler.GetWeatherForecast)
 	}
 
 	externalSources := api.Group("/external-sources")
