@@ -38,6 +38,8 @@ type Config struct{
 	CloudinaryAPIKey       string
 	CloudinaryAPISecret    string
 	CloudinaryUploadFolder string
+	GNewsAPIKey  		   string
+	GNewsEnabled 		   string
 	AlertSyncEnabled             string
 	AlertSyncInitialDelaySeconds int
 	AlertSyncIntervalMinutes     int
@@ -79,6 +81,8 @@ func LoadConfig() *Config {
 		CloudinaryAPIKey:       getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "disaster_alert/reports"),
+		GNewsAPIKey: 			getEnv("GNEWS_API_KEY", ""),
+		GNewsEnabled: 			getEnv("GNEWS_ENABLED", ""),
 		AlertSyncEnabled:             getEnv("ALERT_SYNC_ENABLED", "true"),
 		AlertSyncInitialDelaySeconds: getEnvAsInt("ALERT_SYNC_INITIAL_DELAY_SECONDS", 120),
 		AlertSyncIntervalMinutes:     getEnvAsInt("ALERT_SYNC_INTERVAL_MINUTES", 30),

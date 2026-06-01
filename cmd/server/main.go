@@ -211,6 +211,11 @@ func main() {
 		alertRepository,
 	)
 
+	newsService := services.NewNewsService(
+		cfg.GNewsAPIKey,
+		isEnabled(cfg.GNewsEnabled),
+	)
+
 	alertService := services.NewAlertService(
 		alertRepository,
 		userRepository,
@@ -283,6 +288,8 @@ func main() {
 		weatherService,
 	)
 
+	newsHandler := handlers.NewNewsHandler(newsService)
+
 	cleanupHandler := handlers.NewCleanupHandler(
 		alertRepository,
 	)
@@ -333,6 +340,7 @@ func main() {
 		userLocationHandler,
 		userProfileDetailsHandler,
 		chatHandler,
+		newsHandler,
 		jwtService,
 	)
 

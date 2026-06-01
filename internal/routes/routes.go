@@ -30,6 +30,7 @@ func RegisterRoutes(
 	userLocationHandler *handlers.UserLocationHandler,
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
 	chatHandler *handlers.ChatHandler,
+	newsHandler *handlers.NewsHandler,
 	jwtService *services.JWTService,
 ) {
 
@@ -78,6 +79,12 @@ func RegisterRoutes(
 		weather.GET("/current", weatherHandler.GetCurrentWeather)
 		weather.GET("/forecast", weatherHandler.GetWeatherForecast)
 	}
+
+	news := api.Group("/news")
+	{
+		news.GET("", newsHandler.GetNews)
+	}
+
 
 	externalSources := api.Group("/external-sources")
 	{
