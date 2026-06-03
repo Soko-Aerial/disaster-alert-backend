@@ -32,6 +32,7 @@ func RegisterRoutes(
 	chatHandler *handlers.ChatHandler,
 	newsHandler *handlers.NewsHandler,
 	jwtService *services.JWTService,
+	adminAPIKey string,
 ) {
 
 	router.GET("/health", func(c *gin.Context) {
@@ -90,6 +91,73 @@ func RegisterRoutes(
 	{
 		externalSources.GET("/status", externalSourceHandler.GetExternalSourceStatus)
 	}
+
+	// -------------------------
+	// ADMIN API ROUTE
+	// -------------------------
+
+	admin := api.Group("/admin")
+		admin.Use(middleware.AdminAPIKeyMiddleware(adminAPIKey))
+		{
+			adminReports := admin.Group("/reports")
+			{
+				adminReports.GET("", reportHandler.GetReports)
+				adminReports.GET("/:id", reportHandler.GetReportByID)
+				adminReports.PUT("/:id/approve", reportHandler.ApproveReport)
+			}
+
+			adminAssistance := admin.Group("/assistance")
+			{
+				adminAssistance.GET("", assistanceHandler.GetAssistanceRequests)
+				adminAssistance.GET("/:id", assistanceHandler.GetAssistanceRequestByID)
+			}
+
+			adminSOS := admin.Group("/sos")
+			{
+				adminSOS.GET("", sosHandler.GetSOSRequests)
+				adminSOS.GET("/:id", sosHandler.GetSOSByID)
+				adminSOS.PUT("/:id/status", sosHandler.UpdateSOSStatus)
+			}
+
+			adminAlerts := admin.Group("/alerts")
+			{
+				adminAlerts.POST("", alertHandler.CreateAlert)
+				adminAlerts.GET("", alertHandler.GetAlerts)
+
+				adminAlerts.GET("/active", alertHandler.GetActiveAlerts)
+				adminAlerts.POST("/sync-external", aggregatorHandler.SyncExternalAlerts)
+				adminAlerts.GET("/local", alertHandler.GetLocalAlerts)
+				adminAlerts.GET("/global", alertHandler.GetGlobalAlerts)
+				adminAlerts.GET("/weather", alertHandler.GetWeatherAlerts)
+				adminAlerts.GET("/health", alertHandler.GetHealthAlerts)
+
+				adminAlerts.GET("/:id", alertHandler.GetAlertByID)
+				adminAlerts.PUT("/:id/status", alertHandler.UpdateAlertStatus)
+				adminAlerts.DELETE("/:id", alertHandler.DeleteAlert)
+			}
+
+			adminNotifications := admin.Group("/notifications")
+			{
+				adminNotifications.POST("/test/all", notificationHandler.SendTestToAll)
+			}
+
+			adminMaintenance := admin.Group("/maintenance")
+			{
+				adminMaintenance.POST("/cleanup-expired-alerts", cleanupHandler.CleanupExpiredExternalAlerts)
+			}
+
+			adminChats := admin.Group("/chats")
+			{
+				adminChats.GET("/conversations", chatHandler.GetConversations)
+				adminChats.GET("/conversations/:id/messages", chatHandler.GetConversationMessages)
+				adminChats.POST("/conversations/:id/messages", chatHandler.SendMessage)
+				adminChats.PUT("/conversations/:id/read", chatHandler.MarkConversationRead)
+			}
+		}
+
+
+
+
 
 	// -------------------------
 	// Protected Routes

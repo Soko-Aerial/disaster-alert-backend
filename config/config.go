@@ -43,6 +43,7 @@ type Config struct{
 	AlertSyncEnabled             string
 	AlertSyncInitialDelaySeconds int
 	AlertSyncIntervalMinutes     int
+	AdminAPIKey 				 string
 }	
 
 func LoadConfig() *Config {
@@ -86,6 +87,7 @@ func LoadConfig() *Config {
 		AlertSyncEnabled:             getEnv("ALERT_SYNC_ENABLED", "true"),
 		AlertSyncInitialDelaySeconds: getEnvAsInt("ALERT_SYNC_INITIAL_DELAY_SECONDS", 120),
 		AlertSyncIntervalMinutes:     getEnvAsInt("ALERT_SYNC_INTERVAL_MINUTES", 30),
+		AdminAPIKey: 				  getEnv("ADMIN_API_KEY", ""),
 		
 	}
 }

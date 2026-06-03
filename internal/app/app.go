@@ -28,7 +28,8 @@ func SetupRouter(
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
 	chatHandler *handlers.ChatHandler,
 	newsHandler *handlers.NewsHandler,
-	jwtService *services.JWTService) *gin.Engine {
+	jwtService *services.JWTService,
+	adminAPIKey string) *gin.Engine {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
@@ -59,6 +60,7 @@ func SetupRouter(
 		chatHandler,
 		newsHandler,
 		jwtService,
+		adminAPIKey,
 	)
 
 	return router

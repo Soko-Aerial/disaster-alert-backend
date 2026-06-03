@@ -342,6 +342,7 @@ func main() {
 		chatHandler,
 		newsHandler,
 		jwtService,
+		cfg.AdminAPIKey,
 	)
 
 	port := os.Getenv("PORT")

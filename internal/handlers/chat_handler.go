@@ -12,6 +12,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+var systemAdminObjectID = primitive.ObjectID([12]byte{
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+})
+
 type ChatHandler struct {
 	chatService *services.ChatService
 }
@@ -50,25 +54,15 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 }
 
 func (h *ChatHandler) GetConversations(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized user", nil)
 		return
 	}
 
-	role := getRoleFromContext(c)
-
-	conversations, err := h.chatService.GetUserConversations(
-		userID,
-		role,
-	)
+	conversations, err := h.chatService.GetUserConversations(userID, role)
 	if err != nil {
-		utils.ErrorResponse(
-			c,
-			http.StatusInternalServerError,
-			"Failed to fetch conversations",
-			err,
-		)
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch conversations", err)
 		return
 	}
 
@@ -81,13 +75,11 @@ func (h *ChatHandler) GetConversations(c *gin.Context) {
 }
 
 func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized user", nil)
 		return
 	}
-
-	role := getRoleFromContext(c)
 
 	conversationID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -114,13 +106,11 @@ func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 }
 
 func (h *ChatHandler) SendMessage(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized user", nil)
 		return
 	}
-
-	role := getRoleFromContext(c)
 
 	conversationID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -154,13 +144,11 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 }
 
 func (h *ChatHandler) MarkConversationRead(c *gin.Context) {
-	userID, ok := getUserIDFromContext(c)
+	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized user", nil)
 		return
 	}
-
-	role := getRoleFromContext(c)
 
 	conversationID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
@@ -192,20 +180,49 @@ func (h *ChatHandler) MarkConversationRead(c *gin.Context) {
 	)
 }
 
+func getChatActorFromContext(c *gin.Context) (primitive.ObjectID, string, bool) {
+	role := getRoleFromContext(c)
+
+	if isAdminRole(role) {
+		return systemAdminObjectID, role, true
+	}
+
+	userID, ok := getUserIDFromContext(c)
+	if !ok {
+		return primitive.NilObjectID, "", false
+	}
+
+	if role == "" {
+		role = "user"
+	}
+
+	return userID, role, true
+}
+
 func getRoleFromContext(c *gin.Context) string {
 	roleValue, exists := c.Get("role")
-	if exists {
-		if role, ok := roleValue.(string); ok && strings.TrimSpace(role) != "" {
-			return strings.TrimSpace(role)
-		}
+	if !exists {
+		return "user"
 	}
 
-	userRoleValue, exists := c.Get("userRole")
-	if exists {
-		if role, ok := userRoleValue.(string); ok && strings.TrimSpace(role) != "" {
-			return strings.TrimSpace(role)
-		}
+	role, ok := roleValue.(string)
+	if !ok {
+		return "user"
 	}
 
-	return "user"
+	role = strings.ToLower(strings.TrimSpace(role))
+	if role == "" {
+		return "user"
+	}
+
+	return role
+}
+
+func isAdminRole(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "admin", "super_admin", "responder":
+		return true
+	default:
+		return false
+	}
 }

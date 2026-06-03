@@ -227,6 +227,7 @@ func (s *ChatService) MarkConversationRead(
 	)
 }
 
+
 func (s *ChatService) notifyChatReceiverAsync(
 	conversation *models.Conversation,
 	senderID primitive.ObjectID,
