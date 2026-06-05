@@ -48,6 +48,7 @@ func AdminAPIKeyMiddleware(adminAPIKey string) gin.HandlerFunc {
 			return
 		}
 
+		c.Set("userId", "000000000000000000000001")
 		c.Set("role", "admin")
 
 		c.Next()
