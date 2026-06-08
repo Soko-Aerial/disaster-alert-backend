@@ -233,6 +233,17 @@ func (h *ReportHandler) getUserID(c *gin.Context) (string, bool) {
 	return userID, true
 }
 
+// GetReports godoc
+// @Summary Get all reports
+// @Description Admin dashboard fetches all user-submitted reports.
+// @Tags Admin Reports
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/reports [get]
+
 func (h *ReportHandler) GetReports(c *gin.Context) {
 	reports, err := h.reportService.GetReports()
 	if err != nil {
@@ -252,6 +263,19 @@ func (h *ReportHandler) GetReports(c *gin.Context) {
 		reports,
 	)
 }
+
+// GetReportByID godoc
+// @Summary Get report by ID
+// @Description Admin dashboard fetches details of a single user report.
+// @Tags Admin Reports
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "Report ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/reports/{id} [get]
 
 func (h *ReportHandler) GetReportByID(c *gin.Context) {
 	reportID := c.Param("id")
@@ -275,6 +299,19 @@ func (h *ReportHandler) GetReportByID(c *gin.Context) {
 	)
 }
 
+// ApproveReport godoc
+// @Summary Approve report
+// @Description Admin approves a user report and converts it into an alert.
+// @Tags Admin Reports
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "Report ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/reports/{id}/approve [put]
 func (h *ReportHandler) ApproveReport(c *gin.Context) {
 	reportID := c.Param("id")
 

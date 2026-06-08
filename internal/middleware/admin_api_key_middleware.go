@@ -24,7 +24,7 @@ func AdminAPIKeyMiddleware(adminAPIKey string) gin.HandlerFunc {
 			return
 		}
 
-		providedKey := strings.TrimSpace(c.GetHeader("Sigtrack-Disaster-Alert-API-Key"))
+		providedKey := strings.TrimSpace(c.GetHeader("Sigtrack-Admin-API-Key"))
 
 		if providedKey == "" {
 			utils.ErrorResponse(

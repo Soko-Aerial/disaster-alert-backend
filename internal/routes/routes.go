@@ -3,12 +3,18 @@ package routes
 import (
 	"net/http"
 
+	docs "disaster_alert_backend/docs"
+
 	"disaster_alert_backend/internal/handlers"
 	"disaster_alert_backend/internal/middleware"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
 
+
 	"github.com/gin-gonic/gin"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func RegisterRoutes(
@@ -45,7 +51,15 @@ func RegisterRoutes(
 			},
 		)
 	})
-	
+
+	docs.SwaggerInfo.Title = "Disaster Alert API"
+	docs.SwaggerInfo.Description = "API documentation for Disaster Alert mobile app and admin dashboard integration."
+	docs.SwaggerInfo.Version = "1.0"
+	docs.SwaggerInfo.Host = "disaster-alert-backend-tiql.onrender.com"
+	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.Schemes = []string{"https"}
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api := router.Group("/api/v1")
 
 	// Health check

@@ -21,6 +21,20 @@ import (
 	"disaster_alert_backend/internal/sources"
 )
 
+// @title Disaster Alert
+// @version 1.0
+// @description API documentation for Disaster Alert mobile app and admin dashboard integration.
+// @BasePath /api/v1
+// @schemes https
+
+// @securityDefinitions.apikey AdminApiKeyAuth
+// @in header
+// @name Sigtrack-Admin-API-Key
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 func main() {
 	cfg := config.LoadConfig()
 

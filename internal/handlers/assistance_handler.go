@@ -89,6 +89,16 @@ func (h *AssistanceHandler) CreateAssistanceRequest(c *gin.Context) {
 	)
 }
 
+// GetAssistanceRequests godoc
+// @Summary Get all assistance requests
+// @Description Admin dashboard fetches all user assistance requests.
+// @Tags Admin Assistance
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/assistance [get]
 func (h *AssistanceHandler) GetAssistanceRequests(c *gin.Context) {
 	requests, err := h.assistanceService.GetAssistanceRequests()
 	if err != nil {
@@ -109,6 +119,18 @@ func (h *AssistanceHandler) GetAssistanceRequests(c *gin.Context) {
 	)
 }
 
+// GetAssistanceRequestByID godoc
+// @Summary Get assistance request by ID
+// @Description Admin dashboard fetches one assistance request.
+// @Tags Admin Assistance
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "Assistance Request ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/assistance/{id} [get]
 func (h *AssistanceHandler) GetAssistanceRequestByID(c *gin.Context) {
 	requestID := c.Param("id")
 

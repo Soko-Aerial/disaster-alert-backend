@@ -53,6 +53,16 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 	)
 }
 
+// GetConversations godoc
+// @Summary Get chat conversations
+// @Description Admin dashboard fetches all user chat conversations.
+// @Tags Admin Chats
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/chats/conversations [get]
 func (h *ChatHandler) GetConversations(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
@@ -74,6 +84,19 @@ func (h *ChatHandler) GetConversations(c *gin.Context) {
 	)
 }
 
+
+// GetConversationMessages godoc
+// @Summary Get conversation messages
+// @Description Admin dashboard fetches messages in a conversation.
+// @Tags Admin Chats
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "Conversation ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/chats/conversations/{id}/messages [get]
 func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
@@ -105,6 +128,20 @@ func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 	)
 }
 
+// SendMessage godoc
+// @Summary Send chat message
+// @Description Admin dashboard sends a response message to a user conversation.
+// @Tags Admin Chats
+// @Security AdminApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Conversation ID"
+// @Param request body map[string]string true "Message body"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/chats/conversations/{id}/messages [post]
 func (h *ChatHandler) SendMessage(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {

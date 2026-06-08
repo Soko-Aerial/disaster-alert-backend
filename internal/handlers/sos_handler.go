@@ -87,6 +87,16 @@ func (h *SOSHandler) CreateSOSRequest(c *gin.Context) {
 	)
 }
 
+// GetSOSRequests godoc
+// @Summary Get all SOS requests
+// @Description Admin dashboard fetches all SOS emergency requests.
+// @Tags Admin SOS
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/sos [get]
 func (h *SOSHandler) GetSOSRequests(c *gin.Context) {
 	requests, err := h.sosService.GetSOSRequests()
 	if err != nil {
@@ -107,6 +117,18 @@ func (h *SOSHandler) GetSOSRequests(c *gin.Context) {
 	)
 }
 
+// GetSOSByID godoc
+// @Summary Get SOS request by ID
+// @Description Admin dashboard fetches one SOS emergency request.
+// @Tags Admin SOS
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "SOS ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/sos/{id} [get]
 func (h *SOSHandler) GetSOSByID(c *gin.Context) {
 	sosID := c.Param("id")
 
@@ -129,6 +151,20 @@ func (h *SOSHandler) GetSOSByID(c *gin.Context) {
 	)
 }
 
+// UpdateSOSStatus godoc
+// @Summary Update SOS status
+// @Description Admin updates the status of an SOS request.
+// @Tags Admin SOS
+// @Security AdminApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "SOS ID"
+// @Param request body map[string]string true "Status update body"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/sos/{id}/status [put]
 func (h *SOSHandler) UpdateSOSStatus(c *gin.Context) {
 	sosID := c.Param("id")
 

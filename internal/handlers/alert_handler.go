@@ -25,6 +25,19 @@ func NewAlertHandler(alertService *services.AlertService) *AlertHandler {
 	}
 }
 
+// CreateAlert godoc
+// @Summary Create alert
+// @Description Admin dashboard creates a manual alert.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param request body map[string]interface{} true "Create alert request"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/alerts [post]
 func (h *AlertHandler) CreateAlert(c *gin.Context) {
 	userIDValue, exists := c.Get("userId")
 	if !exists {
@@ -89,6 +102,16 @@ func (h *AlertHandler) CreateAlert(c *gin.Context) {
 	)
 }
 
+// GetAlerts godoc
+// @Summary Get all alerts
+// @Description Admin dashboard fetches all alerts.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /admin/alerts [get]
 func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	alerts, err := h.alertService.GetAlerts()
 	if err != nil {
@@ -242,6 +265,18 @@ func (h *AlertHandler) GetHealthAlerts(c *gin.Context) {
 	)
 }
 
+// GetAlertByID godoc
+// @Summary Get alert by ID
+// @Description Admin dashboard fetches one alert.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/alerts/{id} [get]
 func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 	alertID := c.Param("id")
 
@@ -264,6 +299,20 @@ func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 	)
 }
 
+// UpdateAlertStatus godoc
+// @Summary Update alert status
+// @Description Admin dashboard updates an alert status.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Param request body map[string]string true "Status update body"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/alerts/{id}/status [put]
 func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 	alertID := c.Param("id")
 
@@ -308,6 +357,18 @@ func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 	)
 }
 
+// DeleteAlert godoc
+// @Summary Delete alert
+// @Description Admin dashboard deletes an alert.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/alerts/{id} [delete]
 func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 	alertID := c.Param("id")
 
