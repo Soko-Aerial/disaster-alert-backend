@@ -26,6 +26,15 @@ func NewHandler(
 	}
 }
 
+
+// Connect Admin WebSocket
+// @Summary Connect to Admin WebSocket
+// @Description Establishes a WebSocket connection for the admin dashboard to receive live SOS, Assistance, Reports, Alerts, and Chat updates.
+// @Tags Admin WebSocket
+// @Security AdminApiKeyAuth
+// @Produce json
+// @Success 101 {string} string "Switching Protocols"
+// @Router /admin/ws [get]
 func (h *Handler) Connect(c *gin.Context) {
 	userIDValue, exists := c.Get("userId")
 	if !exists {

@@ -516,6 +516,22 @@ paths:
       summary: Update SOS status
       tags:
       - Admin SOS
+  /admin/ws:
+    get:
+      description: Establishes a WebSocket connection for the admin dashboard to receive
+        live SOS, Assistance, Reports, Alerts, and Chat updates.
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      security:
+      - AdminApiKeyAuth: []
+      summary: Connect to Admin WebSocket
+      tags:
+      - Admin WebSocket
 schemes:
 - https
 securityDefinitions:
