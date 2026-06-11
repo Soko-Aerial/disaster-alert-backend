@@ -116,6 +116,7 @@ func RegisterRoutes(
 	admin := api.Group("/admin")
 		admin.Use(middleware.AdminAPIKeyMiddleware(adminAPIKey))
 		{
+			admin.GET("/ws", webSocketHandler.Connect)
 			adminReports := admin.Group("/reports")
 			{
 				adminReports.GET("", reportHandler.GetReports)

@@ -59,25 +59,28 @@ func (h *Handler) Connect(c *gin.Context) {
 		return
 	}
 
-	objectID, err := primitive.ObjectIDFromHex(userID)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid user ID format",
-		})
-		return
-	}
-
-	user, err := h.UserRepository.FindUserByID(objectID)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "User not found",
-		})
-		return
-	}
-
 	country := ""
-	if user.Location != nil {
-		country = user.Location.Country
+
+	if role != "admin" && role != "super_admin" {
+		objectID, err := primitive.ObjectIDFromHex(userID)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "Invalid user ID format",
+			})
+			return
+		}
+
+		user, err := h.UserRepository.FindUserByID(objectID)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "User not found",
+			})
+			return
+		}
+
+		if user.Location != nil {
+			country = user.Location.Country
+		}
 	}
 
 	conn, err := coderws.Accept(c.Writer, c.Request, &coderws.AcceptOptions{
