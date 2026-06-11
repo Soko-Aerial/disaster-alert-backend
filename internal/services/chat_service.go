@@ -8,6 +8,7 @@ import (
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/repositories"
+	"disaster_alert_backend/internal/websocket"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -15,18 +16,24 @@ import (
 type ChatService struct {
 	conversationRepo         *repositories.ConversationRepository
 	messageRepo              *repositories.ChatMessageRepository
+	userRepo                 *repositories.UserRepository
 	eventNotificationService *EventNotificationService
+	broadcaster              *websocket.Broadcaster
 }
 
 func NewChatService(
 	conversationRepo *repositories.ConversationRepository,
 	messageRepo *repositories.ChatMessageRepository,
+	userRepo *repositories.UserRepository,
 	eventNotificationService *EventNotificationService,
+	broadcaster *websocket.Broadcaster,
 ) *ChatService {
 	return &ChatService{
 		conversationRepo:         conversationRepo,
 		messageRepo:              messageRepo,
+		userRepo:                 userRepo,
 		eventNotificationService: eventNotificationService,
+		broadcaster:              broadcaster,
 	}
 }
 
@@ -187,6 +194,28 @@ func (s *ChatService) SendMessage(
 		)
 	}
 
+	if s.broadcaster != nil {
+		payload := map[string]interface{}{
+			"id":             createdMessage.ID.Hex(),
+			"conversationId": createdMessage.ConversationID.Hex(),
+			"senderId":       createdMessage.SenderID.Hex(),
+			"senderRole":     createdMessage.SenderRole,
+			"sender":         s.buildUserSummary(createdMessage.SenderID),
+			"message":        createdMessage.Message,
+			"status":         createdMessage.Status,
+			"createdAt":      createdMessage.CreatedAt,
+		}
+
+		if isStaffRole(cleanRole) {
+			s.broadcaster.BroadcastChatMessage(
+				conversation.UserID.Hex(),
+				payload,
+			)
+		} else {
+			s.broadcaster.BroadcastChatMessageToAdmins(payload)
+		}
+	}
+
 	return createdMessage, nil
 }
 
@@ -227,7 +256,6 @@ func (s *ChatService) MarkConversationRead(
 	)
 }
 
-
 func (s *ChatService) notifyChatReceiverAsync(
 	conversation *models.Conversation,
 	senderID primitive.ObjectID,
@@ -240,7 +268,6 @@ func (s *ChatService) notifyChatReceiverAsync(
 
 	role := strings.ToLower(strings.TrimSpace(senderRole))
 
-	// Admin/responder reply should notify the user who owns the conversation.
 	if isStaffRole(role) {
 		if conversation.UserID.IsZero() || conversation.UserID == senderID {
 			return
@@ -256,7 +283,6 @@ func (s *ChatService) notifyChatReceiverAsync(
 		return
 	}
 
-	// Fallback for future multi-participant conversations.
 	for _, participantID := range conversation.ParticipantIDs {
 		if participantID.IsZero() || participantID == senderID {
 			continue
@@ -269,6 +295,50 @@ func (s *ChatService) notifyChatReceiverAsync(
 			shortMessagePreview(messageText),
 		)
 	}
+}
+
+func (s *ChatService) buildUserSummary(
+	userID primitive.ObjectID,
+) map[string]interface{} {
+	userData := map[string]interface{}{
+		"id":       userID.Hex(),
+		"name":     "User",
+		"email":    "",
+		"phone":    "",
+		"gender":   "",
+		"role":     "",
+		"location": nil,
+	}
+
+	if s.userRepo == nil {
+		return userData
+	}
+
+	user, err := s.userRepo.FindUserByID(userID)
+	if err != nil || user == nil {
+		return userData
+	}
+
+	userData["name"] = user.Name
+	userData["email"] = user.Email
+	userData["phone"] = user.Phone
+	userData["gender"] = user.Gender
+	userData["role"] = user.Role
+
+	if user.Location != nil {
+		userData["location"] = map[string]interface{}{
+			"name":      user.Location.Name,
+			"country":   user.Location.Country,
+			"region":    user.Location.Region,
+			"address":   user.Location.Address,
+			"latitude":  user.Location.Latitude,
+			"longitude": user.Location.Longitude,
+			"source":    user.Location.Source,
+			"isDefault": user.Location.IsDefault,
+		}
+	}
+
+	return userData
 }
 
 func shortMessagePreview(message string) string {

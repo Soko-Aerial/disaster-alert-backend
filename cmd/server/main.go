@@ -19,6 +19,7 @@ import (
 	"disaster_alert_backend/internal/scheduler"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/sources"
+	"disaster_alert_backend/internal/websocket"
 )
 
 // @title Disaster Alert
@@ -167,6 +168,8 @@ func main() {
 	// Core services
 	passwordService := services.NewPasswordService()
 	jwtService := services.NewJWTService(cfg)
+	wsHub := websocket.NewHub()
+	wsBroadcaster := websocket.NewBroadcaster(wsHub)
 
 	authService := services.NewAuthService(
 		userRepository,
@@ -206,17 +209,23 @@ func main() {
 	reportService := services.NewReportService(
 		reportRepository,
 		alertRepository,
+		userRepository,
 		eventNotificationService,
+		wsBroadcaster,
 	)
 
 	assistanceService := services.NewAssistanceService(
 		assistanceRepository,
+		userRepository,
 		eventNotificationService,
+		wsBroadcaster,
 	)
 
 	sosService := services.NewSOSService(
 		sosRepository,
+		userRepository,
 		eventNotificationService,
+		wsBroadcaster,
 	)
 
 	weatherService := services.NewWeatherService(
@@ -235,6 +244,7 @@ func main() {
 		userRepository,
 		notificationQueue,
 		appNotificationService,
+		wsBroadcaster,
 	)
 
 	emergencyMessageService := services.NewEmergencyMessageService(
@@ -254,6 +264,11 @@ func main() {
 		userRepository,
 	)
 
+	webSocketHandler := websocket.NewHandler(
+		wsHub,
+		userRepository,
+	)
+
 	userProfileDetailsService := services.NewUserProfileDetailsService(
 		userRepository,
 	)
@@ -261,7 +276,9 @@ func main() {
 	chatService := services.NewChatService(
 		conversationRepo,
 		chatMessageRepo,
+		userRepository,
 		eventNotificationService,
+		wsBroadcaster,
 	)
 
 	// Handlers
@@ -355,6 +372,7 @@ func main() {
 		userProfileDetailsHandler,
 		chatHandler,
 		newsHandler,
+		webSocketHandler,
 		jwtService,
 		cfg.AdminAPIKey,
 	)

@@ -1,9 +1,10 @@
 package app
 
 import (
-	"disaster_alert_backend/internal/routes"
 	"disaster_alert_backend/internal/handlers"
+	"disaster_alert_backend/internal/routes"
 	"disaster_alert_backend/internal/services"
+	"disaster_alert_backend/internal/websocket"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ func SetupRouter(
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
 	chatHandler *handlers.ChatHandler,
 	newsHandler *handlers.NewsHandler,
+	webSocketHandler *websocket.Handler,
 	jwtService *services.JWTService,
 	adminAPIKey string) *gin.Engine {
 	router := gin.Default()
@@ -59,6 +61,7 @@ func SetupRouter(
 		userProfileDetailsHandler,
 		chatHandler,
 		newsHandler,
+		webSocketHandler,
 		jwtService,
 		adminAPIKey,
 	)

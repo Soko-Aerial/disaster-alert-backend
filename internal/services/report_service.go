@@ -8,6 +8,7 @@ import (
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/repositories"
+	"disaster_alert_backend/internal/websocket"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -15,18 +16,24 @@ import (
 type ReportService struct {
 	reportRepo               *repositories.ReportRepository
 	alertRepo                *repositories.AlertRepository
+	userRepo                 *repositories.UserRepository
 	eventNotificationService *EventNotificationService
+	broadcaster              *websocket.Broadcaster
 }
 
 func NewReportService(
 	reportRepo *repositories.ReportRepository,
 	alertRepo *repositories.AlertRepository,
+	userRepo *repositories.UserRepository,
 	eventNotificationService *EventNotificationService,
+	broadcaster *websocket.Broadcaster,
 ) *ReportService {
 	return &ReportService{
 		reportRepo:               reportRepo,
 		alertRepo:                alertRepo,
+		userRepo:                 userRepo,
 		eventNotificationService: eventNotificationService,
+		broadcaster:              broadcaster,
 	}
 }
 
@@ -65,26 +72,47 @@ func (s *ReportService) CreateReport(
 		return nil, err
 	}
 
+	locationText := strings.TrimSpace(createdReport.Location.Address)
+	if locationText == "" {
+		locationText = "Lat: " +
+			floatToString(createdReport.Location.Latitude) +
+			", Lng: " +
+			floatToString(createdReport.Location.Longitude)
+	}
+
+	reportType := createdReport.Category
+	if reportType == "" {
+		reportType = "incident"
+	}
+
+	userData := s.buildUserSummary(createdReport.UserID)
+
 	if s.eventNotificationService != nil {
-		locationText := strings.TrimSpace(createdReport.Location.Address)
-		if locationText == "" {
-			locationText = "Lat: " +
-				floatToString(createdReport.Location.Latitude) +
-				", Lng: " +
-				floatToString(createdReport.Location.Longitude)
-		}
-
-		reportType := createdReport.Category
-		if reportType == "" {
-			reportType = "incident"
-		}
-
 		go s.eventNotificationService.NotifyAdminsForReport(
 			createdReport.ID,
-			"User",
+			getUserDisplayName(userData),
 			reportType,
 			locationText,
 		)
+	}
+
+	if s.broadcaster != nil {
+		s.broadcaster.BroadcastReportCreated(map[string]interface{}{
+			"id":               createdReport.ID.Hex(),
+			"user":             userData,
+			"category":         createdReport.Category,
+			"description":      createdReport.Description,
+			"timeOfOccurrence": createdReport.TimeOfOccurrence,
+			"latitude":         createdReport.Location.Latitude,
+			"longitude":        createdReport.Location.Longitude,
+			"address":          createdReport.Location.Address,
+			"country":          createdReport.Location.Country,
+			"region":           createdReport.Location.Region,
+			"mediaUrls":        createdReport.MediaURLs,
+			"media":            createdReport.Media,
+			"status":           createdReport.Status,
+			"createdAt":        createdReport.CreatedAt,
+		})
 	}
 
 	return createdReport, nil
@@ -161,5 +189,72 @@ func (s *ReportService) ApproveReport(
 		go s.eventNotificationService.NotifyUsersForApprovedAlert(createdAlert)
 	}
 
+	if s.broadcaster != nil {
+		s.broadcaster.BroadcastAlertApproved(
+			createdAlert.Location.Country,
+			map[string]interface{}{
+				"id":          createdAlert.ID.Hex(),
+				"title":       createdAlert.Title,
+				"description": createdAlert.Description,
+				"category":    createdAlert.Category,
+				"severity":    createdAlert.Severity,
+				"status":      createdAlert.Status,
+				"latitude":    createdAlert.Location.Latitude,
+				"longitude":   createdAlert.Location.Longitude,
+				"address":     createdAlert.Location.Address,
+				"country":     createdAlert.Location.Country,
+				"region":      createdAlert.Location.Region,
+				"radiusKm":    createdAlert.RadiusKm,
+				"sourceType":  createdAlert.SourceType,
+				"sourceName":  createdAlert.SourceName,
+				"createdAt":   createdAlert.CreatedAt,
+			},
+		)
+	}
+
 	return createdAlert, nil
+}
+
+func (s *ReportService) buildUserSummary(
+	userID primitive.ObjectID,
+) map[string]interface{} {
+	userData := map[string]interface{}{
+		"id":       userID.Hex(),
+		"name":     "User",
+		"email":    "",
+		"phone":    "",
+		"gender":   "",
+		"role":     "",
+		"location": nil,
+	}
+
+	if s.userRepo == nil {
+		return userData
+	}
+
+	user, err := s.userRepo.FindUserByID(userID)
+	if err != nil || user == nil {
+		return userData
+	}
+
+	userData["name"] = user.Name
+	userData["email"] = user.Email
+	userData["phone"] = user.Phone
+	userData["gender"] = user.Gender
+	userData["role"] = user.Role
+
+	if user.Location != nil {
+		userData["location"] = map[string]interface{}{
+			"name":      user.Location.Name,
+			"country":   user.Location.Country,
+			"region":    user.Location.Region,
+			"address":   user.Location.Address,
+			"latitude":  user.Location.Latitude,
+			"longitude": user.Location.Longitude,
+			"source":    user.Location.Source,
+			"isDefault": user.Location.IsDefault,
+		}
+	}
+
+	return userData
 }

@@ -10,6 +10,7 @@ import (
 	"disaster_alert_backend/internal/jobs"
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/repositories"
+	"disaster_alert_backend/internal/websocket"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -19,6 +20,7 @@ type AlertService struct {
 	userRepo               *repositories.UserRepository
 	notificationDispatcher NotificationDispatcher
 	appNotificationService *AppNotificationService
+	broadcaster            *websocket.Broadcaster
 }
 
 func NewAlertService(
@@ -26,12 +28,14 @@ func NewAlertService(
 	userRepo *repositories.UserRepository,
 	notificationDispatcher NotificationDispatcher,
 	appNotificationService *AppNotificationService,
+	broadcaster *websocket.Broadcaster,
 ) *AlertService {
 	return &AlertService{
 		alertRepo:              alertRepo,
 		userRepo:               userRepo,
 		notificationDispatcher: notificationDispatcher,
 		appNotificationService: appNotificationService,
+		broadcaster:            broadcaster,
 	}
 }
 
@@ -113,6 +117,13 @@ func (s *AlertService) CreateAlert(
 
 	if createdAlert.Status == "active" {
 		go s.notifyUsersInAlertCountry(createdAlert)
+	}
+
+	if createdAlert.Status == "active" && s.broadcaster != nil {
+		s.broadcaster.BroadcastAlertCreated(
+			createdAlert.Location.Country,
+			buildAlertPayload(createdAlert),
+		)
 	}
 
 	return createdAlert, nil
@@ -229,6 +240,13 @@ func (s *AlertService) UpdateAlertStatus(
 
 	if updatedAlert.Status == "active" {
 		go s.notifyUsersInAlertCountry(updatedAlert)
+	}
+
+	if updatedAlert.Status == "active" && s.broadcaster != nil {
+		s.broadcaster.BroadcastAlertApproved(
+			updatedAlert.Location.Country,
+			buildAlertPayload(updatedAlert),
+		)
 	}
 
 	return updatedAlert, nil
@@ -380,4 +398,35 @@ func parseOptionalTime(value string) *time.Time {
 
 func floatToString(value float64) string {
 	return strconv.FormatFloat(value, 'f', 6, 64)
+}
+
+func buildAlertPayload(alert *models.Alert) map[string]interface{} {
+	if alert == nil {
+		return map[string]interface{}{}
+	}
+
+	return map[string]interface{}{
+		"id":                 alert.ID.Hex(),
+		"title":              alert.Title,
+		"description":        alert.Description,
+		"category":           alert.Category,
+		"severity":           alert.Severity,
+		"status":             alert.Status,
+		"latitude":           alert.Location.Latitude,
+		"longitude":          alert.Location.Longitude,
+		"address":            alert.Location.Address,
+		"country":            alert.Location.Country,
+		"region":             alert.Location.Region,
+		"radiusKm":           alert.RadiusKm,
+		"safetyInstructions": alert.SafetyInstructions,
+		"sourceType":         alert.SourceType,
+		"sourceName":         alert.SourceName,
+		"externalId":         alert.ExternalID,
+		"sourceUrl":          alert.SourceURL,
+		"eventTime":          alert.EventTime,
+		"expiresAt":          alert.ExpiresAt,
+		"confidence":         alert.Confidence,
+		"createdAt":          alert.CreatedAt,
+		"updatedAt":          alert.UpdatedAt,
+	}
 }

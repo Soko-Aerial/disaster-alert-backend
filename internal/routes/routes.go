@@ -9,12 +9,13 @@ import (
 	"disaster_alert_backend/internal/middleware"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
-
+	"disaster_alert_backend/internal/websocket"
 
 	"github.com/gin-gonic/gin"
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
 )
 
 func RegisterRoutes(
@@ -37,6 +38,7 @@ func RegisterRoutes(
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
 	chatHandler *handlers.ChatHandler,
 	newsHandler *handlers.NewsHandler,
+	webSocketHandler *websocket.Handler,
 	jwtService *services.JWTService,
 	adminAPIKey string,
 ) {
@@ -61,6 +63,7 @@ func RegisterRoutes(
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api := router.Group("/api/v1")
+	api.GET("/ws", middleware.AuthMiddleware(jwtService), webSocketHandler.Connect)
 
 	// Health check
 	api.GET("/health", func(c *gin.Context) {
