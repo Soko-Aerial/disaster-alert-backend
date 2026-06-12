@@ -63,7 +63,7 @@ func RegisterRoutes(
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	api := router.Group("/api/v1")
-	api.GET("/ws", middleware.AuthMiddleware(jwtService), webSocketHandler.Connect)
+	api.GET("/ws", middleware.WebSocketAuthMiddleware(jwtService), webSocketHandler.Connect)
 
 	// Health check
 	api.GET("/health", func(c *gin.Context) {
