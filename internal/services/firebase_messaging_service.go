@@ -79,12 +79,21 @@ func (s *FirebaseMessagingService) SendToUser(
 		return errors.New("no active FCM tokens found for user")
 	}
 
+	successCount := 0
+	var lastErr error
+
 	for _, token := range tokens {
 		_, err := s.SendToToken(token, title, body, data)
-
 		if err != nil {
-			return err
+			lastErr = err
+			continue
 		}
+
+		successCount++
+	}
+
+	if successCount == 0 && lastErr != nil {
+		return lastErr
 	}
 
 	return nil
@@ -104,12 +113,21 @@ func (s *FirebaseMessagingService) SendToAll(
 		return errors.New("no active FCM tokens found")
 	}
 
+	successCount := 0
+	var lastErr error
+
 	for _, token := range tokens {
 		_, err := s.SendToToken(token, title, body, data)
-
 		if err != nil {
-			return err
+			lastErr = err
+			continue
 		}
+
+		successCount++
+	}
+
+	if successCount == 0 && lastErr != nil {
+		return lastErr
 	}
 
 	return nil
