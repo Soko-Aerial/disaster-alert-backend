@@ -28,8 +28,33 @@ func NewHandler(
 
 
 // Connect Admin WebSocket
-// @Summary Connect to Admin WebSocket
-// @Description Establishes a WebSocket connection for the admin dashboard to receive live SOS, Assistance, Reports, Alerts, and Chat updates.
+//
+// @Summary Connect Admin WebSocket
+// @Description Establishes a real-time WebSocket connection for the admin dashboard.
+// @Description
+// @Description Admin WebSocket URL:
+// @Description wss://disaster-alert-backend-tiql.onrender.com/api/v1/admin/ws
+// @Description
+// @Description Required header:
+// @Description Sigtrack-Admin-API-Key: YOUR_ADMIN_API_KEY
+// @Description
+// @Description Event format:
+// @Description {"type":"EVENT_NAME","data":{}}
+// @Description
+// @Description Admin dashboard events:
+// @Description SOS_CREATED - sent when a user creates an SOS request.
+// @Description ASSISTANCE_CREATED - sent when a user submits an assistance request.
+// @Description REPORT_CREATED - sent when a user submits a report.
+// @Description ALERT_CREATED - sent when an active alert is created.
+// @Description ALERT_APPROVED - sent when an alert/report is approved.
+// @Description CHAT_MESSAGE_CREATED - sent when a user sends a chat message.
+// @Description
+// @Description SOS_CREATED example:
+// @Description {"type":"SOS_CREATED","data":{"id":"sos_id","user":{"id":"user_id","name":"User","email":"user@email.com","phone":"0240000000","location":{"country":"Ghana","region":"Greater Accra","address":"Accra"}},"emergencyType":"medical","message":"Need help","latitude":5.6037,"longitude":-0.1870,"address":"Accra","status":"active","createdAt":"2026-06-11T10:00:00Z"}}
+// @Description
+// @Description ASSISTANCE_CREATED example:
+// @Description {"type":"ASSISTANCE_CREATED","data":{"id":"assistance_id","user":{"id":"user_id","name":"User","email":"user@email.com"},"assistanceType":"medical","urgencyLevel":"high","affectedIndividuals":3,"address":"Accra","status":"pending","createdAt":"2026-06-11T10:00:00Z"}}
+// @Description
 // @Tags Admin WebSocket
 // @Security AdminApiKeyAuth
 // @Produce json

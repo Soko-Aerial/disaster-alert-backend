@@ -518,8 +518,31 @@ paths:
       - Admin SOS
   /admin/ws:
     get:
-      description: Establishes a WebSocket connection for the admin dashboard to receive
-        live SOS, Assistance, Reports, Alerts, and Chat updates.
+      description: |
+        Establishes a real-time WebSocket connection for the admin dashboard.
+
+        Admin WebSocket URL:
+        wss://disaster-alert-backend-tiql.onrender.com/api/v1/admin/ws
+
+        Required header:
+        Sigtrack-Admin-API-Key: YOUR_ADMIN_API_KEY
+
+        Event format:
+        {"type":"EVENT_NAME","data":{}}
+
+        Admin dashboard events:
+        SOS_CREATED - sent when a user creates an SOS request.
+        ASSISTANCE_CREATED - sent when a user submits an assistance request.
+        REPORT_CREATED - sent when a user submits a report.
+        ALERT_CREATED - sent when an active alert is created.
+        ALERT_APPROVED - sent when an alert/report is approved.
+        CHAT_MESSAGE_CREATED - sent when a user sends a chat message.
+
+        SOS_CREATED example:
+        {"type":"SOS_CREATED","data":{"id":"sos_id","user":{"id":"user_id","name":"User","email":"user@email.com","phone":"0240000000","location":{"country":"Ghana","region":"Greater Accra","address":"Accra"}},"emergencyType":"medical","message":"Need help","latitude":5.6037,"longitude":-0.1870,"address":"Accra","status":"active","createdAt":"2026-06-11T10:00:00Z"}}
+
+        ASSISTANCE_CREATED example:
+        {"type":"ASSISTANCE_CREATED","data":{"id":"assistance_id","user":{"id":"user_id","name":"User","email":"user@email.com"},"assistanceType":"medical","urgencyLevel":"high","affectedIndividuals":3,"address":"Accra","status":"pending","createdAt":"2026-06-11T10:00:00Z"}}
       produces:
       - application/json
       responses:
@@ -529,7 +552,7 @@ paths:
             type: string
       security:
       - AdminApiKeyAuth: []
-      summary: Connect to Admin WebSocket
+      summary: Connect Admin WebSocket
       tags:
       - Admin WebSocket
 schemes:

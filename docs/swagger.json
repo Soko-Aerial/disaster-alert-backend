@@ -790,14 +790,14 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Establishes a WebSocket connection for the admin dashboard to receive live SOS, Assistance, Reports, Alerts, and Chat updates.",
+                "description": "Establishes a real-time WebSocket connection for the admin dashboard.\n\nAdmin WebSocket URL:\nwss://disaster-alert-backend-tiql.onrender.com/api/v1/admin/ws\n\nRequired header:\nSigtrack-Admin-API-Key: YOUR_ADMIN_API_KEY\n\nEvent format:\n{\"type\":\"EVENT_NAME\",\"data\":{}}\n\nAdmin dashboard events:\nSOS_CREATED - sent when a user creates an SOS request.\nASSISTANCE_CREATED - sent when a user submits an assistance request.\nREPORT_CREATED - sent when a user submits a report.\nALERT_CREATED - sent when an active alert is created.\nALERT_APPROVED - sent when an alert/report is approved.\nCHAT_MESSAGE_CREATED - sent when a user sends a chat message.\n\nSOS_CREATED example:\n{\"type\":\"SOS_CREATED\",\"data\":{\"id\":\"sos_id\",\"user\":{\"id\":\"user_id\",\"name\":\"User\",\"email\":\"user@email.com\",\"phone\":\"0240000000\",\"location\":{\"country\":\"Ghana\",\"region\":\"Greater Accra\",\"address\":\"Accra\"}},\"emergencyType\":\"medical\",\"message\":\"Need help\",\"latitude\":5.6037,\"longitude\":-0.1870,\"address\":\"Accra\",\"status\":\"active\",\"createdAt\":\"2026-06-11T10:00:00Z\"}}\n\nASSISTANCE_CREATED example:\n{\"type\":\"ASSISTANCE_CREATED\",\"data\":{\"id\":\"assistance_id\",\"user\":{\"id\":\"user_id\",\"name\":\"User\",\"email\":\"user@email.com\"},\"assistanceType\":\"medical\",\"urgencyLevel\":\"high\",\"affectedIndividuals\":3,\"address\":\"Accra\",\"status\":\"pending\",\"createdAt\":\"2026-06-11T10:00:00Z\"}}\n",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin WebSocket"
                 ],
-                "summary": "Connect to Admin WebSocket",
+                "summary": "Connect Admin WebSocket",
                 "responses": {
                     "101": {
                         "description": "Switching Protocols",

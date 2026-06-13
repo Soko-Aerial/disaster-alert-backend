@@ -6,19 +6,23 @@ import (
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/repositories"
+	"disaster_alert_backend/internal/websocket"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type AppNotificationService struct {
 	notificationRepo *repositories.AppNotificationRepository
+	broadcaster      *websocket.Broadcaster
 }
 
 func NewAppNotificationService(
 	notificationRepo *repositories.AppNotificationRepository,
+	broadcaster *websocket.Broadcaster,
 ) *AppNotificationService {
 	return &AppNotificationService{
 		notificationRepo: notificationRepo,
+		broadcaster:      broadcaster,
 	}
 }
 
@@ -78,7 +82,14 @@ func (s *AppNotificationService) CreateForUser(
 		IsRead:        false,
 	}
 
-	return s.notificationRepo.Create(notification)
+	createdNotification, err := s.notificationRepo.Create(notification)
+	if err != nil {
+		return nil, err
+	}
+
+	s.broadcastNotification(createdNotification)
+
+	return createdNotification, nil
 }
 
 func (s *AppNotificationService) CreateForAdmin(
@@ -100,7 +111,14 @@ func (s *AppNotificationService) CreateForAdmin(
 		IsRead:        false,
 	}
 
-	return s.notificationRepo.Create(notification)
+	createdNotification, err := s.notificationRepo.Create(notification)
+	if err != nil {
+		return nil, err
+	}
+
+	s.broadcastNotification(createdNotification)
+
+	return createdNotification, nil
 }
 
 func (s *AppNotificationService) CreateManyForUsers(
@@ -126,5 +144,38 @@ func (s *AppNotificationService) CreateManyForUsers(
 		})
 	}
 
-	return s.notificationRepo.CreateMany(notifications)
+	if err := s.notificationRepo.CreateMany(notifications); err != nil {
+		return err
+	}
+
+	for _, notification := range notifications {
+		s.broadcastNotification(&notification)
+	}
+
+	return nil
+}
+
+func (s *AppNotificationService) broadcastNotification(
+	notification *models.AppNotification,
+) {
+	if s.broadcaster == nil || notification == nil {
+		return
+	}
+
+	s.broadcaster.BroadcastNotificationCreated(
+		notification.RecipientID.Hex(),
+		map[string]interface{}{
+			"id":            notification.ID.Hex(),
+			"recipientId":   notification.RecipientID.Hex(),
+			"recipientRole": notification.RecipientRole,
+			"title":         notification.Title,
+			"body":          notification.Body,
+			"type":          notification.Type,
+			"referenceId":   notification.ReferenceID,
+			"data":          notification.Data,
+			"isRead":        notification.IsRead,
+			"createdAt":     notification.CreatedAt,
+			"updatedAt":     notification.UpdatedAt,
+		},
+	)
 }

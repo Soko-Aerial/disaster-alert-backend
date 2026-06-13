@@ -197,6 +197,7 @@ func main() {
 
 	appNotificationService := services.NewAppNotificationService(
 		appNotificationRepository,
+		wsBroadcaster,
 	)
 
 	eventNotificationService := services.NewEventNotificationService(
