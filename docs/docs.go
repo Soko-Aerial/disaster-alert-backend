@@ -392,6 +392,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/assistance/{id}/status": {
+            "put": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Admin updates the status of a user assistance request.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Assistance"
+                ],
+                "summary": "Update assistance status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Assistance Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status update body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateAssistanceStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/chats/conversations": {
             "get": {
                 "security": [
@@ -809,6 +877,28 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.UpdateAssistanceStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "accepted",
+                        "en_route",
+                        "arrived",
+                        "completed",
+                        "cancelled",
+                        "rejected"
+                    ]
                 }
             }
         }

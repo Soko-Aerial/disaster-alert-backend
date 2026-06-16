@@ -1,4 +1,20 @@
 basePath: /api/v1
+definitions:
+  dto.UpdateAssistanceStatusRequest:
+    properties:
+      status:
+        enum:
+        - pending
+        - accepted
+        - en_route
+        - arrived
+        - completed
+        - cancelled
+        - rejected
+        type: string
+    required:
+    - status
+    type: object
 info:
   contact: {}
   description: API documentation for Disaster Alert mobile app and admin dashboard
@@ -253,6 +269,51 @@ paths:
       security:
       - AdminApiKeyAuth: []
       summary: Get assistance request by ID
+      tags:
+      - Admin Assistance
+  /admin/assistance/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Admin updates the status of a user assistance request.
+      parameters:
+      - description: Assistance Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateAssistanceStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      summary: Update assistance status
       tags:
       - Admin Assistance
   /admin/chats/conversations:
