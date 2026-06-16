@@ -266,6 +266,14 @@ paths:
         name: id
         required: true
         type: string
+      - description: Status update body
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
       produces:
       - application/json
       responses:
