@@ -417,15 +417,6 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Status update body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UpdateAssistanceStatusRequest"
-                        }
                     }
                 ],
                 "responses": {
@@ -877,28 +868,6 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
-                }
-            }
-        }
-    },
-    "definitions": {
-        "dto.UpdateAssistanceStatusRequest": {
-            "type": "object",
-            "required": [
-                "status"
-            ],
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "pending",
-                        "accepted",
-                        "en_route",
-                        "arrived",
-                        "completed",
-                        "cancelled",
-                        "rejected"
-                    ]
                 }
             }
         }
