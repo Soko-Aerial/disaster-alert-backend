@@ -40,7 +40,7 @@ func NewReportService(
 func (s *ReportService) CreateReport(
 	userID string,
 	req dto.CreateReportRequest,
-) (*models.Report, error) {
+) (map[string]interface{}, error) {
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		return nil, errors.New("invalid user id")
@@ -85,6 +85,8 @@ func (s *ReportService) CreateReport(
 		reportType = "incident"
 	}
 
+	response := s.buildReportResponse(createdReport)
+
 	userData := s.buildUserSummary(createdReport.UserID)
 
 	if s.eventNotificationService != nil {
@@ -97,38 +99,41 @@ func (s *ReportService) CreateReport(
 	}
 
 	if s.broadcaster != nil {
-		s.broadcaster.BroadcastReportCreated(map[string]interface{}{
-			"id":               createdReport.ID.Hex(),
-			"user":             userData,
-			"category":         createdReport.Category,
-			"description":      createdReport.Description,
-			"timeOfOccurrence": createdReport.TimeOfOccurrence,
-			"latitude":         createdReport.Location.Latitude,
-			"longitude":        createdReport.Location.Longitude,
-			"address":          createdReport.Location.Address,
-			"country":          createdReport.Location.Country,
-			"region":           createdReport.Location.Region,
-			"mediaUrls":        createdReport.MediaURLs,
-			"media":            createdReport.Media,
-			"status":           createdReport.Status,
-			"createdAt":        createdReport.CreatedAt,
-		})
+		s.broadcaster.BroadcastReportCreated(response)
 	}
 
-	return createdReport, nil
+	return response, nil
 }
 
-func (s *ReportService) GetReports() ([]models.Report, error) {
-	return s.reportRepo.FindAll()
+func (s *ReportService) GetReports() ([]map[string]interface{}, error) {
+	reports, err := s.reportRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(reports))
+
+	for i := range reports {
+		response = append(response, s.buildReportResponse(&reports[i]))
+	}
+
+	return response, nil
 }
 
-func (s *ReportService) GetReportByID(reportID string) (*models.Report, error) {
+func (s *ReportService) GetReportByID(
+	reportID string,
+) (map[string]interface{}, error) {
 	objectID, err := primitive.ObjectIDFromHex(reportID)
 	if err != nil {
 		return nil, errors.New("invalid report id")
 	}
 
-	return s.reportRepo.FindByID(objectID)
+	report, err := s.reportRepo.FindByID(objectID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildReportResponse(report), nil
 }
 
 func (s *ReportService) ApproveReport(
@@ -199,20 +204,40 @@ func (s *ReportService) ApproveReport(
 				"category":    createdAlert.Category,
 				"severity":    createdAlert.Severity,
 				"status":      createdAlert.Status,
-				"latitude":    createdAlert.Location.Latitude,
-				"longitude":   createdAlert.Location.Longitude,
-				"address":     createdAlert.Location.Address,
-				"country":     createdAlert.Location.Country,
-				"region":      createdAlert.Location.Region,
+				"location":    createdAlert.Location,
 				"radiusKm":    createdAlert.RadiusKm,
 				"sourceType":  createdAlert.SourceType,
 				"sourceName":  createdAlert.SourceName,
 				"createdAt":   createdAlert.CreatedAt,
+				"updatedAt":   createdAlert.UpdatedAt,
 			},
 		)
 	}
 
 	return createdAlert, nil
+}
+
+func (s *ReportService) buildReportResponse(
+	report *models.Report,
+) map[string]interface{} {
+	if report == nil {
+		return map[string]interface{}{}
+	}
+
+	return map[string]interface{}{
+		"id":               report.ID.Hex(),
+		"userId":           report.UserID.Hex(),
+		"user":             s.buildUserSummary(report.UserID),
+		"category":         report.Category,
+		"description":      report.Description,
+		"timeOfOccurrence": report.TimeOfOccurrence,
+		"location":         report.Location,
+		"mediaUrls":        report.MediaURLs,
+		"media":            report.Media,
+		"status":           report.Status,
+		"createdAt":        report.CreatedAt,
+		"updatedAt":        report.UpdatedAt,
+	}
 }
 
 func (s *ReportService) buildUserSummary(

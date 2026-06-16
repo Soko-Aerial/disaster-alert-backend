@@ -13,7 +13,7 @@ import (
 
 type AssistanceHandler struct {
 	assistanceService *services.AssistanceService
-	validator          *validator.Validate
+	validator         *validator.Validate
 }
 
 func NewAssistanceHandler(
@@ -21,7 +21,7 @@ func NewAssistanceHandler(
 ) *AssistanceHandler {
 	return &AssistanceHandler{
 		assistanceService: assistanceService,
-		validator:          validator.New(),
+		validator:         validator.New(),
 	}
 }
 
@@ -149,6 +149,67 @@ func (h *AssistanceHandler) GetAssistanceRequestByID(c *gin.Context) {
 		c,
 		http.StatusOK,
 		"Assistance request fetched successfully",
+		request,
+	)
+}
+
+// UpdateAssistanceStatus godoc
+// @Summary Update assistance status
+// @Description Admin updates the status of a user assistance request.
+// @Tags Admin Assistance
+// @Security AdminApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Assistance Request ID"
+// @Param request body dto.UpdateAssistanceStatusRequest true "Status update body"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /admin/assistance/{id}/status [put]
+func (h *AssistanceHandler) UpdateAssistanceStatus(c *gin.Context) {
+	requestID := c.Param("id")
+
+	var req dto.UpdateAssistanceStatusRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Invalid request body",
+			err.Error(),
+		)
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Validation failed",
+			err.Error(),
+		)
+		return
+	}
+
+	request, err := h.assistanceService.UpdateAssistanceStatus(
+		requestID,
+		req.Status,
+	)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Assistance status updated successfully",
 		request,
 	)
 }

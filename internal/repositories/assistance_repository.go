@@ -22,7 +22,9 @@ func NewAssistanceRepository(db *mongo.Database) *AssistanceRepository {
 	}
 }
 
-func (r *AssistanceRepository) Create(request models.AssistanceRequest) (*models.AssistanceRequest, error) {
+func (r *AssistanceRepository) Create(
+	request models.AssistanceRequest,
+) (*models.AssistanceRequest, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -72,7 +74,9 @@ func (r *AssistanceRepository) FindAll() ([]models.AssistanceRequest, error) {
 	return requests, nil
 }
 
-func (r *AssistanceRepository) FindByID(requestID primitive.ObjectID) (*models.AssistanceRequest, error) {
+func (r *AssistanceRepository) FindByID(
+	requestID primitive.ObjectID,
+) (*models.AssistanceRequest, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -81,6 +85,45 @@ func (r *AssistanceRepository) FindByID(requestID primitive.ObjectID) (*models.A
 	err := r.collection.FindOne(ctx, bson.M{
 		"_id": requestID,
 	}).Decode(&request)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &request, nil
+}
+
+func (r *AssistanceRepository) UpdateStatus(
+	requestID primitive.ObjectID,
+	status string,
+) (*models.AssistanceRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	now := time.Now().UTC()
+
+	filter := bson.M{
+		"_id": requestID,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"status":    status,
+			"updatedAt": now,
+		},
+	}
+
+	opts := options.FindOneAndUpdate().
+		SetReturnDocument(options.After)
+
+	var request models.AssistanceRequest
+
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		filter,
+		update,
+		opts,
+	).Decode(&request)
 
 	if err != nil {
 		return nil, err

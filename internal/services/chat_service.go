@@ -40,7 +40,7 @@ func NewChatService(
 func (s *ChatService) CreateConversation(
 	userID primitive.ObjectID,
 	req dto.CreateConversationRequest,
-) (*models.Conversation, error) {
+) (map[string]interface{}, error) {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return nil, errors.New("conversation title is required")
@@ -58,7 +58,7 @@ func (s *ChatService) CreateConversation(
 		)
 
 		if err == nil && existingConversation != nil {
-			return existingConversation, nil
+			return s.buildConversationResponse(existingConversation), nil
 		}
 	}
 
@@ -94,7 +94,7 @@ func (s *ChatService) CreateConversation(
 		)
 
 		if err == nil && existingConversation != nil {
-			return existingConversation, nil
+			return s.buildConversationResponse(existingConversation), nil
 		}
 	}
 
@@ -108,25 +108,48 @@ func (s *ChatService) CreateConversation(
 		Status:         "open",
 	}
 
-	return s.conversationRepo.Create(conversation)
+	createdConversation, err := s.conversationRepo.Create(conversation)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildConversationResponse(createdConversation), nil
 }
 
 func (s *ChatService) GetUserConversations(
 	userID primitive.ObjectID,
 	role string,
-) ([]models.Conversation, error) {
+) ([]map[string]interface{}, error) {
+	var conversations []models.Conversation
+	var err error
+
 	if isStaffRole(role) {
-		return s.conversationRepo.FindAll()
+		conversations, err = s.conversationRepo.FindAll()
+	} else {
+		conversations, err = s.conversationRepo.FindByUserID(userID)
 	}
 
-	return s.conversationRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(conversations))
+
+	for i := range conversations {
+		response = append(
+			response,
+			s.buildConversationResponse(&conversations[i]),
+		)
+	}
+
+	return response, nil
 }
 
 func (s *ChatService) GetConversationMessages(
 	userID primitive.ObjectID,
 	conversationID primitive.ObjectID,
 	role string,
-) ([]models.ChatMessage, error) {
+) ([]map[string]interface{}, error) {
 	_, err := s.conversationRepo.FindByIDWithAccess(
 		conversationID,
 		userID,
@@ -136,7 +159,21 @@ func (s *ChatService) GetConversationMessages(
 		return nil, errors.New("conversation not found")
 	}
 
-	return s.messageRepo.FindByConversationID(conversationID)
+	messages, err := s.messageRepo.FindByConversationID(conversationID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(messages))
+
+	for i := range messages {
+		response = append(
+			response,
+			s.buildChatMessageResponse(&messages[i]),
+		)
+	}
+
+	return response, nil
 }
 
 func (s *ChatService) SendMessage(
@@ -144,7 +181,7 @@ func (s *ChatService) SendMessage(
 	conversationID primitive.ObjectID,
 	role string,
 	req dto.SendChatMessageRequest,
-) (*models.ChatMessage, error) {
+) (map[string]interface{}, error) {
 	messageText := strings.TrimSpace(req.Message)
 	if messageText == "" {
 		return nil, errors.New("message is required")
@@ -194,29 +231,20 @@ func (s *ChatService) SendMessage(
 		)
 	}
 
-	if s.broadcaster != nil {
-		payload := map[string]interface{}{
-			"id":             createdMessage.ID.Hex(),
-			"conversationId": createdMessage.ConversationID.Hex(),
-			"senderId":       createdMessage.SenderID.Hex(),
-			"senderRole":     createdMessage.SenderRole,
-			"sender":         s.buildUserSummary(createdMessage.SenderID),
-			"message":        createdMessage.Message,
-			"status":         createdMessage.Status,
-			"createdAt":      createdMessage.CreatedAt,
-		}
+	response := s.buildChatMessageResponse(createdMessage)
 
+	if s.broadcaster != nil {
 		if isStaffRole(cleanRole) {
 			s.broadcaster.BroadcastChatMessage(
 				conversation.UserID.Hex(),
-				payload,
+				response,
 			)
 		} else {
-			s.broadcaster.BroadcastChatMessageToAdmins(payload)
+			s.broadcaster.BroadcastChatMessageToAdmins(response)
 		}
 	}
 
-	return createdMessage, nil
+	return response, nil
 }
 
 func (s *ChatService) MarkConversationRead(
@@ -297,6 +325,45 @@ func (s *ChatService) notifyChatReceiverAsync(
 	}
 }
 
+func (s *ChatService) buildConversationResponse(
+	conversation *models.Conversation,
+) map[string]interface{} {
+	if conversation == nil {
+		return map[string]interface{}{}
+	}
+
+	return map[string]interface{}{
+		"id":             conversation.ID.Hex(),
+		"userId":         conversation.UserID.Hex(),
+		"user":           s.buildUserSummary(conversation.UserID),
+		"title":          conversation.Title,
+		"caseType":       conversation.CaseType,
+		"caseId":         objectIDPointerToString(conversation.CaseID),
+		"contactId":      objectIDPointerToString(conversation.ContactID),
+		"participantIds": objectIDsToStrings(conversation.ParticipantIDs),
+		"status":         conversation.Status,
+	}
+}
+
+func (s *ChatService) buildChatMessageResponse(
+	message *models.ChatMessage,
+) map[string]interface{} {
+	if message == nil {
+		return map[string]interface{}{}
+	}
+
+	return map[string]interface{}{
+		"id":             message.ID.Hex(),
+		"conversationId": message.ConversationID.Hex(),
+		"senderId":       message.SenderID.Hex(),
+		"senderRole":     message.SenderRole,
+		"sender":         s.buildUserSummary(message.SenderID),
+		"message":        message.Message,
+		"status":         message.Status,
+		"createdAt":      message.CreatedAt,
+	}
+}
+
 func (s *ChatService) buildUserSummary(
 	userID primitive.ObjectID,
 ) map[string]interface{} {
@@ -339,6 +406,28 @@ func (s *ChatService) buildUserSummary(
 	}
 
 	return userData
+}
+
+func objectIDPointerToString(id *primitive.ObjectID) string {
+	if id == nil || id.IsZero() {
+		return ""
+	}
+
+	return id.Hex()
+}
+
+func objectIDsToStrings(ids []primitive.ObjectID) []string {
+	values := make([]string, 0, len(ids))
+
+	for _, id := range ids {
+		if id.IsZero() {
+			continue
+		}
+
+		values = append(values, id.Hex())
+	}
+
+	return values
 }
 
 func shortMessagePreview(message string) string {

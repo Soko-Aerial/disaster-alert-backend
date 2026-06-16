@@ -37,7 +37,7 @@ func NewAssistanceService(
 func (s *AssistanceService) CreateAssistanceRequest(
 	userID string,
 	req dto.CreateAssistanceRequest,
-) (*models.AssistanceRequest, error) {
+) (map[string]interface{}, error) {
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
 		return nil, errors.New("invalid user id")
@@ -79,6 +79,8 @@ func (s *AssistanceService) CreateAssistanceRequest(
 		assistanceType = "assistance"
 	}
 
+	response := s.buildAssistanceResponse(createdRequest)
+
 	userData := s.buildUserSummary(createdRequest.UserID)
 
 	if s.eventNotificationService != nil {
@@ -91,37 +93,106 @@ func (s *AssistanceService) CreateAssistanceRequest(
 	}
 
 	if s.broadcaster != nil {
-		s.broadcaster.BroadcastAssistanceCreated(map[string]interface{}{
-			"id":                  createdRequest.ID.Hex(),
-			"user":                userData,
-			"assistanceType":      createdRequest.AssistanceType,
-			"urgencyLevel":        createdRequest.UrgencyLevel,
-			"affectedIndividuals": createdRequest.AffectedIndividuals,
-			"otherInformation":    createdRequest.OtherInformation,
-			"latitude":            createdRequest.Location.Latitude,
-			"longitude":           createdRequest.Location.Longitude,
-			"address":             createdRequest.Location.Address,
-			"status":              createdRequest.Status,
-			"createdAt":           createdRequest.CreatedAt,
-		})
+		s.broadcaster.BroadcastAssistanceCreated(response)
 	}
 
-	return createdRequest, nil
+	return response, nil
 }
 
-func (s *AssistanceService) GetAssistanceRequests() ([]models.AssistanceRequest, error) {
-	return s.assistanceRepo.FindAll()
+func (s *AssistanceService) GetAssistanceRequests() ([]map[string]interface{}, error) {
+	requests, err := s.assistanceRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(requests))
+
+	for i := range requests {
+		response = append(response, s.buildAssistanceResponse(&requests[i]))
+	}
+
+	return response, nil
 }
 
 func (s *AssistanceService) GetAssistanceRequestByID(
 	requestID string,
-) (*models.AssistanceRequest, error) {
+) (map[string]interface{}, error) {
 	objectID, err := primitive.ObjectIDFromHex(requestID)
 	if err != nil {
 		return nil, errors.New("invalid assistance request id")
 	}
 
-	return s.assistanceRepo.FindByID(objectID)
+	request, err := s.assistanceRepo.FindByID(objectID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildAssistanceResponse(request), nil
+}
+
+func (s *AssistanceService) UpdateAssistanceStatus(
+	requestID string,
+	status string,
+) (map[string]interface{}, error) {
+	objectID, err := primitive.ObjectIDFromHex(requestID)
+	if err != nil {
+		return nil, errors.New("invalid assistance request id")
+	}
+
+	cleanStatus := strings.ToLower(strings.TrimSpace(status))
+	if !isValidAssistanceStatus(cleanStatus) {
+		return nil, errors.New("invalid assistance status")
+	}
+
+	updatedRequest, err := s.assistanceRepo.UpdateStatus(objectID, cleanStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	response := s.buildAssistanceResponse(updatedRequest)
+
+	statusMessage := getAssistanceStatusMessage(cleanStatus)
+	response["message"] = statusMessage
+
+	if s.eventNotificationService != nil {
+		go s.eventNotificationService.NotifyUserForAssistanceStatus(
+			updatedRequest.UserID,
+			updatedRequest.ID,
+			cleanStatus,
+			statusMessage,
+		)
+	}
+
+	if s.broadcaster != nil {
+		s.broadcaster.BroadcastAssistanceStatusUpdated(
+			updatedRequest.UserID.Hex(),
+			response,
+		)
+	}
+
+	return response, nil
+}
+
+func (s *AssistanceService) buildAssistanceResponse(
+	request *models.AssistanceRequest,
+) map[string]interface{} {
+	if request == nil {
+		return map[string]interface{}{}
+	}
+
+	return map[string]interface{}{
+		"id":                  request.ID.Hex(),
+		"userId":              request.UserID.Hex(),
+		"user":                s.buildUserSummary(request.UserID),
+		"assistanceType":      request.AssistanceType,
+		"urgencyLevel":        request.UrgencyLevel,
+		"affectedIndividuals": request.AffectedIndividuals,
+		"otherInformation":    request.OtherInformation,
+		"location":            request.Location,
+		"status":              request.Status,
+		"createdAt":           request.CreatedAt,
+		"updatedAt":           request.UpdatedAt,
+	}
 }
 
 func (s *AssistanceService) buildUserSummary(
@@ -166,4 +237,34 @@ func (s *AssistanceService) buildUserSummary(
 	}
 
 	return userData
+}
+
+func isValidAssistanceStatus(status string) bool {
+	switch status {
+	case "pending", "accepted", "en_route", "arrived", "completed", "cancelled", "rejected":
+		return true
+	default:
+		return false
+	}
+}
+
+func getAssistanceStatusMessage(status string) string {
+	switch status {
+	case "pending":
+		return "Your assistance request is pending. Please stay calm while we review it."
+	case "accepted":
+		return "Your assistance request has been accepted. Help is being arranged."
+	case "en_route":
+		return "Assistance is on the way. Keep your phone available and stay in a safe location."
+	case "arrived":
+		return "Help has arrived at or near your location."
+	case "completed":
+		return "Your assistance request has been completed."
+	case "cancelled":
+		return "Your assistance request has been cancelled."
+	case "rejected":
+		return "Your assistance request could not be accepted at this time."
+	default:
+		return "Your assistance request status has been updated."
+	}
 }

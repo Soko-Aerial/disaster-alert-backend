@@ -79,6 +79,43 @@ func (s *EventNotificationService) NotifyAdminsForAssistance(
 	)
 }
 
+
+func (s *EventNotificationService) NotifyUserForAssistanceStatus(
+	userID primitive.ObjectID,
+	assistanceID primitive.ObjectID,
+	status string,
+	message string,
+) {
+	if userID.IsZero() || assistanceID.IsZero() {
+		return
+	}
+
+	cleanStatus := strings.TrimSpace(status)
+
+	title := "Assistance Update"
+	body := strings.TrimSpace(message)
+
+	if body == "" {
+		body = "Your assistance request status has been updated."
+	}
+
+	data := map[string]string{
+		"type":         "assistance_status",
+		"referenceId":  assistanceID.Hex(),
+		"assistanceId": assistanceID.Hex(),
+		"status":       cleanStatus,
+	}
+
+	s.notifyUser(
+		userID,
+		title,
+		body,
+		"assistance",
+		assistanceID.Hex(),
+		data,
+	)
+}
+
 func (s *EventNotificationService) NotifyAdminsForReport(
 	reportID primitive.ObjectID,
 	userName string,

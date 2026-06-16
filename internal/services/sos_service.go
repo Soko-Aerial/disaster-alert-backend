@@ -86,41 +86,52 @@ func (s *SOSService) CreateSOSRequest(
 	}
 
 	if s.broadcaster != nil {
-		s.broadcaster.BroadcastSOSCreated(map[string]interface{}{
-			"id":             createdSOS.ID.Hex(),
-			"user":           userData,
-			"emergencyType":  createdSOS.EmergencyType,
-			"message":        createdSOS.Message,
-			"latitude":       createdSOS.Location.Latitude,
-			"longitude":      createdSOS.Location.Longitude,
-			"address":        createdSOS.Location.Address,
-			"accuracy":       createdSOS.Location.Accuracy,
-			"status":         createdSOS.Status,
-			"isLiveTracking": createdSOS.IsLiveTracking,
-			"createdAt":      createdSOS.CreatedAt,
-		})
+		s.broadcaster.BroadcastSOSCreated(
+			s.buildSOSResponse(createdSOS),
+		)
 	}
 
 	return createdSOS, nil
 }
 
-func (s *SOSService) GetSOSRequests() ([]models.SOSRequest, error) {
-	return s.sosRepo.FindAll()
+func (s *SOSService) GetSOSRequests() ([]map[string]interface{}, error) {
+	requests, err := s.sosRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(requests))
+
+	for i := range requests {
+		response = append(
+			response,
+			s.buildSOSResponse(&requests[i]),
+		)
+	}
+
+	return response, nil
 }
 
-func (s *SOSService) GetSOSByID(sosID string) (*models.SOSRequest, error) {
+func (s *SOSService) GetSOSByID(
+	sosID string,
+) (map[string]interface{}, error) {
 	objectID, err := primitive.ObjectIDFromHex(sosID)
 	if err != nil {
 		return nil, errors.New("invalid sos request id")
 	}
 
-	return s.sosRepo.FindByID(objectID)
+	sos, err := s.sosRepo.FindByID(objectID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildSOSResponse(sos), nil
 }
 
 func (s *SOSService) UpdateSOSStatus(
 	sosID string,
 	status string,
-) (*models.SOSRequest, error) {
+) (map[string]interface{}, error) {
 	objectID, err := primitive.ObjectIDFromHex(sosID)
 	if err != nil {
 		return nil, errors.New("invalid sos request id")
@@ -130,6 +141,8 @@ func (s *SOSService) UpdateSOSStatus(
 	if err != nil {
 		return nil, err
 	}
+
+	response := s.buildSOSResponse(updatedSOS)
 
 	if s.broadcaster != nil {
 		s.broadcaster.BroadcastSOSStatusUpdated(
@@ -143,7 +156,28 @@ func (s *SOSService) UpdateSOSStatus(
 		)
 	}
 
-	return updatedSOS, nil
+	return response, nil
+}
+
+func (s *SOSService) buildSOSResponse(
+	sos *models.SOSRequest,
+) map[string]interface{} {
+	if sos == nil {
+		return map[string]interface{}{}
+	}
+
+	return map[string]interface{}{
+		"id":             sos.ID.Hex(),
+		"userId":         sos.UserID.Hex(),
+		"user":           s.buildUserSummary(sos.UserID),
+		"emergencyType":  sos.EmergencyType,
+		"message":        sos.Message,
+		"location":       sos.Location,
+		"status":         sos.Status,
+		"isLiveTracking": sos.IsLiveTracking,
+		"createdAt":      sos.CreatedAt,
+		"updatedAt":      sos.UpdatedAt,
+	}
 }
 
 func (s *SOSService) buildUserSummary(

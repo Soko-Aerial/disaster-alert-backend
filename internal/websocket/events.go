@@ -8,6 +8,7 @@ type Event struct {
 const (
 	EventSOSCreated           = "SOS_CREATED"
 	EventAssistanceCreated    = "ASSISTANCE_CREATED"
+	EventAssistanceStatusUpdated = "ASSISTANCE_STATUS_UPDATED"
 	EventReportCreated        = "REPORT_CREATED"
 	EventAlertCreated         = "ALERT_CREATED"
 	EventAlertApproved        = "ALERT_APPROVED"

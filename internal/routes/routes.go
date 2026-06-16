@@ -128,6 +128,7 @@ func RegisterRoutes(
 			{
 				adminAssistance.GET("", assistanceHandler.GetAssistanceRequests)
 				adminAssistance.GET("/:id", assistanceHandler.GetAssistanceRequestByID)
+				adminAssistance.PUT("/:id/status", assistanceHandler.UpdateAssistanceStatus)
 			}
 
 			adminSOS := admin.Group("/sos")

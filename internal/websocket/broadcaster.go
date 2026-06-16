@@ -72,3 +72,13 @@ func (b *Broadcaster) BroadcastChatMessageToAdmins(data interface{}) {
 		Data: data,
 	})
 }
+
+func (b *Broadcaster) BroadcastAssistanceStatusUpdated(
+	userID string,
+	data interface{},
+) {
+	b.Hub.SendToUser(userID, Event{
+		Type: EventAssistanceStatusUpdated,
+		Data: data,
+	})
+}
