@@ -161,7 +161,6 @@ func (h *AssistanceHandler) GetAssistanceRequestByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Assistance Request ID"
-// @Param request body dto.UpdateAssistanceStatusRequest true "Status update body"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
