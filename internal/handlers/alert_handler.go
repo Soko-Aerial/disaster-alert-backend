@@ -26,17 +26,17 @@ func NewAlertHandler(alertService *services.AlertService) *AlertHandler {
 }
 
 // CreateAlert godoc
-// @Summary Create alert
-// @Description Admin dashboard creates a manual alert.
+// @Summary Create a new emergency alert
+// @Description Creates a manual emergency alert from the admin dashboard. Use this when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or any other public safety alert. The alert can later be shown to users based on country/location and can also be sent through notifications or WebSocket updates.
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param request body map[string]interface{} true "Create alert request"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Param request body dto.CreateAlertRequest true "Alert creation payload. Required fields are title, description, category, severity, latitude, and longitude. Country/region/address should be included when the alert is location-based."
+// @Success 201 {object} map[string]interface{} "Alert created successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body or validation failed"
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 500 {object} map[string]interface{} "Failed to create alert"
 // @Router /admin/alerts [post]
 func (h *AlertHandler) CreateAlert(c *gin.Context) {
 	userIDValue, exists := c.Get("userId")
@@ -103,14 +103,14 @@ func (h *AlertHandler) CreateAlert(c *gin.Context) {
 }
 
 // GetAlerts godoc
-// @Summary Get all alerts
-// @Description Admin dashboard fetches all alerts.
+// @Summary Get all alerts for admin dashboard
+// @Description Fetches all alerts in the system for the admin dashboard. This includes active, draft, resolved, expired, and cancelled alerts. Use this for admin alert management, not for the mobile user's local alert feed.
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "Alerts fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch alerts"
 // @Router /admin/alerts [get]
 func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	alerts, err := h.alertService.GetAlerts()
@@ -163,6 +163,20 @@ func (h *AlertHandler) GetActiveAlerts(c *gin.Context) {
 	)
 }
 
+
+// GetLocalAlerts godoc
+// @Summary Get local alerts by country
+// @Description Fetches alerts that are relevant to a specific country. Use this endpoint for the mobile app or dashboard section that shows local alerts for a user-selected or detected country. Example: country=Ghana returns alerts affecting Ghana. The limit query is optional and defaults to 50.
+// @Tags Alerts
+// @Security BearerAuth
+// @Produce json
+// @Param country query string true "Country name used to filter local alerts" example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200" example(50)
+// @Success 200 {object} map[string]interface{} "Local alerts fetched successfully"
+// @Failure 400 {object} map[string]interface{} "Country query parameter is required"
+// @Failure 401 {object} map[string]interface{} "User token missing or invalid"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch local alerts"
+// @Router /admin/alerts/local [get]
 func (h *AlertHandler) GetLocalAlerts(c *gin.Context) {
 	country := c.Query("country")
 	limit := parseAlertLimit(c, 50, 200)

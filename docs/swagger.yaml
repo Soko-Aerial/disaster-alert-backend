@@ -1,4 +1,143 @@
 basePath: /api/v1
+definitions:
+  disaster_alert_backend_internal_dto.CreateAlertRequest:
+    properties:
+      address:
+        example: Circle, Accra
+        type: string
+      category:
+        enum:
+        - flood
+        - fire
+        - weather
+        - health
+        - security
+        - earthquake
+        - conflict
+        - other
+        example: flood
+        type: string
+      confidence:
+        example: 0.95
+        type: number
+      country:
+        example: Ghana
+        type: string
+      description:
+        example: Heavy rainfall is expected in Accra with possible flooding in low-lying
+          areas.
+        minLength: 5
+        type: string
+      eventTime:
+        example: "2026-06-25T10:00:00Z"
+        type: string
+      expiresAt:
+        example: "2026-06-26T18:00:00Z"
+        type: string
+      externalId:
+        example: GDACS-12345
+        type: string
+      latitude:
+        example: 5.6037
+        type: number
+      longitude:
+        example: -0.187
+        type: number
+      radiusKm:
+        example: 10
+        type: number
+      region:
+        example: Greater Accra
+        type: string
+      safetyInstructions:
+        example:
+        - Move to higher ground
+        items:
+          type: string
+        type: array
+      severity:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: high
+        type: string
+      sourceName:
+        example: Admin Dashboard
+        type: string
+      sourceType:
+        enum:
+        - internal
+        - external
+        - system
+        - user_report
+        - weather
+        - health
+        - news
+        - admin
+        example: admin
+        type: string
+      sourceUrl:
+        example: https://example.com/source-alert
+        type: string
+      status:
+        enum:
+        - draft
+        - active
+        - resolved
+        - expired
+        - cancelled
+        example: active
+        type: string
+      title:
+        example: Heavy rainfall warning
+        type: string
+    required:
+    - category
+    - description
+    - latitude
+    - longitude
+    - severity
+    - title
+    type: object
+  disaster_alert_backend_internal_dto.SendChatMessageRequest:
+    properties:
+      message:
+        example: Help is on the way. Please remain in a safe location.
+        type: string
+    required:
+    - message
+    type: object
+  disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest:
+    properties:
+      status:
+        enum:
+        - pending
+        - accepted
+        - en_route
+        - arrived
+        - completed
+        - cancelled
+        - rejected
+        example: en_route
+        type: string
+    required:
+    - status
+    type: object
+  disaster_alert_backend_internal_dto.UpdateSOSStatusRequest:
+    properties:
+      status:
+        enum:
+        - active
+        - assigned
+        - resolved
+        - cancelled
+        example: resolved
+        type: string
+    required:
+    - status
+    type: object
 info:
   contact: {}
   description: API documentation for Disaster Alert mobile app and admin dashboard
@@ -8,68 +147,75 @@ info:
 paths:
   /admin/alerts:
     get:
-      description: Admin dashboard fetches all alerts.
+      description: Fetches all alerts in the system for the admin dashboard. This
+        includes active, draft, resolved, expired, and cancelled alerts. Use this
+        for admin alert management, not for the mobile user's local alert feed.
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Alerts fetched successfully
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Unauthorized
+          description: Admin API key missing or invalid
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Internal Server Error
+          description: Failed to fetch alerts
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: Get all alerts
+      summary: Get all alerts for admin dashboard
       tags:
       - Admin Alerts
     post:
       consumes:
       - application/json
-      description: Admin dashboard creates a manual alert.
+      description: Creates a manual emergency alert from the admin dashboard. Use
+        this when an admin wants to publish a flood warning, fire outbreak, weather
+        danger, health risk, security threat, or any other public safety alert. The
+        alert can later be shown to users based on country/location and can also be
+        sent through notifications or WebSocket updates.
       parameters:
-      - description: Create alert request
+      - description: Alert creation payload. Required fields are title, description,
+          category, severity, latitude, and longitude. Country/region/address should
+          be included when the alert is location-based.
         in: body
         name: request
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateAlertRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Alert created successfully
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad Request
+          description: Invalid request body or validation failed
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Unauthorized
+          description: Admin API key missing or invalid
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Internal Server Error
+          description: Failed to create alert
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: Create alert
+      summary: Create a new emergency alert
       tags:
       - Admin Alerts
   /admin/alerts/{id}:
@@ -192,6 +338,53 @@ paths:
       summary: Update alert status
       tags:
       - Admin Alerts
+  /admin/alerts/local:
+    get:
+      description: 'Fetches alerts that are relevant to a specific country. Use this
+        endpoint for the mobile app or dashboard section that shows local alerts for
+        a user-selected or detected country. Example: country=Ghana returns alerts
+        affecting Ghana. The limit query is optional and defaults to 50.'
+      parameters:
+      - description: Country name used to filter local alerts
+        example: Ghana
+        in: query
+        name: country
+        required: true
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Local alerts fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Country query parameter is required
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: User token missing or invalid
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch local alerts
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get local alerts by country
+      tags:
+      - Alerts
   /admin/assistance:
     get:
       description: Admin dashboard fetches all user assistance requests.
@@ -259,47 +452,50 @@ paths:
     put:
       consumes:
       - application/json
-      description: Admin updates the status of a user assistance request.
+      description: Allows an admin to update the status of a user assistance request.
+        Use this when an admin accepts a request, dispatches help, marks responders
+        as en route, confirms arrival, completes the request, cancels it, or rejects
+        it. The mobile app can use this status to update the user's smart priority
+        card in real time.
       parameters:
       - description: Assistance Request ID
         in: path
         name: id
         required: true
         type: string
-      - description: Status update body
+      - description: 'Status update payload. Allowed values: pending, accepted, en_route,
+          arrived, completed, cancelled, rejected.'
         in: body
         name: request
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Assistance status updated successfully
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad Request
+          description: Invalid request body or invalid status
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Unauthorized
+          description: Admin API key missing or invalid
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Not Found
+          description: Assistance request not found
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: Update assistance status
+      summary: Update assistance request status
       tags:
       - Admin Assistance
   /admin/chats/conversations:
@@ -368,52 +564,55 @@ paths:
     post:
       consumes:
       - application/json
-      description: Admin dashboard sends a response message to a user conversation.
+      description: Allows an admin, responder, or system admin actor to send a message
+        inside a user conversation. Use this when responding to a user's SOS, assistance
+        request, report, or general support conversation. The message can be delivered
+        to the user through the app and real-time WebSocket updates.
       parameters:
       - description: Conversation ID
         in: path
         name: id
         required: true
         type: string
-      - description: Message body
+      - description: 'Chat message payload. Required field: message.'
         in: body
         name: request
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Message sent successfully
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad Request
+          description: Invalid request body or conversation ID
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Unauthorized
+          description: Admin API key missing or invalid
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Not Found
+          description: Conversation not found
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: Send chat message
+      summary: Send admin chat message
       tags:
       - Admin Chats
   /admin/reports/{id}/approve:
     put:
-      description: Admin approves a user report and converts it into an alert.
+      description: Allows an admin to approve a user-submitted report. When approved,
+        the system converts the report into an alert that can be shown to users and
+        used by the notification/WebSocket system.
       parameters:
       - description: Report ID
         in: path
@@ -424,33 +623,33 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Report approved and alert published successfully
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad Request
+          description: Report cannot be approved
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Unauthorized
+          description: Admin API key missing or invalid
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Not Found
+          description: Report not found
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Internal Server Error
+          description: Failed to approve report
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: Approve report
+      summary: Approve user report and publish alert
       tags:
       - Admin Reports
   /admin/sos:
@@ -520,47 +719,50 @@ paths:
     put:
       consumes:
       - application/json
-      description: Admin updates the status of an SOS request.
+      description: Allows an admin to update the status of an SOS emergency request.
+        Use assigned when a responder/admin has taken the case, resolved when the
+        emergency is handled, and cancelled when the request is cancelled. The mobile
+        app should stop SOS alarm and live tracking when status becomes resolved or
+        cancelled.
       parameters:
       - description: SOS ID
         in: path
         name: id
         required: true
         type: string
-      - description: Status update body
+      - description: 'Status update payload. Allowed values: active, assigned, resolved,
+          cancelled.'
         in: body
         name: request
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateSOSStatusRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: SOS status updated successfully
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad Request
+          description: Invalid request body or invalid status
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Unauthorized
+          description: Admin API key missing or invalid
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Not Found
+          description: SOS request not found
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: Update SOS status
+      summary: Update SOS emergency status
       tags:
       - Admin SOS
   /admin/ws:

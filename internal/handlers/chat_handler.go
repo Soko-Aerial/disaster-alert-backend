@@ -129,18 +129,18 @@ func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 }
 
 // SendMessage godoc
-// @Summary Send chat message
-// @Description Admin dashboard sends a response message to a user conversation.
+// @Summary Send admin chat message
+// @Description Allows an admin, responder, or system admin actor to send a message inside a user conversation. Use this when responding to a user's SOS, assistance request, report, or general support conversation. The message can be delivered to the user through the app and real-time WebSocket updates.
 // @Tags Admin Chats
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param id path string true "Conversation ID"
-// @Param request body map[string]string true "Message body"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Param request body dto.SendChatMessageRequest true "Chat message payload. Required field: message."
+// @Success 201 {object} map[string]interface{} "Message sent successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body or conversation ID"
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 404 {object} map[string]interface{} "Conversation not found"
 // @Router /admin/chats/conversations/{id}/messages [post]
 func (h *ChatHandler) SendMessage(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)

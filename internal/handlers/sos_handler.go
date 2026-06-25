@@ -152,18 +152,18 @@ func (h *SOSHandler) GetSOSByID(c *gin.Context) {
 }
 
 // UpdateSOSStatus godoc
-// @Summary Update SOS status
-// @Description Admin updates the status of an SOS request.
+// @Summary Update SOS emergency status
+// @Description Allows an admin to update the status of an SOS emergency request. Use assigned when a responder/admin has taken the case, resolved when the emergency is handled, and cancelled when the request is cancelled. The mobile app should stop SOS alarm and live tracking when status becomes resolved or cancelled.
 // @Tags Admin SOS
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param id path string true "SOS ID"
-// @Param request body map[string]string true "Status update body"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Param request body dto.UpdateSOSStatusRequest true "Status update payload. Allowed values: active, assigned, resolved, cancelled."
+// @Success 200 {object} map[string]interface{} "SOS status updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body or invalid status"
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 404 {object} map[string]interface{} "SOS request not found"
 // @Router /admin/sos/{id}/status [put]
 func (h *SOSHandler) UpdateSOSStatus(c *gin.Context) {
 	sosID := c.Param("id")

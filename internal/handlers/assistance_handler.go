@@ -25,6 +25,7 @@ func NewAssistanceHandler(
 	}
 }
 
+
 func (h *AssistanceHandler) CreateAssistanceRequest(c *gin.Context) {
 	userIDValue, exists := c.Get("userId")
 	if !exists {
@@ -154,18 +155,18 @@ func (h *AssistanceHandler) GetAssistanceRequestByID(c *gin.Context) {
 }
 
 // UpdateAssistanceStatus godoc
-// @Summary Update assistance status
-// @Description Admin updates the status of a user assistance request.
+// @Summary Update assistance request status
+// @Description Allows an admin to update the status of a user assistance request. Use this when an admin accepts a request, dispatches help, marks responders as en route, confirms arrival, completes the request, cancels it, or rejects it. The mobile app can use this status to update the user's smart priority card in real time.
 // @Tags Admin Assistance
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param id path string true "Assistance Request ID"
-// @Param request body map[string]string true "Status update body"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Param request body dto.UpdateAssistanceStatusRequest true "Status update payload. Allowed values: pending, accepted, en_route, arrived, completed, cancelled, rejected."
+// @Success 200 {object} map[string]interface{} "Assistance status updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body or invalid status"
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 404 {object} map[string]interface{} "Assistance request not found"
 // @Router /admin/assistance/{id}/status [put]
 func (h *AssistanceHandler) UpdateAssistanceStatus(c *gin.Context) {
 	requestID := c.Param("id")

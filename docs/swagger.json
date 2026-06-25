@@ -18,31 +18,31 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches all alerts.",
+                "description": "Fetches all alerts in the system for the admin dashboard. This includes active, draft, resolved, expired, and cancelled alerts. Use this for admin alert management, not for the mobile user's local alert feed.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Alerts"
                 ],
-                "summary": "Get all alerts",
+                "summary": "Get all alerts for admin dashboard",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Alerts fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Admin API key missing or invalid",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to fetch alerts",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -56,7 +56,7 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Admin dashboard creates a manual alert.",
+                "description": "Creates a manual emergency alert from the admin dashboard. Use this when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or any other public safety alert. The alert can later be shown to users based on country/location and can also be sent through notifications or WebSocket updates.",
                 "consumes": [
                     "application/json"
                 ],
@@ -66,43 +66,106 @@
                 "tags": [
                     "Admin Alerts"
                 ],
-                "summary": "Create alert",
+                "summary": "Create a new emergency alert",
                 "parameters": [
                     {
-                        "description": "Create alert request",
+                        "description": "Alert creation payload. Required fields are title, description, category, severity, latitude, and longitude. Country/region/address should be included when the alert is location-based.",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.CreateAlertRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Alert created successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body or validation failed",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Admin API key missing or invalid",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to create alert",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alerts/local": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetches alerts that are relevant to a specific country. Use this endpoint for the mobile app or dashboard section that shows local alerts for a user-selected or detected country. Example: country=Ghana returns alerts affecting Ghana. The limit query is optional and defaults to 50.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Get local alerts by country",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "Ghana",
+                        "description": "Country name used to filter local alerts",
+                        "name": "country",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "example": 50,
+                        "description": "Maximum number of alerts to return. Default is 50, maximum is 200",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Local alerts fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Country query parameter is required",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "User token missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch local alerts",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -395,7 +458,7 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Admin updates the status of a user assistance request.",
+                "description": "Allows an admin to update the status of a user assistance request. Use this when an admin accepts a request, dispatches help, marks responders as en route, confirms arrival, completes the request, cancels it, or rejects it. The mobile app can use this status to update the user's smart priority card in real time.",
                 "consumes": [
                     "application/json"
                 ],
@@ -405,7 +468,7 @@
                 "tags": [
                     "Admin Assistance"
                 ],
-                "summary": "Update assistance status",
+                "summary": "Update assistance request status",
                 "parameters": [
                     {
                         "type": "string",
@@ -415,42 +478,39 @@
                         "required": true
                     },
                     {
-                        "description": "Status update body",
+                        "description": "Status update payload. Allowed values: pending, accepted, en_route, arrived, completed, cancelled, rejected.",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Assistance status updated successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body or invalid status",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Admin API key missing or invalid",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Assistance request not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -560,7 +620,7 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Admin dashboard sends a response message to a user conversation.",
+                "description": "Allows an admin, responder, or system admin actor to send a message inside a user conversation. Use this when responding to a user's SOS, assistance request, report, or general support conversation. The message can be delivered to the user through the app and real-time WebSocket updates.",
                 "consumes": [
                     "application/json"
                 ],
@@ -570,7 +630,7 @@
                 "tags": [
                     "Admin Chats"
                 ],
-                "summary": "Send chat message",
+                "summary": "Send admin chat message",
                 "parameters": [
                     {
                         "type": "string",
@@ -580,42 +640,39 @@
                         "required": true
                     },
                     {
-                        "description": "Message body",
+                        "description": "Chat message payload. Required field: message.",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Message sent successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body or conversation ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Admin API key missing or invalid",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Conversation not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -631,14 +688,14 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Admin approves a user report and converts it into an alert.",
+                "description": "Allows an admin to approve a user-submitted report. When approved, the system converts the report into an alert that can be shown to users and used by the notification/WebSocket system.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Reports"
                 ],
-                "summary": "Approve report",
+                "summary": "Approve user report and publish alert",
                 "parameters": [
                     {
                         "type": "string",
@@ -650,35 +707,35 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Report approved and alert published successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Report cannot be approved",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Admin API key missing or invalid",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Report not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to approve report",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -790,7 +847,7 @@
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Admin updates the status of an SOS request.",
+                "description": "Allows an admin to update the status of an SOS emergency request. Use assigned when a responder/admin has taken the case, resolved when the emergency is handled, and cancelled when the request is cancelled. The mobile app should stop SOS alarm and live tracking when status becomes resolved or cancelled.",
                 "consumes": [
                     "application/json"
                 ],
@@ -800,7 +857,7 @@
                 "tags": [
                     "Admin SOS"
                 ],
-                "summary": "Update SOS status",
+                "summary": "Update SOS emergency status",
                 "parameters": [
                     {
                         "type": "string",
@@ -810,42 +867,39 @@
                         "required": true
                     },
                     {
-                        "description": "Status update body",
+                        "description": "Status update payload. Allowed values: active, assigned, resolved, cancelled.",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateSOSStatusRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "SOS status updated successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body or invalid status",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Admin API key missing or invalid",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "SOS request not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -876,6 +930,187 @@
                             "type": "string"
                         }
                     }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "disaster_alert_backend_internal_dto.CreateAlertRequest": {
+            "type": "object",
+            "required": [
+                "category",
+                "description",
+                "latitude",
+                "longitude",
+                "severity",
+                "title"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "Circle, Accra"
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "flood",
+                        "fire",
+                        "weather",
+                        "health",
+                        "security",
+                        "earthquake",
+                        "conflict",
+                        "other"
+                    ],
+                    "example": "flood"
+                },
+                "confidence": {
+                    "type": "number",
+                    "example": 0.95
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Ghana"
+                },
+                "description": {
+                    "type": "string",
+                    "minLength": 5,
+                    "example": "Heavy rainfall is expected in Accra with possible flooding in low-lying areas."
+                },
+                "eventTime": {
+                    "type": "string",
+                    "example": "2026-06-25T10:00:00Z"
+                },
+                "expiresAt": {
+                    "type": "string",
+                    "example": "2026-06-26T18:00:00Z"
+                },
+                "externalId": {
+                    "type": "string",
+                    "example": "GDACS-12345"
+                },
+                "latitude": {
+                    "type": "number",
+                    "example": 5.6037
+                },
+                "longitude": {
+                    "type": "number",
+                    "example": -0.187
+                },
+                "radiusKm": {
+                    "type": "number",
+                    "example": 10
+                },
+                "region": {
+                    "type": "string",
+                    "example": "Greater Accra"
+                },
+                "safetyInstructions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Move to higher ground"
+                    ]
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                    ],
+                    "example": "high"
+                },
+                "sourceName": {
+                    "type": "string",
+                    "example": "Admin Dashboard"
+                },
+                "sourceType": {
+                    "type": "string",
+                    "enum": [
+                        "internal",
+                        "external",
+                        "system",
+                        "user_report",
+                        "weather",
+                        "health",
+                        "news",
+                        "admin"
+                    ],
+                    "example": "admin"
+                },
+                "sourceUrl": {
+                    "type": "string",
+                    "example": "https://example.com/source-alert"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "draft",
+                        "active",
+                        "resolved",
+                        "expired",
+                        "cancelled"
+                    ],
+                    "example": "active"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Heavy rainfall warning"
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.SendChatMessageRequest": {
+            "type": "object",
+            "required": [
+                "message"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Help is on the way. Please remain in a safe location."
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "accepted",
+                        "en_route",
+                        "arrived",
+                        "completed",
+                        "cancelled",
+                        "rejected"
+                    ],
+                    "example": "en_route"
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.UpdateSOSStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "assigned",
+                        "resolved",
+                        "cancelled"
+                    ],
+                    "example": "resolved"
                 }
             }
         }

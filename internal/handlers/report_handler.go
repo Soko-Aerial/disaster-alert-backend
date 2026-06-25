@@ -300,17 +300,17 @@ func (h *ReportHandler) GetReportByID(c *gin.Context) {
 }
 
 // ApproveReport godoc
-// @Summary Approve report
-// @Description Admin approves a user report and converts it into an alert.
+// @Summary Approve user report and publish alert
+// @Description Allows an admin to approve a user-submitted report. When approved, the system converts the report into an alert that can be shown to users and used by the notification/WebSocket system.
 // @Tags Admin Reports
 // @Security AdminApiKeyAuth
 // @Produce json
 // @Param id path string true "Report ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "Report approved and alert published successfully"
+// @Failure 400 {object} map[string]interface{} "Report cannot be approved"
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 404 {object} map[string]interface{} "Report not found"
+// @Failure 500 {object} map[string]interface{} "Failed to approve report"
 // @Router /admin/reports/{id}/approve [put]
 func (h *ReportHandler) ApproveReport(c *gin.Context) {
 	reportID := c.Param("id")
