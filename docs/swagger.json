@@ -1,62 +1,26 @@
 {
     "schemes": [
+        "http",
         "https"
     ],
     "swagger": "2.0",
     "info": {
-        "description": "API documentation for Disaster Alert mobile app and admin dashboard integration.",
-        "title": "Disaster Alert",
+        "description": "Mission-control API for real-time disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, alerts, chats, notifications, and administrator response operations.\n\n================================\nAUTHENTICATION GUIDE\n================================\n\n1. Mobile/User endpoints use BearerAuth.\nHeader:\nAuthorization: Bearer \u003cJWT_TOKEN\u003e\n\n2. Basic admin management endpoints use AdminApiKeyAuth only.\nHeader:\nSigtrack-Admin-API-Key: \u003cADMIN_API_KEY\u003e\n\n3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\nHeaders:\nSigtrack-Admin-API-Key: \u003cADMIN_API_KEY\u003e\nX-Privilege-Code: \u003cGENERATED_UUID\u003e\n\n================================\nADMIN PRIVILEGE CODE FLOW\n================================\n\nStep 1: Click Authorize in Swagger.\nStep 2: Enter your Admin API Key under AdminApiKeyAuth.\nStep 3: Call POST /admin/privilege-codes to generate a privilege UUID.\nStep 4: Copy the full UUID from data.code in the response.\nStep 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.\nStep 6: Test protected admin endpoints such as reports, assistance, SOS, alerts, chats, and notifications.\n\nIMPORTANT:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.\n\n================================\nADMIN PERMISSION CATALOG\n================================\n\nReports:\n- reports:read\n- reports:approve\n\nAssistance:\n- assistance:read\n- assistance:update_status\n\nSOS:\n- sos:read\n- sos:update_status\n\nAlerts:\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n\nChats:\n- chats:read\n- chats:send\n\nNotifications:\n- notifications:read\n- notifications:send\n\nPrivilege Management:\n- privilege_codes:create\n- privilege_codes:read\n- privilege_codes:revoke\n- audit_logs:read",
+        "title": "Disaster Alert API",
         "contact": {},
-        "version": "1.0"
+        "version": "1.0.0"
     },
     "basePath": "/api/v1",
     "paths": {
         "/admin/alerts": {
-            "get": {
-                "security": [
-                    {
-                        "AdminApiKeyAuth": []
-                    }
-                ],
-                "description": "Fetches all alerts in the system for the admin dashboard. This includes active, draft, resolved, expired, and cancelled alerts. Use this for admin alert management, not for the mobile user's local alert feed.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin Alerts"
-                ],
-                "summary": "Get all alerts for admin dashboard",
-                "responses": {
-                    "200": {
-                        "description": "Alerts fetched successfully",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Admin API key missing or invalid",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to fetch alerts",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Creates a manual emergency alert from the admin dashboard. Use this when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or any other public safety alert. The alert can later be shown to users based on country/location and can also be sent through notifications or WebSocket updates.",
+                "description": "Creates a manual emergency alert from the admin dashboard.\n\nUse this endpoint when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or other public safety alert.\nThe alert can later be shown to users based on country/location and can also be delivered through notifications or WebSocket updates.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:create\n\nEXAMPLE REQUEST BODY:\n{\"title\":\"Heavy Rainfall Warning\",\"description\":\"Heavy rainfall expected in flood-prone areas.\",\"category\":\"weather\",\"severity\":\"high\",\"latitude\":5.6037,\"longitude\":-0.1870,\"country\":\"Ghana\",\"region\":\"Greater Accra\",\"address\":\"Accra\"}",
                 "consumes": [
                     "application/json"
                 ],
@@ -66,15 +30,15 @@
                 "tags": [
                     "Admin Alerts"
                 ],
-                "summary": "Create a new emergency alert",
+                "summary": "Create a new admin alert",
                 "parameters": [
                     {
-                        "description": "Alert creation payload. Required fields are title, description, category, severity, latitude, and longitude. Country/region/address should be included when the alert is location-based.",
+                        "description": "Alert creation payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.CreateAlertRequest"
+                            "$ref": "#/definitions/dto.CreateAlertRequest"
                         }
                     }
                 ],
@@ -94,7 +58,14 @@
                         }
                     },
                     "401": {
-                        "description": "Admin API key missing or invalid",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -110,21 +81,86 @@
                 }
             }
         },
-        "/admin/alerts/local": {
+        "/admin/alerts/global": {
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Fetches alerts that are relevant to a specific country. Use this endpoint for the mobile app or dashboard section that shows local alerts for a user-selected or detected country. Example: country=Ghana returns alerts affecting Ghana. The limit query is optional and defaults to 50.",
+                "description": "Fetches global alerts for the admin dashboard.\n\nOptionally pass country to exclude or compare local context depending on your service logic.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Alerts"
+                    "Admin Alerts"
                 ],
-                "summary": "Get local alerts by country",
+                "summary": "List global alerts for admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "Ghana",
+                        "description": "Optional country context",
+                        "name": "country",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 50,
+                        "description": "Maximum number of alerts to return. Default is 50, maximum is 200",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Global alerts fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch global alerts",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alerts/local": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Fetches alerts relevant to a specific country.\n\nExample: country=Ghana returns alerts affecting Ghana.\nUse this endpoint in the admin dashboard when reviewing local alerts by country.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:read",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "List local alerts for admin",
                 "parameters": [
                     {
                         "type": "string",
@@ -158,7 +194,14 @@
                         }
                     },
                     "401": {
-                        "description": "User token missing or invalid",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -178,17 +221,18 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches one alert.",
+                "description": "Fetches details of a single alert by ID.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Alerts"
                 ],
-                "summary": "Get alert by ID",
+                "summary": "Get one alert for admin",
                 "parameters": [
                     {
                         "type": "string",
@@ -200,28 +244,35 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Alert fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid alert ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Alert not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -232,10 +283,11 @@
             "delete": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard deletes an alert.",
+                "description": "Deletes an alert from the admin dashboard.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:delete",
                 "produces": [
                     "application/json"
                 ],
@@ -254,28 +306,35 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Alert deleted successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid alert ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Alert not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -288,10 +347,11 @@
             "put": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard updates an alert status.",
+                "description": "Updates the status of an alert from the admin dashboard.\n\nUse this endpoint to mark an alert as active, inactive, resolved, expired, cancelled.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:update\n\nEXAMPLE REQUEST BODY:\n{\"status\":\"resolved\"}",
                 "consumes": [
                     "application/json"
                 ],
@@ -311,42 +371,46 @@
                         "required": true
                     },
                     {
-                        "description": "Status update body",
+                        "description": "Alert status update payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/dto.UpdateAlertStatusRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Alert status updated successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request body, validation error, or invalid alert status",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Alert not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -359,34 +423,42 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches all user assistance requests.",
+                "description": "Returns all assistance requests submitted by users.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nassistance:read\n\nSWAGGER TESTING:\n1. Click Authorize.\n2. Enter Sigtrack-Admin-API-Key under AdminApiKeyAuth.\n3. Enter the generated full UUID under PrivilegeCodeAuth.\n4. Execute this endpoint.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Assistance"
                 ],
-                "summary": "Get all assistance requests",
+                "summary": "List assistance requests for admin",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Assistance requests fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to fetch assistance requests",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -399,17 +471,18 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches one assistance request.",
+                "description": "Returns the full details of a single assistance request.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nassistance:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Assistance"
                 ],
-                "summary": "Get assistance request by ID",
+                "summary": "Get one assistance request for admin",
                 "parameters": [
                     {
                         "type": "string",
@@ -421,28 +494,35 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Assistance request fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid assistance request ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Assistance request not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -455,10 +535,11 @@
             "put": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Allows an admin to update the status of a user assistance request. Use this when an admin accepts a request, dispatches help, marks responders as en route, confirms arrival, completes the request, cancels it, or rejects it. The mobile app can use this status to update the user's smart priority card in real time.",
+                "description": "Updates the status of a user assistance request from the admin dashboard.\n\nUse this endpoint when an admin accepts a request, dispatches help, marks responders as en route, confirms arrival, completes the request, cancels it, or rejects it.\nThe mobile app can use this status to update the user's assistance card in real time.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nassistance:update_status\n\nEXAMPLE REQUEST BODY:\n{\"status\":\"en_route\"}\n\nCOMMON STATUS VALUES:\npending, accepted, en_route, arrived, completed, cancelled, rejected",
                 "consumes": [
                     "application/json"
                 ],
@@ -478,12 +559,12 @@
                         "required": true
                     },
                     {
-                        "description": "Status update payload. Allowed values: pending, accepted, en_route, arrived, completed, cancelled, rejected.",
+                        "description": "Status update payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest"
+                            "$ref": "#/definitions/dto.UpdateAssistanceStatusRequest"
                         }
                     }
                 ],
@@ -496,14 +577,21 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or invalid status",
+                        "description": "Invalid request body, validation error, or invalid status",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Admin API key missing or invalid",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -523,34 +611,42 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches all user chat conversations.",
+                "description": "Returns user chat conversations visible to the admin dashboard.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nchats:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Chats"
                 ],
-                "summary": "Get chat conversations",
+                "summary": "List admin chat conversations",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Conversations fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to fetch conversations",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -563,17 +659,18 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches messages in a conversation.",
+                "description": "Returns messages inside a selected chat conversation.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nchats:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin Chats"
                 ],
-                "summary": "Get conversation messages",
+                "summary": "Get admin conversation messages",
                 "parameters": [
                     {
                         "type": "string",
@@ -585,28 +682,35 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Messages fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid conversation ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Conversation not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -617,10 +721,11 @@
             "post": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Allows an admin, responder, or system admin actor to send a message inside a user conversation. Use this when responding to a user's SOS, assistance request, report, or general support conversation. The message can be delivered to the user through the app and real-time WebSocket updates.",
+                "description": "Sends a message from the admin dashboard into a user conversation.\n\nUse this endpoint when an admin, responder, or support team needs to reply to a user during an SOS case, assistance request, incident report, or general support conversation.\nThe message can be delivered to the user through the app and real-time WebSocket updates.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nchats:send\n\nEXAMPLE REQUEST BODY:\n{\"message\":\"Hello, this is the emergency response team. Please confirm your current location.\"}",
                 "consumes": [
                     "application/json"
                 ],
@@ -640,12 +745,12 @@
                         "required": true
                     },
                     {
-                        "description": "Chat message payload. Required field: message.",
+                        "description": "Chat message payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest"
+                            "$ref": "#/definitions/dto.SendChatMessageRequest"
                         }
                     }
                 ],
@@ -665,7 +770,14 @@
                         }
                     },
                     "401": {
-                        "description": "Admin API key missing or invalid",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -681,14 +793,471 @@
                 }
             }
         },
-        "/admin/reports/{id}/approve": {
+        "/admin/maintenance/cleanup-expired-alerts": {
+            "post": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Deactivates expired external alerts from configured alert sources.\n\nThis is an admin maintenance operation used to keep the alert feed clean by marking expired external alerts as inactive.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nalerts:update",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Maintenance"
+                ],
+                "summary": "Cleanup expired external alerts",
+                "responses": {
+                    "200": {
+                        "description": "Expired external alerts cleaned up successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to cleanup expired external alerts",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/notifications/test/all": {
+            "post": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Queues a broadcast test notification to all registered users.\n\nUse this endpoint to verify Firebase Cloud Messaging, notification queue processing, and mobile push delivery.\n\nSECURITY:\nThis admin endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nnotifications:send\n\nEXAMPLE REQUEST BODY:\n{\"title\":\"Disaster Alert Test\",\"body\":\"This is a test broadcast notification.\"}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Notifications"
+                ],
+                "summary": "Send notification to all users",
+                "parameters": [
+                    {
+                        "description": "Broadcast test notification payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SendTestNotificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Broadcast notification queued successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or validation error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Notification queue is full",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/privilege-codes": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns privilege-code records created for organisations, departments, units, or admin levels.\n\nSECURITY:\nThis endpoint requires only AdminApiKeyAuth.\n\nIMPORTANT:\nThe full UUID is not returned here for security reasons.\nOnly codePrefix is returned so admins can identify the record without exposing the full secret UUID.\n\nUse this endpoint to review active, revoked, expired, and previously created privilege codes.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Codes"
+                ],
+                "summary": "List generated admin privilege codes",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of privilege-code records to return. Default is 50. Maximum is 200.",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Privilege codes fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch privilege codes",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Creates a new privilege code for an organisation, unit, department, or admin level.\n\nThis endpoint is used to generate the UUID that will later be sent in the X-Privilege-Code header.\nIt requires only the Admin API Key because this endpoint is used to create privilege codes.\n\nHOW TO USE IN SWAGGER:\n1. Click Authorize.\n2. Enter Sigtrack-Admin-API-Key under AdminApiKeyAuth.\n3. Execute this endpoint.\n4. Copy data.code from the response.\n5. Click Authorize again.\n6. Paste data.code under PrivilegeCodeAuth.\n\nIMPORTANT:\nThe full UUID is returned only once during creation.\nThe codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.\n\nEXAMPLE PERMISSIONS:\nassistance:read, assistance:update_status, sos:read, sos:update_status, reports:read, reports:approve, alerts:read, alerts:create, alerts:update, alerts:delete",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Codes"
+                ],
+                "summary": "Generate a new admin privilege UUID",
+                "parameters": [
+                    {
+                        "description": "Privilege code creation payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateAdminPrivilegeCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Privilege code created successfully. Copy data.code and use it as X-Privilege-Code.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, validation error, or invalid permissions",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/privilege-codes/validate": {
+            "post": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Checks whether a full UUID privilege code is valid, active, not expired, and usable.\n\nSECURITY:\nThis endpoint requires only AdminApiKeyAuth.\n\nWHEN TO USE:\nUse this endpoint when testing a generated UUID before applying it to protected admin endpoints.\n\nIMPORTANT:\nSend the full UUID in the request body.\nDo not send codePrefix. codePrefix is only for display and logs.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Codes"
+                ],
+                "summary": "Validate a privilege UUID",
+                "parameters": [
+                    {
+                        "description": "Full privilege UUID validation payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ValidateAdminPrivilegeCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Privilege code is valid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, invalid UUID, expired code, or revoked code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/privilege-codes/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Fetches one privilege-code record by database ID.\n\nSECURITY:\nThis endpoint requires only AdminApiKeyAuth.\n\nIMPORTANT:\nThis endpoint does not return the full UUID.\nIf the full UUID is lost, revoke the old privilege code and generate a new one.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Codes"
+                ],
+                "summary": "Get one privilege-code record",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Privilege-code database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Privilege code fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Privilege code not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/privilege-codes/{id}/revoke": {
             "put": {
                 "security": [
                     {
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Allows an admin to approve a user-submitted report. When approved, the system converts the report into an alert that can be shown to users and used by the notification/WebSocket system.",
+                "description": "Disables a privilege UUID so it can no longer be used on protected admin endpoints.\n\nSECURITY:\nThis endpoint requires only AdminApiKeyAuth.\n\nWHAT REVOKE MEANS:\nRevoke does not delete the database record.\nIt changes the privilege-code status from active to revoked.\nThe old UUID stops working, but the record remains for audit history.\n\nWHEN TO REVOKE:\nRevoke a code when it is leaked, no longer trusted, assigned to the wrong level, or needs to be replaced by a new UUID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Codes"
+                ],
+                "summary": "Revoke a privilege code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Privilege-code database ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Revocation reason",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RevokeAdminPrivilegeCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Privilege code revoked successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or privilege code already revoked",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Privilege code not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/privilege-logs": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Fetches audit logs for privilege-code creation, validation, revocation, and permission checks.\n\nSECURITY:\nThis endpoint requires only AdminApiKeyAuth.\n\nWHAT THIS LOG SHOWS:\n- When a privilege code was created\n- When a privilege code was validated\n- When a privilege code was revoked\n- Which admin endpoint was accessed\n- Which permission was required\n- Whether access was allowed or denied\n- The codePrefix, organisation, level, IP address, and user agent involved",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Logs"
+                ],
+                "summary": "List privilege audit logs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of logs to return. Default is 100. Maximum is 500.",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter logs by privilege-code database ID",
+                        "name": "privilegeCodeId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Privilege logs fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch privilege logs",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reports/{id}/approve": {
+            "put": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Approves a user-submitted incident report and converts it into an alert that can be shown to users through the alert feed, notifications, and WebSocket updates.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nreports:approve\n\nUse this endpoint only after an admin verifies that the submitted report is credible and should become an official alert.",
                 "produces": [
                     "application/json"
                 ],
@@ -721,7 +1290,14 @@
                         }
                     },
                     "401": {
-                        "description": "Admin API key missing or invalid",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -748,34 +1324,42 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches all SOS emergency requests.",
+                "description": "Returns all SOS emergency requests submitted by users.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nsos:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin SOS"
                 ],
-                "summary": "Get all SOS requests",
+                "summary": "List SOS requests for admin",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "SOS requests fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Failed to fetch SOS requests",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -788,17 +1372,18 @@
             "get": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Admin dashboard fetches one SOS emergency request.",
+                "description": "Returns details of a single SOS emergency request.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nsos:read",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Admin SOS"
                 ],
-                "summary": "Get SOS request by ID",
+                "summary": "Get one SOS request for admin",
                 "parameters": [
                     {
                         "type": "string",
@@ -810,28 +1395,35 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "SOS request fetched successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid SOS ID",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "SOS request not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -844,10 +1436,11 @@
             "put": {
                 "security": [
                     {
-                        "AdminApiKeyAuth": []
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Allows an admin to update the status of an SOS emergency request. Use assigned when a responder/admin has taken the case, resolved when the emergency is handled, and cancelled when the request is cancelled. The mobile app should stop SOS alarm and live tracking when status becomes resolved or cancelled.",
+                "description": "Updates the status of an SOS emergency request from the admin dashboard.\n\nUse assigned when a responder/admin has taken the case, resolved when the emergency is handled, and cancelled when the request is cancelled.\nThe mobile app can stop SOS alarm/live tracking when status becomes resolved or cancelled.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nsos:update_status\n\nEXAMPLE REQUEST BODY:\n{\"status\":\"assigned\"}\n\nCOMMON STATUS VALUES:\nactive, assigned, resolved, cancelled",
                 "consumes": [
                     "application/json"
                 ],
@@ -867,12 +1460,12 @@
                         "required": true
                     },
                     {
-                        "description": "Status update payload. Allowed values: active, assigned, resolved, cancelled.",
+                        "description": "SOS status update payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateSOSStatusRequest"
+                            "$ref": "#/definitions/dto.UpdateSOSStatusRequest"
                         }
                     }
                 ],
@@ -885,14 +1478,21 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or invalid status",
+                        "description": "Invalid request body, validation error, or invalid status",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "401": {
-                        "description": "Admin API key missing or invalid",
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -935,7 +1535,56 @@
         }
     },
     "definitions": {
-        "disaster_alert_backend_internal_dto.CreateAlertRequest": {
+        "dto.CreateAdminPrivilegeCodeRequest": {
+            "type": "object",
+            "required": [
+                "label",
+                "organisationId",
+                "organisationName",
+                "permissions"
+            ],
+            "properties": {
+                "expiresAt": {
+                    "type": "string",
+                    "example": "2026-07-28T12:00:00Z"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Police Traffic Unit Access"
+                },
+                "levelId": {
+                    "type": "string",
+                    "example": "firebase_traffic_unit_id"
+                },
+                "levelName": {
+                    "type": "string",
+                    "example": "Traffic Unit"
+                },
+                "organisationId": {
+                    "type": "string",
+                    "example": "firebase_police_org_id"
+                },
+                "organisationName": {
+                    "type": "string",
+                    "example": "Ghana Police Service"
+                },
+                "permissions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "sos:read"
+                    ]
+                },
+                "purpose": {
+                    "type": "string",
+                    "example": "Allow Police Traffic Unit to view SOS and update SOS status"
+                }
+            }
+        },
+        "dto.CreateAlertRequest": {
             "type": "object",
             "required": [
                 "category",
@@ -989,6 +1638,15 @@
                     "type": "string",
                     "example": "GDACS-12345"
                 },
+                "imageUrls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/flood-image.jpg"
+                    ]
+                },
                 "latitude": {
                     "type": "number",
                     "example": 5.6037
@@ -996,6 +1654,20 @@
                 "longitude": {
                     "type": "number",
                     "example": -0.187
+                },
+                "priorityLabel": {
+                    "type": "string",
+                    "enum": [
+                        "breaking",
+                        "serious",
+                        "watch",
+                        "low"
+                    ],
+                    "example": "serious"
+                },
+                "priorityScore": {
+                    "type": "integer",
+                    "example": 85
                 },
                 "radiusKm": {
                     "type": "number",
@@ -1057,13 +1729,46 @@
                     ],
                     "example": "active"
                 },
+                "summary": {
+                    "type": "string",
+                    "example": "Heavy rainfall expected in Accra with possible flooding."
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "flood",
+                        "ghana",
+                        "accra"
+                    ]
+                },
                 "title": {
                     "type": "string",
                     "example": "Heavy rainfall warning"
+                },
+                "videoUrls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/flood-video.mp4"
+                    ]
                 }
             }
         },
-        "disaster_alert_backend_internal_dto.SendChatMessageRequest": {
+        "dto.RevokeAdminPrivilegeCodeRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "example": "Access no longer needed"
+                }
+            }
+        },
+        "dto.SendChatMessageRequest": {
             "type": "object",
             "required": [
                 "message"
@@ -1075,7 +1780,41 @@
                 }
             }
         },
-        "disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest": {
+        "dto.SendTestNotificationRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateAlertStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "draft",
+                        "active",
+                        "resolved",
+                        "expired",
+                        "cancelled"
+                    ],
+                    "example": "resolved"
+                }
+            }
+        },
+        "dto.UpdateAssistanceStatusRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -1096,7 +1835,7 @@
                 }
             }
         },
-        "disaster_alert_backend_internal_dto.UpdateSOSStatusRequest": {
+        "dto.UpdateSOSStatusRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -1113,6 +1852,18 @@
                     "example": "resolved"
                 }
             }
+        },
+        "dto.ValidateAdminPrivilegeCodeRequest": {
+            "type": "object",
+            "required": [
+                "uuid"
+            ],
+            "properties": {
+                "uuid": {
+                    "type": "string",
+                    "example": "4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -1124,6 +1875,11 @@
         "BearerAuth": {
             "type": "apiKey",
             "name": "Authorization",
+            "in": "header"
+        },
+        "PrivilegeCodeAuth": {
+            "type": "apiKey",
+            "name": "X-Privilege-Code",
             "in": "header"
         }
     }

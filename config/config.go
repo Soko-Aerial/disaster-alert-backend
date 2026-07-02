@@ -3,6 +3,7 @@ package config
 import(
 	"log"
 	"os"
+	"strings"
 	"strconv"
 
 	"github.com/joho/godotenv"
@@ -44,6 +45,9 @@ type Config struct{
 	AlertSyncInitialDelaySeconds int
 	AlertSyncIntervalMinutes     int
 	AdminAPIKey 				 string
+	SentryDSN              string
+	SentryDebug            bool
+	SentryTracesSampleRate float64
 }	
 
 func LoadConfig() *Config {
@@ -88,6 +92,9 @@ func LoadConfig() *Config {
 		AlertSyncInitialDelaySeconds: getEnvAsInt("ALERT_SYNC_INITIAL_DELAY_SECONDS", 120),
 		AlertSyncIntervalMinutes:     getEnvAsInt("ALERT_SYNC_INTERVAL_MINUTES", 30),
 		AdminAPIKey: 				  getEnv("ADMIN_API_KEY", ""),
+		SentryDSN:              getEnv("SENTRY_DSN", ""),
+		SentryDebug:            getEnvAsBool("SENTRY_DEBUG", false),
+		SentryTracesSampleRate: getEnvAsFloat64("SENTRY_TRACES_SAMPLE_RATE", 0.2),
 		
 	}
 }
@@ -109,6 +116,36 @@ func getEnvAsInt(key string, defaultValue int) int {
 	}
 
 	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return parsed
+}
+
+func getEnvAsBool(key string, defaultValue bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if value == "" {
+		return defaultValue
+	}
+
+	switch value {
+	case "true", "1", "yes", "y", "on":
+		return true
+	case "false", "0", "no", "n", "off":
+		return false
+	default:
+		return defaultValue
+	}
+}
+
+func getEnvAsFloat64(key string, defaultValue float64) float64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	parsed, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return defaultValue
 	}

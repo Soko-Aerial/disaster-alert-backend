@@ -35,7 +35,7 @@ func (s *GDACSSource) FetchAlerts() ([]models.Alert, error) {
 	fromDate := toDate.AddDate(0, 0, -7)
 
 	url := fmt.Sprintf(
-		"%s?eventlist=EQ;TC;FL;VO;DR;WF&fromdate=%s&todate=%s&alertlevel=green;orange;red",
+		"%s?eventlist=EQ;TC;FL;VO;DR;WF&fromdate=%s&todate=%s&alertlevel=orange;red",
 		gdacsBaseURL,
 		fromDate.Format("2006-01-02"),
 		toDate.Format("2006-01-02"),
@@ -152,6 +152,7 @@ func (s *GDACSSource) featureToAlert(feature gdacsFeature) (models.Alert, bool) 
 	alert := models.Alert{
 		Title:       title,
 		Description: description,
+		Summary:     description,
 		Category:    mapGDACSCategory(eventType),
 		Severity:    mapGDACSSeverity(alertLevel),
 		Status:      "active",
@@ -162,7 +163,7 @@ func (s *GDACSSource) featureToAlert(feature gdacsFeature) (models.Alert, bool) 
 			Region:    country,
 			Address:   country,
 		},
-		RadiusKm:  defaultGDACSRadiusKm(eventType),
+		RadiusKm: defaultGDACSRadiusKm(eventType),
 		SafetyInstructions: []string{
 			"Follow official emergency instructions",
 			"Stay away from affected areas",
@@ -179,8 +180,15 @@ func (s *GDACSSource) featureToAlert(feature gdacsFeature) (models.Alert, bool) 
 		EventTime:  eventTime,
 		ExpiresAt:  &expiresAt,
 		Confidence: mapGDACSConfidence(alertLevel),
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		IsVerified: true,
+		Tags: []string{
+			mapGDACSCategory(eventType),
+			mapGDACSSeverity(alertLevel),
+			"gdacs",
+			strings.ToLower(strings.TrimSpace(country)),
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	return alert, true

@@ -74,7 +74,7 @@ func (r *AlertRepository) FindAll() ([]models.Alert, error) {
 	defer cancel()
 
 	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "createdAt", Value: -1}})
+	findOptions.SetSort(alertPrioritySort())
 	findOptions.SetLimit(100)
 
 	cursor, err := r.collection.Find(ctx, bson.M{}, findOptions)
@@ -116,10 +116,7 @@ func (r *AlertRepository) FindActiveWithFilters(
 	filter := buildActiveAlertFilter(filterOptions)
 
 	findOptions := options.Find()
-	findOptions.SetSort(bson.D{
-		{Key: "eventTime", Value: -1},
-		{Key: "createdAt", Value: -1},
-	})
+	findOptions.SetSort(alertPrioritySort())
 
 	if filterOptions.Limit > 0 {
 		findOptions.SetLimit(int64(filterOptions.Limit))
@@ -253,6 +250,7 @@ func (r *AlertRepository) UpsertExternalAlert(
 		"$set": bson.M{
 			"title":              alert.Title,
 			"description":        alert.Description,
+			"summary":            alert.Summary,
 			"category":           alert.Category,
 			"severity":           alert.Severity,
 			"status":             alert.Status,
@@ -260,9 +258,17 @@ func (r *AlertRepository) UpsertExternalAlert(
 			"radiusKm":           alert.RadiusKm,
 			"safetyInstructions": alert.SafetyInstructions,
 			"sourceUrl":          alert.SourceURL,
+			"imageUrls":          alert.ImageURLs,
+			"videoUrls":          alert.VideoURLs,
+			"tags":               alert.Tags,
+			"priorityScore":      alert.PriorityScore,
+			"priorityLabel":      alert.PriorityLabel,
+			"isBreaking":         alert.IsBreaking,
+			"isVerified":         alert.IsVerified,
 			"eventTime":          alert.EventTime,
 			"expiresAt":          alert.ExpiresAt,
 			"confidence":         alert.Confidence,
+			"lastSyncedAt":       alert.LastSyncedAt,
 			"updatedAt":          alert.UpdatedAt,
 		},
 		"$setOnInsert": bson.M{
@@ -419,6 +425,16 @@ func (r *AlertRepository) EnsureIndexes() error {
 		},
 		{
 			Keys: bson.D{
+				{Key: "status", Value: 1},
+				{Key: "priorityScore", Value: -1},
+				{Key: "isBreaking", Value: -1},
+				{Key: "confidence", Value: -1},
+				{Key: "eventTime", Value: -1},
+				{Key: "createdAt", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
 				{Key: "sourceType", Value: 1},
 				{Key: "sourceName", Value: 1},
 				{Key: "externalId", Value: 1},
@@ -508,4 +524,14 @@ func distanceKm(
 
 func degreesToRadians(value float64) float64 {
 	return value * math.Pi / 180
+}
+
+func alertPrioritySort() bson.D {
+	return bson.D{
+		{Key: "priorityScore", Value: -1},
+		{Key: "isBreaking", Value: -1},
+		{Key: "confidence", Value: -1},
+		{Key: "eventTime", Value: -1},
+		{Key: "createdAt", Value: -1},
+	}
 }

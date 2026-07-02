@@ -58,7 +58,7 @@ func NewNASAFIRMSSource(
 		source:   source,
 		area:     area,
 		dayRange: dayRange,
-		limit: limit,
+		limit:    limit,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -119,10 +119,6 @@ func (s *NASAFIRMSSource) FetchAlerts() ([]models.Alert, error) {
 	alerts := make([]models.Alert, 0)
 
 	for _, record := range records[1:] {
-		if len(alerts) >= s.limit {
-			break
-		}
-
 		alert, ok := s.recordToAlert(record, headerMap)
 		if !ok {
 			continue
@@ -195,6 +191,7 @@ func (s *NASAFIRMSSource) recordToAlert(
 	alert := models.Alert{
 		Title:       "Active fire hotspot detected",
 		Description: description,
+		Summary:     description,
 		Category:    "fire",
 		Severity:    mapFIRMSSeverity(confidenceRaw),
 		Status:      "active",
@@ -218,10 +215,16 @@ func (s *NASAFIRMSSource) recordToAlert(
 		EventTime:  eventTime,
 		ExpiresAt:  &expiresAt,
 		Confidence: mapFIRMSConfidence(confidenceRaw),
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		IsVerified: true,
+		Tags: []string{
+			"fire",
+			mapFIRMSSeverity(confidenceRaw),
+			"nasa_firms",
+			strings.ToLower(strings.TrimSpace(s.source)),
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
-
 	return alert, true
 }
 

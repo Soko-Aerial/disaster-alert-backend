@@ -55,7 +55,7 @@ func (s *ReliefWebSource) FetchAlerts() ([]models.Alert, error) {
 	requestBody := reliefWebRequest{
 		Limit: s.limit,
 		Query: reliefWebQuery{
-			Value:    "disaster OR flood OR earthquake OR cyclone OR wildfire OR drought OR epidemic OR conflict OR emergency",
+			Value:    `disaster OR flood OR earthquake OR cyclone OR wildfire OR drought OR epidemic OR outbreak OR cholera OR conflict OR violence OR displacement OR emergency OR "state of emergency" OR evacuation`,
 			Fields:   []string{"title", "body", "headline"},
 			Operator: "OR",
 		},
@@ -182,6 +182,7 @@ func (s *ReliefWebSource) reportToAlert(item reliefWebItem) (models.Alert, bool)
 	alert := models.Alert{
 		Title:       title,
 		Description: description,
+		Summary:     description,
 		Category:    category,
 		Severity:    severity,
 		Status:      "active",
@@ -205,10 +206,16 @@ func (s *ReliefWebSource) reportToAlert(item reliefWebItem) (models.Alert, bool)
 		EventTime:  eventTime,
 		ExpiresAt:  &expiresAt,
 		Confidence: mapReliefWebConfidence(severity),
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		IsVerified: true,
+		Tags: []string{
+			category,
+			severity,
+			"reliefweb",
+			strings.ToLower(strings.TrimSpace(countryName)),
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
-
 	if countryCode != "" && alert.Location.Country == "" {
 		alert.Location.Country = countryCode
 	}
@@ -268,7 +275,7 @@ type reliefWebNameCode struct {
 }
 
 type reliefWebDisaster struct {
-	Name string             `json:"name"`
+	Name string            `json:"name"`
 	Type reliefWebNameOnly `json:"type"`
 }
 
@@ -334,19 +341,32 @@ func mapReliefWebSeverity(fields reliefWebReport) string {
 	switch {
 	case strings.Contains(text, "catastrophic"),
 		strings.Contains(text, "critical"),
-		strings.Contains(text, "emergency"),
+		strings.Contains(text, "state of emergency"),
+		strings.Contains(text, "deadly"),
+		strings.Contains(text, "killed"),
+		strings.Contains(text, "deaths"),
+		strings.Contains(text, "mass casualties"):
+		return "critical"
+
+	case strings.Contains(text, "emergency"),
 		strings.Contains(text, "severe"),
-		strings.Contains(text, "major"):
+		strings.Contains(text, "major"),
+		strings.Contains(text, "urgent"),
+		strings.Contains(text, "evacuation"),
+		strings.Contains(text, "displaced"),
+		strings.Contains(text, "displacement"):
 		return "high"
+
 	case strings.Contains(text, "warning"),
 		strings.Contains(text, "alert"),
-		strings.Contains(text, "urgent"):
+		strings.Contains(text, "watch"),
+		strings.Contains(text, "risk"):
 		return "medium"
+
 	default:
 		return "medium"
 	}
 }
-
 func mapReliefWebRadiusKm(category string) float64 {
 	switch category {
 	case "flood":

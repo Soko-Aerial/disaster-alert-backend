@@ -97,6 +97,7 @@ func (s *GDELTSource) FetchAlerts() ([]models.Alert, error) {
 	alerts := make([]models.Alert, 0)
 
 	for _, article := range response.Articles {
+
 		alert, ok := s.articleToAlert(article)
 		if !ok {
 			continue
@@ -147,9 +148,15 @@ func (s *GDELTSource) articleToAlert(article gdeltArticle) (models.Alert, bool) 
 		firstNonEmpty(article.Language, "unknown"),
 	)
 
+	imageURLs := []string{}
+	if strings.TrimSpace(article.SocialImage) != "" {
+		imageURLs = append(imageURLs, strings.TrimSpace(article.SocialImage))
+	}
+
 	alert := models.Alert{
 		Title:       title,
 		Description: description,
+		Summary:     description,
 		Category:    category,
 		Severity:    severity,
 		Status:      "active",
@@ -170,11 +177,19 @@ func (s *GDELTSource) articleToAlert(article gdeltArticle) (models.Alert, bool) 
 		SourceName: "gdelt",
 		ExternalID: buildGDELTExternalID(articleURL),
 		SourceURL:  articleURL,
+		ImageURLs:  imageURLs,
 		EventTime:  eventTime,
 		ExpiresAt:  &expiresAt,
 		Confidence: mapGDELTConfidence(severity),
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		IsVerified: false,
+		Tags: []string{
+			category,
+			severity,
+			"gdelt",
+			strings.ToLower(strings.TrimSpace(country)),
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	return alert, true
@@ -279,7 +294,7 @@ func mapGDELTSeverity(article gdeltArticle) string {
 		strings.Contains(text, "emergency"),
 		strings.Contains(text, "severe"),
 		strings.Contains(text, "major"):
-		return "high"
+		return "critical"
 
 	case strings.Contains(text, "warning"),
 		strings.Contains(text, "alert"),

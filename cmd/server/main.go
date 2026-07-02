@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"disaster_alert_backend/config"
 	"disaster_alert_backend/internal/aggregator"
 	"disaster_alert_backend/internal/app"
@@ -22,15 +24,87 @@ import (
 	"disaster_alert_backend/internal/websocket"
 )
 
-// @title Disaster Alert
-// @version 1.0
-// @description API documentation for Disaster Alert mobile app and admin dashboard integration.
+// @title Disaster Alert API
+// @version 1.0.0
+// @description Mission-control API for real-time disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, alerts, chats, notifications, and administrator response operations.
+// @description
+// @description ================================
+// @description AUTHENTICATION GUIDE
+// @description ================================
+// @description
+// @description 1. Mobile/User endpoints use BearerAuth.
+// @description Header:
+// @description Authorization: Bearer <JWT_TOKEN>
+// @description
+// @description 2. Basic admin management endpoints use AdminApiKeyAuth only.
+// @description Header:
+// @description Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
+// @description
+// @description 3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @description Headers:
+// @description Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
+// @description X-Privilege-Code: <GENERATED_UUID>
+// @description
+// @description ================================
+// @description ADMIN PRIVILEGE CODE FLOW
+// @description ================================
+// @description
+// @description Step 1: Click Authorize in Swagger.
+// @description Step 2: Enter your Admin API Key under AdminApiKeyAuth.
+// @description Step 3: Call POST /admin/privilege-codes to generate a privilege UUID.
+// @description Step 4: Copy the full UUID from data.code in the response.
+// @description Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
+// @description Step 6: Test protected admin endpoints such as reports, assistance, SOS, alerts, chats, and notifications.
+// @description
+// @description IMPORTANT:
+// @description The full UUID is returned only once during creation.
+// @description codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+// @description
+// @description ================================
+// @description ADMIN PERMISSION CATALOG
+// @description ================================
+// @description
+// @description Reports:
+// @description - reports:read
+// @description - reports:approve
+// @description
+// @description Assistance:
+// @description - assistance:read
+// @description - assistance:update_status
+// @description
+// @description SOS:
+// @description - sos:read
+// @description - sos:update_status
+// @description
+// @description Alerts:
+// @description - alerts:read
+// @description - alerts:create
+// @description - alerts:update
+// @description - alerts:delete
+// @description
+// @description Chats:
+// @description - chats:read
+// @description - chats:send
+// @description
+// @description Notifications:
+// @description - notifications:read
+// @description - notifications:send
+// @description
+// @description Privilege Management:
+// @description - privilege_codes:create
+// @description - privilege_codes:read
+// @description - privilege_codes:revoke
+// @description - audit_logs:read
 // @BasePath /api/v1
-// @schemes https
+// @schemes http https
 
 // @securityDefinitions.apikey AdminApiKeyAuth
 // @in header
 // @name Sigtrack-Admin-API-Key
+
+// @securityDefinitions.apikey PrivilegeCodeAuth
+// @in header
+// @name X-Privilege-Code
 
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -39,6 +113,50 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
+	sentryDSN := cfg.SentryDSN
+
+	if sentryDSN != "" {
+
+		appEnv := strings.TrimSpace(cfg.AppEnv)
+		if appEnv == "" {
+			appEnv = "development"
+		}
+
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:                  cfg.SentryDSN,
+			Environment:          cfg.AppEnv,
+			Debug:                cfg.SentryDebug,
+			SendDefaultPII:       false,
+			EnableTracing:        true,
+			TracesSampleRate:     cfg.SentryTracesSampleRate,
+			DisableLogs:          false,
+			DisableClientReports: true,
+
+			TraceIgnoreStatusCodes: [][]int{
+				{401},
+				{403},
+				{404},
+			},
+
+			BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
+				if event.Request != nil && event.Request.Headers != nil {
+					delete(event.Request.Headers, "Sigtrack-Admin-API-Key")
+					delete(event.Request.Headers, "X-Privilege-Code")
+					delete(event.Request.Headers, "Authorization")
+				}
+
+				return event
+			},
+		}); err != nil {
+			log.Printf("Sentry initialization failed: %v", err)
+		} else {
+			log.Println("Sentry initialized successfully")
+		}
+
+		defer sentry.Flush(2 * time.Second)
+	} else {
+		log.Println("SENTRY_DSN not set. Sentry disabled.")
+	}
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -48,17 +166,23 @@ func main() {
 
 	db, err := database.ConnectMongoDB(cfg)
 	if err != nil {
+		sentry.CaptureException(err)
+		sentry.Flush(2 * time.Second)
 		log.Fatal("Failed to connect MongoDB:", err)
 	}
 	defer db.Disconnect()
 
 	firebaseApp, err := config.InitFirebase(cfg)
 	if err != nil {
+		sentry.CaptureException(err)
+		sentry.Flush(2 * time.Second)
 		log.Fatal("Failed to initialize Firebase:", err)
 	}
 
 	cloudinaryService, err := services.NewCloudinaryService(cfg)
 	if err != nil {
+		sentry.CaptureException(err)
+		sentry.Flush(2 * time.Second)
 		log.Fatal("Failed to initialize Cloudinary:", err)
 	}
 
@@ -79,6 +203,9 @@ func main() {
 	conversationRepo := repositories.NewConversationRepository(db.Database)
 	chatMessageRepo := repositories.NewChatMessageRepository(db.Database)
 
+	adminPrivilegeCodeRepository := repositories.NewAdminPrivilegeCodeRepository(db.Database)
+	adminPrivilegeLogRepository := repositories.NewAdminPrivilegeLogRepository(db.Database)
+
 	// Indexes
 	if err := alertRepository.EnsureIndexes(); err != nil {
 		log.Println("Failed to ensure alert indexes:", err)
@@ -90,6 +217,18 @@ func main() {
 		log.Println("Failed to ensure app notification indexes:", err)
 	} else {
 		log.Println("App notification indexes ensured successfully")
+	}
+
+	if err := adminPrivilegeCodeRepository.EnsureIndexes(ctx); err != nil {
+		log.Println("Failed to ensure admin privilege code indexes:", err)
+	} else {
+		log.Println("Admin privilege code indexes ensured successfully")
+	}
+
+	if err := adminPrivilegeLogRepository.EnsureIndexes(ctx); err != nil {
+		log.Println("Failed to ensure admin privilege log indexes:", err)
+	} else {
+		log.Println("Admin privilege log indexes ensured successfully")
 	}
 
 	// External alert sources
@@ -282,6 +421,11 @@ func main() {
 		wsBroadcaster,
 	)
 
+	adminPrivilegeCodeService := services.NewAdminPrivilegeCodeService(
+		adminPrivilegeCodeRepository,
+		adminPrivilegeLogRepository,
+	)
+
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
 
@@ -354,6 +498,10 @@ func main() {
 		chatService,
 	)
 
+	adminPrivilegeCodeHandler := handlers.NewAdminPrivilegeCodeHandler(
+		adminPrivilegeCodeService,
+	)
+
 	router := app.SetupRouter(
 		authHandler,
 		notificationHandler,
@@ -373,6 +521,8 @@ func main() {
 		userProfileDetailsHandler,
 		chatHandler,
 		newsHandler,
+		adminPrivilegeCodeHandler,
+		adminPrivilegeCodeService,
 		webSocketHandler,
 		jwtService,
 		cfg.AdminAPIKey,
@@ -392,6 +542,8 @@ func main() {
 	log.Println("Server running on", serverAddress)
 
 	if err := router.Run(serverAddress); err != nil {
+		sentry.CaptureException(err)
+		sentry.Flush(2 * time.Second)
 		log.Fatal("Failed to start server:", err)
 	}
 }

@@ -19,6 +19,25 @@ func NewCleanupHandler(alertRepository *repositories.AlertRepository) *CleanupHa
 	}
 }
 
+// CleanupExpiredExternalAlerts godoc
+// @Summary Cleanup expired external alerts
+// @Description Deactivates expired external alerts from configured alert sources.
+// @Description
+// @Description This is an admin maintenance operation used to keep the alert feed clean by marking expired external alerts as inactive.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:update
+// @Tags Admin Maintenance
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{} "Expired external alerts cleaned up successfully"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 500 {object} map[string]interface{} "Failed to cleanup expired external alerts"
+// @Router /admin/maintenance/cleanup-expired-alerts [post]
 func (h *CleanupHandler) CleanupExpiredExternalAlerts(c *gin.Context) {
 	count, err := h.alertRepository.DeactivateExpiredExternalAlerts()
 	if err != nil {

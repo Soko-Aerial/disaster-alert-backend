@@ -3,9 +3,11 @@ package queue
 import (
 	"context"
 	"log"
+	"strconv"
 	"sync"
 
 	"disaster_alert_backend/internal/jobs"
+	"disaster_alert_backend/internal/observability"
 	"disaster_alert_backend/internal/services"
 )
 
@@ -36,6 +38,11 @@ func (q *NotificationQueue) Start(ctx context.Context) {
 	}
 
 	log.Printf("Notification queue started with %d workers\n", q.workerSize)
+
+	observability.Info(ctx, "Notification queue started", observability.Fields{
+		"module":       "notification_queue",
+		"worker_count": strconv.Itoa(q.workerSize),
+	})
 }
 
 func (q *NotificationQueue) Dispatch(job jobs.NotificationJob) bool {
@@ -43,6 +50,12 @@ func (q *NotificationQueue) Dispatch(job jobs.NotificationJob) bool {
 	case q.jobs <- job:
 		return true
 	default:
+		observability.Warn(context.Background(), "Notification queue is full", observability.Fields{
+			"module":      "notification_queue",
+			"target_type": string(job.TargetType),
+			"title":       job.Title,
+		})
+
 		return false
 	}
 }
@@ -50,7 +63,12 @@ func (q *NotificationQueue) Dispatch(job jobs.NotificationJob) bool {
 func (q *NotificationQueue) Stop() {
 	close(q.jobs)
 	q.wg.Wait()
+
 	log.Println("Notification queue stopped")
+
+	observability.Info(context.Background(), "Notification queue stopped", observability.Fields{
+		"module": "notification_queue",
+	})
 }
 
 func (q *NotificationQueue) worker(ctx context.Context, workerID int) {
@@ -70,12 +88,12 @@ func (q *NotificationQueue) worker(ctx context.Context, workerID int) {
 				return
 			}
 
-			q.processJob(workerID, job)
+			q.processJob(ctx, workerID, job)
 		}
 	}
 }
 
-func (q *NotificationQueue) processJob(workerID int, job jobs.NotificationJob) {
+func (q *NotificationQueue) processJob(ctx context.Context, workerID int, job jobs.NotificationJob) {
 	var err error
 
 	switch job.TargetType {
@@ -104,11 +122,27 @@ func (q *NotificationQueue) processJob(workerID int, job jobs.NotificationJob) {
 
 	default:
 		log.Printf("Worker %d received unknown notification target type: %s\n", workerID, job.TargetType)
+
+		observability.Warn(ctx, "Unknown notification target type", observability.Fields{
+			"module":      "notification_queue",
+			"worker_id":   strconv.Itoa(workerID),
+			"target_type": string(job.TargetType),
+			"title":       job.Title,
+		})
+
 		return
 	}
 
 	if err != nil {
 		log.Printf("Worker %d failed to send notification: %v\n", workerID, err)
+
+		observability.Error(ctx, "Notification job failed", err, observability.Fields{
+			"module":      "notification_queue",
+			"worker_id":   strconv.Itoa(workerID),
+			"target_type": string(job.TargetType),
+			"title":       job.Title,
+		})
+
 		return
 	}
 

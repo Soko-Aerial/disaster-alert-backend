@@ -5,6 +5,8 @@ type CreateAlertRequest struct {
 
 	Description string `json:"description" validate:"required,min=5" example:"Heavy rainfall is expected in Accra with possible flooding in low-lying areas."`
 
+	Summary string `json:"summary,omitempty" example:"Heavy rainfall expected in Accra with possible flooding."`
+
 	Category string `json:"category" validate:"required" example:"flood" enums:"flood,fire,weather,health,security,earthquake,conflict,other"`
 
 	Severity string `json:"severity" validate:"required,oneof=low medium high critical" example:"high" enums:"low,medium,high,critical"`
@@ -32,6 +34,16 @@ type CreateAlertRequest struct {
 	ExternalID string `json:"externalId,omitempty" example:"GDACS-12345"`
 
 	SourceURL string `json:"sourceUrl,omitempty" example:"https://example.com/source-alert"`
+
+	ImageURLs []string `json:"imageUrls,omitempty" example:"https://example.com/flood-image.jpg"`
+
+	VideoURLs []string `json:"videoUrls,omitempty" example:"https://example.com/flood-video.mp4"`
+
+	Tags []string `json:"tags,omitempty" example:"flood,ghana,accra"`
+
+	PriorityScore int `json:"priorityScore,omitempty" example:"85"`
+
+	PriorityLabel string `json:"priorityLabel,omitempty" validate:"omitempty,oneof=breaking serious watch low" example:"serious" enums:"breaking,serious,watch,low"`
 
 	EventTime string `json:"eventTime,omitempty" example:"2026-06-25T10:00:00Z"`
 

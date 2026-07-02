@@ -16,7 +16,7 @@ import (
 )
 
 type ReportHandler struct {
-	reportService      *services.ReportService
+	reportService     *services.ReportService
 	cloudinaryService *services.CloudinaryService
 	validator         *validator.Validate
 }
@@ -26,7 +26,7 @@ func NewReportHandler(
 	cloudinaryService *services.CloudinaryService,
 ) *ReportHandler {
 	return &ReportHandler{
-		reportService:      reportService,
+		reportService:     reportService,
 		cloudinaryService: cloudinaryService,
 		validator:         validator.New(),
 	}
@@ -234,14 +234,21 @@ func (h *ReportHandler) getUserID(c *gin.Context) (string, bool) {
 }
 
 // GetReports godoc
-// @Summary Get all reports
-// @Description Admin dashboard fetches all user-submitted reports.
+// @Summary List incident reports for admin
+// @Description Returns all user-submitted incident reports for review in the admin dashboard.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description reports:read
 // @Tags Admin Reports
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "Reports fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch reports"
 // @Router /admin/reports [get]
 
 func (h *ReportHandler) GetReports(c *gin.Context) {
@@ -265,16 +272,23 @@ func (h *ReportHandler) GetReports(c *gin.Context) {
 }
 
 // GetReportByID godoc
-// @Summary Get report by ID
-// @Description Admin dashboard fetches details of a single user report.
+// @Summary Get one incident report for admin
+// @Description Returns details of a single user-submitted incident report.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description reports:read
 // @Tags Admin Reports
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Produce json
 // @Param id path string true "Report ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "Report fetched successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid report ID"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 404 {object} map[string]interface{} "Report not found"
 // @Router /admin/reports/{id} [get]
 
 func (h *ReportHandler) GetReportByID(c *gin.Context) {
@@ -301,14 +315,23 @@ func (h *ReportHandler) GetReportByID(c *gin.Context) {
 
 // ApproveReport godoc
 // @Summary Approve user report and publish alert
-// @Description Allows an admin to approve a user-submitted report. When approved, the system converts the report into an alert that can be shown to users and used by the notification/WebSocket system.
+// @Description Approves a user-submitted incident report and converts it into an alert that can be shown to users through the alert feed, notifications, and WebSocket updates.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description reports:approve
+// @Description
+// @Description Use this endpoint only after an admin verifies that the submitted report is credible and should become an official alert.
 // @Tags Admin Reports
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Produce json
 // @Param id path string true "Report ID"
 // @Success 200 {object} map[string]interface{} "Report approved and alert published successfully"
 // @Failure 400 {object} map[string]interface{} "Report cannot be approved"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
 // @Failure 404 {object} map[string]interface{} "Report not found"
 // @Failure 500 {object} map[string]interface{} "Failed to approve report"
 // @Router /admin/reports/{id}/approve [put]

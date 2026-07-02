@@ -7,15 +7,14 @@ import (
 
 	"disaster_alert_backend/internal/handlers"
 	"disaster_alert_backend/internal/middleware"
+	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
 	"disaster_alert_backend/internal/websocket"
 
 	"github.com/gin-gonic/gin"
-
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-
 )
 
 func RegisterRoutes(
@@ -38,6 +37,8 @@ func RegisterRoutes(
 	userProfileDetailsHandler *handlers.UserProfileDetailsHandler,
 	chatHandler *handlers.ChatHandler,
 	newsHandler *handlers.NewsHandler,
+	adminPrivilegeCodeHandler *handlers.AdminPrivilegeCodeHandler,
+	adminPrivilegeCodeService *services.AdminPrivilegeCodeService,
 	webSocketHandler *websocket.Handler,
 	jwtService *services.JWTService,
 	adminAPIKey string,
@@ -55,13 +56,46 @@ func RegisterRoutes(
 	})
 
 	docs.SwaggerInfo.Title = "Disaster Alert API"
-	docs.SwaggerInfo.Description = "API documentation for Disaster Alert mobile app and admin dashboard integration."
-	docs.SwaggerInfo.Version = "1.0"
-	docs.SwaggerInfo.Host = "disaster-alert-backend-tiql.onrender.com"
+	docs.SwaggerInfo.Description = `Mission-control API for real-time disaster intelligence, SOS escalation, assistance coordination, incident reports, alerts, chats, notifications, and administrator response operations.
+
+	AUTHENTICATION GUIDE
+
+	1. Mobile/User endpoints use BearerAuth.
+	Header:
+	Authorization: Bearer <JWT_TOKEN>
+
+	2. Basic admin management endpoints use AdminApiKeyAuth only.
+	Header:
+	Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
+
+	3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+	Headers:
+	Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
+	X-Privilege-Code: <GENERATED_UUID>
+
+	ADMIN PRIVILEGE CODE FLOW
+
+	Step 1: Click Authorize.
+	Step 2: Enter your Admin API Key under AdminApiKeyAuth.
+	Step 3: Call POST /admin/privilege-codes.
+	Step 4: Copy the full UUID from data.code.
+	Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
+	Step 6: Test protected admin endpoints.
+
+	IMPORTANT:
+	The full UUID is returned only once during creation.
+	codePrefix is only for display and logs. Do not use codePrefix as X-Privilege-Code.`
+	docs.SwaggerInfo.Version = "1.0.0"
+	docs.SwaggerInfo.Host = "localhost:8080"
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	docs.SwaggerInfo.Schemes = []string{"https"}
+	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	router.GET("/docs", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/swagger/index.html")
+	})
+
 	api := router.Group("/api/v1")
 	api.GET("/ws", middleware.WebSocketAuthMiddleware(jwtService), webSocketHandler.Connect)
 
@@ -103,7 +137,6 @@ func RegisterRoutes(
 		news.GET("", newsHandler.GetNews)
 	}
 
-
 	externalSources := api.Group("/external-sources")
 	{
 		externalSources.GET("/status", externalSourceHandler.GetExternalSourceStatus)
@@ -114,69 +147,77 @@ func RegisterRoutes(
 	// -------------------------
 
 	admin := api.Group("/admin")
-		admin.Use(middleware.AdminAPIKeyMiddleware(adminAPIKey))
+	admin.Use(middleware.AdminAPIKeyMiddleware(adminAPIKey))
+	{
+		admin.GET("/ws", webSocketHandler.Connect)
+
+		adminPrivilegeCodes := admin.Group("/privilege-codes")
 		{
-			admin.GET("/ws", webSocketHandler.Connect)
-			adminReports := admin.Group("/reports")
-			{
-				adminReports.GET("", reportHandler.GetReports)
-				adminReports.GET("/:id", reportHandler.GetReportByID)
-				adminReports.PUT("/:id/approve", reportHandler.ApproveReport)
-			}
-
-			adminAssistance := admin.Group("/assistance")
-			{
-				adminAssistance.GET("", assistanceHandler.GetAssistanceRequests)
-				adminAssistance.GET("/:id", assistanceHandler.GetAssistanceRequestByID)
-				adminAssistance.PUT("/:id/status", assistanceHandler.UpdateAssistanceStatus)
-			}
-
-			adminSOS := admin.Group("/sos")
-			{
-				adminSOS.GET("", sosHandler.GetSOSRequests)
-				adminSOS.GET("/:id", sosHandler.GetSOSByID)
-				adminSOS.PUT("/:id/status", sosHandler.UpdateSOSStatus)
-			}
-
-			adminAlerts := admin.Group("/alerts")
-			{
-				adminAlerts.POST("", alertHandler.CreateAlert)
-				adminAlerts.GET("", alertHandler.GetAlerts)
-
-				adminAlerts.GET("/active", alertHandler.GetActiveAlerts)
-				adminAlerts.POST("/sync-external", aggregatorHandler.SyncExternalAlerts)
-				adminAlerts.GET("/local", alertHandler.GetLocalAlerts)
-				adminAlerts.GET("/global", alertHandler.GetGlobalAlerts)
-				adminAlerts.GET("/weather", alertHandler.GetWeatherAlerts)
-				adminAlerts.GET("/health", alertHandler.GetHealthAlerts)
-
-				adminAlerts.GET("/:id", alertHandler.GetAlertByID)
-				adminAlerts.PUT("/:id/status", alertHandler.UpdateAlertStatus)
-				adminAlerts.DELETE("/:id", alertHandler.DeleteAlert)
-			}
-
-			adminNotifications := admin.Group("/notifications")
-			{
-				adminNotifications.POST("/test/all", notificationHandler.SendTestToAll)
-			}
-
-			adminMaintenance := admin.Group("/maintenance")
-			{
-				adminMaintenance.POST("/cleanup-expired-alerts", cleanupHandler.CleanupExpiredExternalAlerts)
-			}
-
-			adminChats := admin.Group("/chats")
-			{
-				adminChats.GET("/conversations", chatHandler.GetConversations)
-				adminChats.GET("/conversations/:id/messages", chatHandler.GetConversationMessages)
-				adminChats.POST("/conversations/:id/messages", chatHandler.SendMessage)
-				adminChats.PUT("/conversations/:id/read", chatHandler.MarkConversationRead)
-			}
+			adminPrivilegeCodes.POST("", adminPrivilegeCodeHandler.CreatePrivilegeCode)
+			adminPrivilegeCodes.GET("", adminPrivilegeCodeHandler.GetPrivilegeCodes)
+			adminPrivilegeCodes.GET("/:id", adminPrivilegeCodeHandler.GetPrivilegeCodeByID)
+			adminPrivilegeCodes.POST("/validate", adminPrivilegeCodeHandler.ValidatePrivilegeCode)
+			adminPrivilegeCodes.PUT("/:id/revoke", adminPrivilegeCodeHandler.RevokePrivilegeCode)
 		}
 
+		admin.GET("/privilege-logs", adminPrivilegeCodeHandler.GetPrivilegeLogs)
 
+		adminReports := admin.Group("/reports")
+		{
+			adminReports.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ReportsRead), reportHandler.GetReports)
+			adminReports.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ReportsRead), reportHandler.GetReportByID)
+			adminReports.PUT("/:id/approve", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ReportsApprove), reportHandler.ApproveReport)
+		}
 
+		adminAssistance := admin.Group("/assistance")
+		{
+			adminAssistance.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AssistanceRead), assistanceHandler.GetAssistanceRequests)
+			adminAssistance.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AssistanceRead), assistanceHandler.GetAssistanceRequestByID)
+			adminAssistance.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AssistanceUpdateStatus), assistanceHandler.UpdateAssistanceStatus)
+		}
 
+		adminSOS := admin.Group("/sos")
+		{
+			adminSOS.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.SOSRead), sosHandler.GetSOSRequests)
+			adminSOS.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.SOSRead), sosHandler.GetSOSByID)
+			adminSOS.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.SOSUpdateStatus), sosHandler.UpdateSOSStatus)
+		}
+
+		adminAlerts := admin.Group("/alerts")
+		{
+			adminAlerts.POST("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.CreateAlert)
+			adminAlerts.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlerts)
+
+			adminAlerts.GET("/active", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetActiveAlerts)
+			adminAlerts.POST("/sync-external", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), aggregatorHandler.SyncExternalAlerts)
+			adminAlerts.GET("/local", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetLocalAlerts)
+			adminAlerts.GET("/global", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetGlobalAlerts)
+			adminAlerts.GET("/weather", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetWeatherAlerts)
+			adminAlerts.GET("/health", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetHealthAlerts)
+
+			adminAlerts.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertByID)
+			adminAlerts.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsUpdate), alertHandler.UpdateAlertStatus)
+			adminAlerts.DELETE("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsDelete), alertHandler.DeleteAlert)
+		}
+
+		adminNotifications := admin.Group("/notifications")
+		{
+			adminNotifications.POST("/test/all", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.NotificationsSend), notificationHandler.SendTestToAll)
+		}
+
+		adminMaintenance := admin.Group("/maintenance")
+		{
+			adminMaintenance.POST("/cleanup-expired-alerts", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsUpdate), cleanupHandler.CleanupExpiredExternalAlerts)
+		}
+
+		adminChats := admin.Group("/chats")
+		{
+			adminChats.GET("/conversations", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsRead), chatHandler.GetConversations)
+			adminChats.GET("/conversations/:id/messages", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsRead), chatHandler.GetConversationMessages)
+			adminChats.POST("/conversations/:id/messages", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsSend), chatHandler.SendMessage)
+			adminChats.PUT("/conversations/:id/read", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsRead), chatHandler.MarkConversationRead)
+		}
+	}
 
 	// -------------------------
 	// Protected Routes
@@ -222,22 +263,15 @@ func RegisterRoutes(
 
 		alerts := protected.Group("/alerts")
 		{
-			alerts.POST("", alertHandler.CreateAlert)
 			alerts.GET("", alertHandler.GetAlerts)
 
-			// Important: these specific routes must come before /:id
 			alerts.GET("/active", alertHandler.GetActiveAlerts)
-			// alerts.GET("/nearby", alertHandler.GetNearbyAlerts)
-			// alerts.GET("/critical-global", alertHandler.GetCriticalGlobalAlerts)
-			alerts.POST("/sync-external", aggregatorHandler.SyncExternalAlerts)
 			alerts.GET("/local", alertHandler.GetLocalAlerts)
 			alerts.GET("/global", alertHandler.GetGlobalAlerts)
 			alerts.GET("/weather", alertHandler.GetWeatherAlerts)
 			alerts.GET("/health", alertHandler.GetHealthAlerts)
 
 			alerts.GET("/:id", alertHandler.GetAlertByID)
-			alerts.PUT("/:id/status", alertHandler.UpdateAlertStatus)
-			alerts.DELETE("/:id", alertHandler.DeleteAlert)
 		}
 
 		maintenance := protected.Group("/maintenance")
@@ -284,7 +318,7 @@ func RegisterRoutes(
 
 			chats.GET("/conversations/:id/messages", chatHandler.GetConversationMessages)
 			chats.POST("/conversations/:id/messages", chatHandler.SendMessage)
-			
+
 			chats.PUT("/conversations/:id/read", chatHandler.MarkConversationRead)
 		}
 	}

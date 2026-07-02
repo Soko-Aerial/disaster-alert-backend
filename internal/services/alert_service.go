@@ -83,9 +83,25 @@ func (s *AlertService) CreateAlert(
 		confidence = 1.0
 	}
 
+	summary := strings.TrimSpace(req.Summary)
+	if summary == "" {
+		summary = strings.TrimSpace(req.Description)
+	}
+
+	priorityScore := req.PriorityScore
+	if priorityScore <= 0 {
+		priorityScore = manualAlertPriorityScore(req.Severity, req.Category)
+	}
+
+	priorityLabel := strings.TrimSpace(req.PriorityLabel)
+	if priorityLabel == "" {
+		priorityLabel = manualAlertPriorityLabel(priorityScore)
+	}
+
 	alert := models.Alert{
 		Title:       strings.TrimSpace(req.Title),
 		Description: strings.TrimSpace(req.Description),
+		Summary:     summary,
 		Category:    strings.TrimSpace(req.Category),
 		Severity:    strings.TrimSpace(req.Severity),
 		Status:      status,
@@ -102,6 +118,13 @@ func (s *AlertService) CreateAlert(
 		SourceName:         sourceName,
 		ExternalID:         strings.TrimSpace(req.ExternalID),
 		SourceURL:          strings.TrimSpace(req.SourceURL),
+		ImageURLs:          req.ImageURLs,
+		VideoURLs:          req.VideoURLs,
+		Tags:               normalizeAlertTags(req.Tags, req.Category, req.Severity, sourceName),
+		PriorityScore:      priorityScore,
+		PriorityLabel:      priorityLabel,
+		IsBreaking:         priorityScore >= 85,
+		IsVerified:         sourceType == "internal",
 		CreatedBy:          &creatorID,
 		EventTime:          eventTime,
 		ExpiresAt:          expiresAt,
@@ -409,6 +432,7 @@ func buildAlertPayload(alert *models.Alert) map[string]interface{} {
 		"id":                 alert.ID.Hex(),
 		"title":              alert.Title,
 		"description":        alert.Description,
+		"summary":            alert.Summary,
 		"category":           alert.Category,
 		"severity":           alert.Severity,
 		"status":             alert.Status,
@@ -423,10 +447,89 @@ func buildAlertPayload(alert *models.Alert) map[string]interface{} {
 		"sourceName":         alert.SourceName,
 		"externalId":         alert.ExternalID,
 		"sourceUrl":          alert.SourceURL,
+		"imageUrls":          alert.ImageURLs,
+		"videoUrls":          alert.VideoURLs,
+		"tags":               alert.Tags,
+		"priorityScore":      alert.PriorityScore,
+		"priorityLabel":      alert.PriorityLabel,
+		"isBreaking":         alert.IsBreaking,
+		"isVerified":         alert.IsVerified,
 		"eventTime":          alert.EventTime,
 		"expiresAt":          alert.ExpiresAt,
 		"confidence":         alert.Confidence,
+		"lastSyncedAt":       alert.LastSyncedAt,
 		"createdAt":          alert.CreatedAt,
 		"updatedAt":          alert.UpdatedAt,
 	}
+}
+
+
+func manualAlertPriorityScore(severity string, category string) int {
+	score := 0
+
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "critical":
+		score += 80
+	case "high":
+		score += 65
+	case "medium":
+		score += 45
+	case "low":
+		score += 25
+	default:
+		score += 35
+	}
+
+	switch strings.ToLower(strings.TrimSpace(category)) {
+	case "earthquake", "flood", "fire", "weather", "health", "conflict":
+		score += 10
+	case "volcano", "drought":
+		score += 8
+	default:
+		score += 5
+	}
+
+	if score > 100 {
+		score = 100
+	}
+
+	return score
+}
+
+func manualAlertPriorityLabel(score int) string {
+	switch {
+	case score >= 85:
+		return "breaking"
+	case score >= 65:
+		return "serious"
+	case score >= 45:
+		return "watch"
+	default:
+		return "low"
+	}
+}
+
+func normalizeAlertTags(inputTags []string, category string, severity string, sourceName string) []string {
+	seen := map[string]bool{}
+	tags := []string{}
+
+	add := func(value string) {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value == "" || seen[value] {
+			return
+		}
+
+		seen[value] = true
+		tags = append(tags, value)
+	}
+
+	for _, tag := range inputTags {
+		add(tag)
+	}
+
+	add(category)
+	add(severity)
+	add(sourceName)
+
+	return tags
 }

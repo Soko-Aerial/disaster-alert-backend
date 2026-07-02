@@ -26,16 +26,29 @@ func NewAlertHandler(alertService *services.AlertService) *AlertHandler {
 }
 
 // CreateAlert godoc
-// @Summary Create a new emergency alert
-// @Description Creates a manual emergency alert from the admin dashboard. Use this when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or any other public safety alert. The alert can later be shown to users based on country/location and can also be sent through notifications or WebSocket updates.
+// @Summary Create a new admin alert
+// @Description Creates a manual emergency alert from the admin dashboard.
+// @Description
+// @Description Use this endpoint when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or other public safety alert.
+// @Description The alert can later be shown to users based on country/location and can also be delivered through notifications or WebSocket updates.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:create
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {"title":"Heavy Rainfall Warning","description":"Heavy rainfall expected in flood-prone areas.","category":"weather","severity":"high","latitude":5.6037,"longitude":-0.1870,"country":"Ghana","region":"Greater Accra","address":"Accra"}
 // @Tags Admin Alerts
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.CreateAlertRequest true "Alert creation payload. Required fields are title, description, category, severity, latitude, and longitude. Country/region/address should be included when the alert is location-based."
+// @Param request body dto.CreateAlertRequest true "Alert creation payload"
 // @Success 201 {object} map[string]interface{} "Alert created successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request body or validation failed"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
 // @Failure 500 {object} map[string]interface{} "Failed to create alert"
 // @Router /admin/alerts [post]
 func (h *AlertHandler) CreateAlert(c *gin.Context) {
@@ -102,16 +115,6 @@ func (h *AlertHandler) CreateAlert(c *gin.Context) {
 	)
 }
 
-// GetAlerts godoc
-// @Summary Get all alerts for admin dashboard
-// @Description Fetches all alerts in the system for the admin dashboard. This includes active, draft, resolved, expired, and cancelled alerts. Use this for admin alert management, not for the mobile user's local alert feed.
-// @Tags Admin Alerts
-// @Security AdminApiKeyAuth
-// @Produce json
-// @Success 200 {object} map[string]interface{} "Alerts fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
-// @Failure 500 {object} map[string]interface{} "Failed to fetch alerts"
-// @Router /admin/alerts [get]
 func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	alerts, err := h.alertService.GetAlerts()
 	if err != nil {
@@ -163,18 +166,27 @@ func (h *AlertHandler) GetActiveAlerts(c *gin.Context) {
 	)
 }
 
-
 // GetLocalAlerts godoc
-// @Summary Get local alerts by country
-// @Description Fetches alerts that are relevant to a specific country. Use this endpoint for the mobile app or dashboard section that shows local alerts for a user-selected or detected country. Example: country=Ghana returns alerts affecting Ghana. The limit query is optional and defaults to 50.
-// @Tags Alerts
-// @Security BearerAuth
+// @Summary List local alerts for admin
+// @Description Fetches alerts relevant to a specific country.
+// @Description
+// @Description Example: country=Ghana returns alerts affecting Ghana.
+// @Description Use this endpoint in the admin dashboard when reviewing local alerts by country.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:read
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Produce json
 // @Param country query string true "Country name used to filter local alerts" example(Ghana)
 // @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200" example(50)
 // @Success 200 {object} map[string]interface{} "Local alerts fetched successfully"
 // @Failure 400 {object} map[string]interface{} "Country query parameter is required"
-// @Failure 401 {object} map[string]interface{} "User token missing or invalid"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch local alerts"
 // @Router /admin/alerts/local [get]
 func (h *AlertHandler) GetLocalAlerts(c *gin.Context) {
@@ -210,6 +222,27 @@ func (h *AlertHandler) GetLocalAlerts(c *gin.Context) {
 	)
 }
 
+// GetGlobalAlerts godoc
+// @Summary List global alerts for admin
+// @Description Fetches global alerts for the admin dashboard.
+// @Description
+// @Description Optionally pass country to exclude or compare local context depending on your service logic.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:read
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Produce json
+// @Param country query string false "Optional country context" example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200" example(50)
+// @Success 200 {object} map[string]interface{} "Global alerts fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch global alerts"
+// @Router /admin/alerts/global [get]
 func (h *AlertHandler) GetGlobalAlerts(c *gin.Context) {
 	country := c.Query("country")
 	limit := parseAlertLimit(c, 50, 200)
@@ -280,16 +313,23 @@ func (h *AlertHandler) GetHealthAlerts(c *gin.Context) {
 }
 
 // GetAlertByID godoc
-// @Summary Get alert by ID
-// @Description Admin dashboard fetches one alert.
+// @Summary Get one alert for admin
+// @Description Fetches details of a single alert by ID.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:read
 // @Tags Admin Alerts
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Produce json
 // @Param id path string true "Alert ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "Alert fetched successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid alert ID"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 404 {object} map[string]interface{} "Alert not found"
 // @Router /admin/alerts/{id} [get]
 func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 	alertID := c.Param("id")
@@ -315,17 +355,29 @@ func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 
 // UpdateAlertStatus godoc
 // @Summary Update alert status
-// @Description Admin dashboard updates an alert status.
+// @Description Updates the status of an alert from the admin dashboard.
+// @Description
+// @Description Use this endpoint to mark an alert as active, inactive, resolved, expired, cancelled.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:update
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {"status":"resolved"}
 // @Tags Admin Alerts
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Accept json
 // @Produce json
 // @Param id path string true "Alert ID"
-// @Param request body map[string]string true "Status update body"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Param request body dto.UpdateAlertStatusRequest true "Alert status update payload"
+// @Success 200 {object} map[string]interface{} "Alert status updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, or invalid alert status"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 404 {object} map[string]interface{} "Alert not found"
 // @Router /admin/alerts/{id}/status [put]
 func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 	alertID := c.Param("id")
@@ -373,15 +425,22 @@ func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 
 // DeleteAlert godoc
 // @Summary Delete alert
-// @Description Admin dashboard deletes an alert.
+// @Description Deletes an alert from the admin dashboard.
+// @Description
+// @Description SECURITY:
+// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description
+// @Description REQUIRED PERMISSION:
+// @Description alerts:delete
 // @Tags Admin Alerts
-// @Security AdminApiKeyAuth
+// @Security AdminApiKeyAuth && PrivilegeCodeAuth
 // @Produce json
 // @Param id path string true "Alert ID"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "Alert deleted successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid alert ID"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 404 {object} map[string]interface{} "Alert not found"
 // @Router /admin/alerts/{id} [delete]
 func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 	alertID := c.Param("id")
