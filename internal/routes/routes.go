@@ -86,7 +86,7 @@ func RegisterRoutes(
 	The full UUID is returned only once during creation.
 	codePrefix is only for display and logs. Do not use codePrefix as X-Privilege-Code.`
 	docs.SwaggerInfo.Version = "1.0.0"
-	docs.SwaggerInfo.Host = "https://disaster-alert-backend-tiql.onrender.com"
+	docs.SwaggerInfo.Host = "disaster-alert-backend-tiql.onrender.com"
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	docs.SwaggerInfo.Schemes = []string{"https"}
 
