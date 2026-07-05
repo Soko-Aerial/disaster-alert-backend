@@ -41,7 +41,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateAlertRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.CreateAlertRequest"
                         }
                     }
                 ],
@@ -379,7 +379,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateAlertStatusRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateAlertStatusRequest"
                         }
                     }
                 ],
@@ -567,7 +567,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateAssistanceStatusRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest"
                         }
                     }
                 ],
@@ -753,7 +753,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SendChatMessageRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest"
                         }
                     }
                 ],
@@ -870,7 +870,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SendTestNotificationRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.SendTestNotificationRequest"
                         }
                     }
                 ],
@@ -984,7 +984,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.CreateAdminPrivilegeCodeRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest"
                         }
                     }
                 ],
@@ -1045,7 +1045,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.ValidateAdminPrivilegeCodeRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.ValidateAdminPrivilegeCodeRequest"
                         }
                     }
                 ],
@@ -1162,7 +1162,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.RevokeAdminPrivilegeCodeRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest"
                         }
                     }
                 ],
@@ -1252,6 +1252,118 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/reports": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Returns all user-submitted incident reports for review in the admin dashboard.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nreports:read",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Reports"
+                ],
+                "summary": "List incident reports for admin",
+                "responses": {
+                    "200": {
+                        "description": "Reports fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch reports",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reports/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": [],
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Returns details of a single user-submitted incident report.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nreports:read",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Reports"
+                ],
+                "summary": "Get one incident report for admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Report ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Report fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid report ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Report not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/reports/{id}/approve": {
             "put": {
                 "security": [
@@ -1260,7 +1372,7 @@ const docTemplate = `{
                         "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Approves a user-submitted incident report and converts it into an alert that can be shown to users through the alert feed, notifications, and WebSocket updates.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nreports:approve\n\nUse this endpoint only after an admin verifies that the submitted report is credible and should become an official alert.",
+                "description": "Approves a user-submitted incident report and converts it into a public alert.\nThe public alert is shown in alert feeds, notifications, WebSocket updates, and home screen alert cards.\n\nSECURITY:\nThis endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\n\nREQUIRED PERMISSION:\nreports:approve\n\nUse this endpoint only after an admin verifies that the submitted report is credible and should become an official alert.",
                 "produces": [
                     "application/json"
                 ],
@@ -1468,7 +1580,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateSOSStatusRequest"
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateSOSStatusRequest"
                         }
                     }
                 ],
@@ -1538,7 +1650,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.CreateAdminPrivilegeCodeRequest": {
+        "disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest": {
             "type": "object",
             "required": [
                 "label",
@@ -1587,7 +1699,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.CreateAlertRequest": {
+        "disaster_alert_backend_internal_dto.CreateAlertRequest": {
             "type": "object",
             "required": [
                 "category",
@@ -1762,7 +1874,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.RevokeAdminPrivilegeCodeRequest": {
+        "disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest": {
             "type": "object",
             "properties": {
                 "reason": {
@@ -1771,7 +1883,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SendChatMessageRequest": {
+        "disaster_alert_backend_internal_dto.SendChatMessageRequest": {
             "type": "object",
             "required": [
                 "message"
@@ -1783,7 +1895,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SendTestNotificationRequest": {
+        "disaster_alert_backend_internal_dto.SendTestNotificationRequest": {
             "type": "object",
             "required": [
                 "body",
@@ -1798,7 +1910,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UpdateAlertStatusRequest": {
+        "disaster_alert_backend_internal_dto.UpdateAlertStatusRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -1817,7 +1929,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UpdateAssistanceStatusRequest": {
+        "disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -1838,7 +1950,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UpdateSOSStatusRequest": {
+        "disaster_alert_backend_internal_dto.UpdateSOSStatusRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -1856,7 +1968,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.ValidateAdminPrivilegeCodeRequest": {
+        "disaster_alert_backend_internal_dto.ValidateAdminPrivilegeCodeRequest": {
             "type": "object",
             "required": [
                 "uuid"

@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  dto.CreateAdminPrivilegeCodeRequest:
+  disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest:
     properties:
       expiresAt:
         example: "2026-07-28T12:00:00Z"
@@ -36,7 +36,7 @@ definitions:
     - organisationName
     - permissions
     type: object
-  dto.CreateAlertRequest:
+  disaster_alert_backend_internal_dto.CreateAlertRequest:
     properties:
       address:
         example: Circle, Accra
@@ -171,13 +171,13 @@ definitions:
     - severity
     - title
     type: object
-  dto.RevokeAdminPrivilegeCodeRequest:
+  disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest:
     properties:
       reason:
         example: Access no longer needed
         type: string
     type: object
-  dto.SendChatMessageRequest:
+  disaster_alert_backend_internal_dto.SendChatMessageRequest:
     properties:
       message:
         example: Help is on the way. Please remain in a safe location.
@@ -185,7 +185,7 @@ definitions:
     required:
     - message
     type: object
-  dto.SendTestNotificationRequest:
+  disaster_alert_backend_internal_dto.SendTestNotificationRequest:
     properties:
       body:
         type: string
@@ -195,7 +195,7 @@ definitions:
     - body
     - title
     type: object
-  dto.UpdateAlertStatusRequest:
+  disaster_alert_backend_internal_dto.UpdateAlertStatusRequest:
     properties:
       status:
         enum:
@@ -209,7 +209,7 @@ definitions:
     required:
     - status
     type: object
-  dto.UpdateAssistanceStatusRequest:
+  disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest:
     properties:
       status:
         enum:
@@ -225,7 +225,7 @@ definitions:
     required:
     - status
     type: object
-  dto.UpdateSOSStatusRequest:
+  disaster_alert_backend_internal_dto.UpdateSOSStatusRequest:
     properties:
       status:
         enum:
@@ -238,7 +238,7 @@ definitions:
     required:
     - status
     type: object
-  dto.ValidateAdminPrivilegeCodeRequest:
+  disaster_alert_backend_internal_dto.ValidateAdminPrivilegeCodeRequest:
     properties:
       uuid:
         example: 4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e
@@ -345,7 +345,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.CreateAlertRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateAlertRequest'
       produces:
       - application/json
       responses:
@@ -507,7 +507,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.UpdateAlertStatusRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateAlertStatusRequest'
       produces:
       - application/json
       responses:
@@ -782,7 +782,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.UpdateAssistanceStatusRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest'
       produces:
       - application/json
       responses:
@@ -934,7 +934,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.SendChatMessageRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest'
       produces:
       - application/json
       responses:
@@ -1033,7 +1033,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.SendTestNotificationRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendTestNotificationRequest'
       produces:
       - application/json
       responses:
@@ -1139,7 +1139,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.CreateAdminPrivilegeCodeRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest'
       produces:
       - application/json
       responses:
@@ -1242,7 +1242,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.RevokeAdminPrivilegeCodeRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest'
       produces:
       - application/json
       responses:
@@ -1293,7 +1293,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.ValidateAdminPrivilegeCodeRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.ValidateAdminPrivilegeCodeRequest'
       produces:
       - application/json
       responses:
@@ -1367,10 +1367,100 @@ paths:
       summary: List privilege audit logs
       tags:
       - Admin Privilege Logs
+  /admin/reports:
+    get:
+      description: |-
+        Returns all user-submitted incident reports for review in the admin dashboard.
+
+        SECURITY:
+        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+
+        REQUIRED PERMISSION:
+        reports:read
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reports fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Missing, revoked, expired, or unauthorized privilege code
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch reports
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+        PrivilegeCodeAuth: []
+      summary: List incident reports for admin
+      tags:
+      - Admin Reports
+  /admin/reports/{id}:
+    get:
+      description: |-
+        Returns details of a single user-submitted incident report.
+
+        SECURITY:
+        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+
+        REQUIRED PERMISSION:
+        reports:read
+      parameters:
+      - description: Report ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Report fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid report ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Missing, revoked, expired, or unauthorized privilege code
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Report not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+        PrivilegeCodeAuth: []
+      summary: Get one incident report for admin
+      tags:
+      - Admin Reports
   /admin/reports/{id}/approve:
     put:
       description: |-
-        Approves a user-submitted incident report and converts it into an alert that can be shown to users through the alert feed, notifications, and WebSocket updates.
+        Approves a user-submitted incident report and converts it into a public alert.
+        The public alert is shown in alert feeds, notifications, WebSocket updates, and home screen alert cards.
 
         SECURITY:
         This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
@@ -1545,7 +1635,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.UpdateSOSStatusRequest'
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateSOSStatusRequest'
       produces:
       - application/json
       responses:

@@ -125,6 +125,8 @@ func (h *ReportHandler) createReportMultipart(c *gin.Context) {
 		Latitude:         latitude,
 		Longitude:        longitude,
 		Address:          c.PostForm("address"),
+		Country:          c.PostForm("country"),
+		Region:           c.PostForm("region"),
 		MediaURLs:        []string{},
 		Media:            []models.ReportMedia{},
 	}
@@ -250,7 +252,6 @@ func (h *ReportHandler) getUserID(c *gin.Context) (string, bool) {
 // @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch reports"
 // @Router /admin/reports [get]
-
 func (h *ReportHandler) GetReports(c *gin.Context) {
 	reports, err := h.reportService.GetReports()
 	if err != nil {
@@ -290,7 +291,6 @@ func (h *ReportHandler) GetReports(c *gin.Context) {
 // @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
 // @Failure 404 {object} map[string]interface{} "Report not found"
 // @Router /admin/reports/{id} [get]
-
 func (h *ReportHandler) GetReportByID(c *gin.Context) {
 	reportID := c.Param("id")
 
@@ -315,7 +315,8 @@ func (h *ReportHandler) GetReportByID(c *gin.Context) {
 
 // ApproveReport godoc
 // @Summary Approve user report and publish alert
-// @Description Approves a user-submitted incident report and converts it into an alert that can be shown to users through the alert feed, notifications, and WebSocket updates.
+// @Description Approves a user-submitted incident report and converts it into a public alert.
+// @Description The public alert is shown in alert feeds, notifications, WebSocket updates, and home screen alert cards.
 // @Description
 // @Description SECURITY:
 // @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
@@ -340,9 +341,22 @@ func (h *ReportHandler) ApproveReport(c *gin.Context) {
 
 	alert, err := h.reportService.ApproveReport(reportID)
 	if err != nil {
+		statusCode := http.StatusBadRequest
+
+		errorText := strings.ToLower(err.Error())
+
+		if strings.Contains(errorText, "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		if strings.Contains(errorText, "repository") ||
+			strings.Contains(errorText, "database") {
+			statusCode = http.StatusInternalServerError
+		}
+
 		utils.ErrorResponse(
 			c,
-			http.StatusBadRequest,
+			statusCode,
 			err.Error(),
 			nil,
 		)
@@ -352,7 +366,10 @@ func (h *ReportHandler) ApproveReport(c *gin.Context) {
 	utils.SuccessResponse(
 		c,
 		http.StatusOK,
-		"Report approved and alert published successfully",
-		alert,
+		"Report approved and public alert created successfully",
+		map[string]interface{}{
+			"alertId": alert.ID.Hex(),
+			"alert":   alert,
+		},
 	)
 }
