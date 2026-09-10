@@ -3,31 +3,52 @@ definitions:
   disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest:
     properties:
       expiresAt:
-        example: "2026-07-28T12:00:00Z"
+        description: |-
+          ExpiresAt is the optional expiry date/time for the privilege code.
+
+          Recommended format:
+          2026-09-30T23:59:00Z
+        example: "2026-09-30T23:59:00Z"
         type: string
       label:
+        description: Label is the readable name of this privilege code.
         example: Police Traffic Unit Access
         type: string
       levelId:
+        description: LevelID is the optional department, unit, role, or level identifier.
         example: firebase_traffic_unit_id
         type: string
       levelName:
+        description: LevelName is the readable department, unit, role, or level name.
         example: Traffic Unit
         type: string
       organisationId:
+        description: OrganisationID is the external/internal organisation identifier.
         example: firebase_police_org_id
         type: string
       organisationName:
+        description: OrganisationName is the readable organisation name.
         example: Ghana Police Service
         type: string
       permissions:
+        description: |-
+          Permissions is the list of allowed admin actions for this privilege code.
+
+          Examples:
+          reports:read, reports:approve, alerts:read, alerts:create,
+          alerts:update, alerts:delete, sos:read, sos:update_status,
+          assistance:read, assistance:update_status, chats:read, chats:send,
+          notifications:send
         example:
-        - sos:read
+        - reports:read
+        - reports:approve
+        - alerts:read
         items:
           type: string
         minItems: 1
         type: array
       purpose:
+        description: Purpose explains why this privilege code exists.
         example: Allow Police Traffic Unit to view SOS and update SOS status
         type: string
     required:
@@ -39,9 +60,16 @@ definitions:
   disaster_alert_backend_internal_dto.CreateAlertRequest:
     properties:
       address:
+        description: Address is a readable location, landmark, town, street, or area
+          name.
         example: Circle, Accra
         type: string
       category:
+        description: |-
+          Category describes the type of alert.
+
+          Allowed values:
+          flood, fire, weather, health, security, earthquake, conflict, other
         enum:
         - flood
         - fire
@@ -54,38 +82,67 @@ definitions:
         example: flood
         type: string
       confidence:
+        description: |-
+          Confidence is how reliable the alert is.
+
+          Example:
+          0.95 means 95% confidence.
         example: 0.95
         type: number
       country:
+        description: Country is the affected country.
         example: Ghana
         type: string
       description:
+        description: |-
+          Description gives the full details of the alert.
+          Minimum length: 5 characters.
         example: Heavy rainfall is expected in Accra with possible flooding in low-lying
           areas.
         minLength: 5
         type: string
       eventTime:
-        example: "2026-06-25T10:00:00Z"
+        description: |-
+          EventTime is when the emergency happened or is expected to happen.
+
+          Recommended format:
+          2026-09-10T08:30:00Z
+        example: "2026-09-10T08:30:00Z"
         type: string
       expiresAt:
-        example: "2026-06-26T18:00:00Z"
+        description: |-
+          ExpiresAt is when the alert should stop being treated as active.
+
+          Recommended format:
+          2026-09-11T18:00:00Z
+        example: "2026-09-11T18:00:00Z"
         type: string
       externalId:
+        description: ExternalID is used when the alert comes from an external source
+          such as GDACS, ReliefWeb, NASA FIRMS, or GDELT.
         example: GDACS-12345
         type: string
       imageUrls:
+        description: ImageURLs contains image evidence or images related to the alert.
         example:
         - https://example.com/flood-image.jpg
         items:
           type: string
         type: array
       latitude:
+        description: Latitude is the GPS latitude of the alert location.
         example: 5.6037
         type: number
       longitude:
+        description: Longitude is the GPS longitude of the alert location.
         example: -0.187
         type: number
       priorityLabel:
+        description: |-
+          PriorityLabel is a readable priority level.
+
+          Allowed values:
+          breaking, serious, watch, low
         enum:
         - breaking
         - serious
@@ -94,21 +151,40 @@ definitions:
         example: serious
         type: string
       priorityScore:
+        description: |-
+          PriorityScore is a numeric urgency score.
+
+          Example:
+          85 means serious or breaking depending on your service logic.
         example: 85
         type: integer
       radiusKm:
+        description: |-
+          RadiusKm is the approximate affected area around the latitude/longitude.
+
+          Example: 10 means users within about 10km may be affected.
         example: 10
         type: number
       region:
+        description: Region is the affected region, state, province, or administrative
+          area.
         example: Greater Accra
         type: string
       safetyInstructions:
+        description: SafetyInstructions are clear actions users should take.
         example:
         - Move to higher ground
+        - Follow official instructions
+        - Avoid flooded roads
         items:
           type: string
         type: array
       severity:
+        description: |-
+          Severity describes how serious the alert is.
+
+          Allowed values:
+          low, medium, high, critical
         enum:
         - low
         - medium
@@ -117,9 +193,15 @@ definitions:
         example: high
         type: string
       sourceName:
+        description: SourceName is the human-readable source of the alert.
         example: Admin Dashboard
         type: string
       sourceType:
+        description: |-
+          SourceType identifies where the alert came from.
+
+          Allowed values:
+          internal, external, system, user_report, weather, health, news, admin
         enum:
         - internal
         - external
@@ -132,9 +214,14 @@ definitions:
         example: admin
         type: string
       sourceUrl:
+        description: SourceURL is an optional link to the original source.
         example: https://example.com/source-alert
         type: string
       status:
+        description: |-
+          Status controls whether the alert is visible/active.
+
+          If omitted, your service may default it to active or draft depending on your service logic.
         enum:
         - draft
         - active
@@ -144,9 +231,13 @@ definitions:
         example: active
         type: string
       summary:
+        description: |-
+          Summary is a shorter version of the description.
+          It is useful for cards, notifications, and alert previews.
         example: Heavy rainfall expected in Accra with possible flooding.
         type: string
       tags:
+        description: Tags help classify and search alerts.
         example:
         - flood
         - ghana
@@ -155,9 +246,11 @@ definitions:
           type: string
         type: array
       title:
+        description: Title is the short headline users will see first.
         example: Heavy rainfall warning
         type: string
       videoUrls:
+        description: VideoURLs contains video evidence or videos related to the alert.
         example:
         - https://example.com/flood-video.mp4
         items:
@@ -171,16 +264,373 @@ definitions:
     - severity
     - title
     type: object
+  disaster_alert_backend_internal_dto.CreateAssistanceRequest:
+    properties:
+      address:
+        description: Address is the readable location, landmark, street, or area name.
+        example: Circle, Accra
+        type: string
+      affectedIndividuals:
+        description: |-
+          AffectedIndividuals is the number of people who need help.
+
+          Minimum value: 1
+        example: 3
+        minimum: 1
+        type: integer
+      assistanceType:
+        description: |-
+          AssistanceType describes the kind of help the user needs.
+
+          Allowed values:
+          medical, rescue, food, shelter, security, evacuation, other
+        enum:
+        - medical
+        - rescue
+        - food
+        - shelter
+        - security
+        - evacuation
+        - other
+        example: medical
+        type: string
+      latitude:
+        description: Latitude is the user's current GPS latitude.
+        example: 5.6037
+        type: number
+      longitude:
+        description: Longitude is the user's current GPS longitude.
+        example: -0.187
+        type: number
+      otherInformation:
+        description: |-
+          OtherInformation gives extra details about the situation.
+
+          Example: injuries, blocked access, trapped people, security concern,
+          food shortage, shelter need, or evacuation challenge.
+        example: One person is injured and needs urgent medical support.
+        type: string
+      urgencyLevel:
+        description: |-
+          UrgencyLevel describes how urgent the assistance request is.
+
+          Allowed values:
+          low, medium, high, critical
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: high
+        type: string
+    required:
+    - affectedIndividuals
+    - assistanceType
+    - latitude
+    - longitude
+    - urgencyLevel
+    type: object
+  disaster_alert_backend_internal_dto.CreateConversationRequest:
+    properties:
+      caseId:
+        description: CaseID is the MongoDB ObjectID of the related SOS, assistance
+          request, or report.
+        example: 667c9b2f12ab34cd56ef7890
+        type: string
+      caseType:
+        description: |-
+          CaseType describes what this conversation is connected to.
+
+          Allowed values:
+          sos, assistance, report, general
+        enum:
+        - sos
+        - assistance
+        - report
+        - general
+        example: assistance
+        type: string
+      contactId:
+        description: ContactID is the MongoDB ObjectID of the emergency contact or
+          participant, if applicable.
+        example: 667c9b2f12ab34cd56ef7891
+        type: string
+      title:
+        description: Title is the conversation title shown in the chat list.
+        example: Flood assistance conversation
+        type: string
+    required:
+    - title
+    type: object
+  disaster_alert_backend_internal_dto.CreateEmergencyContactRequest:
+    properties:
+      address:
+        description: Address is the contact's address or office location.
+        example: Accra, Ghana
+        type: string
+      email:
+        description: Email is the contact email address.
+        example: ama@example.com
+        type: string
+      isGovernment:
+        description: IsGovernment marks this contact as a government or official response
+          contact.
+        example: false
+        type: boolean
+      isPrimary:
+        description: IsPrimary marks this as the user's main emergency contact.
+        example: true
+        type: boolean
+      name:
+        description: Name is the contact person's or organization's name.
+        example: Ama Mensah
+        type: string
+      organization:
+        description: Organization is the organization name if this contact belongs
+          to an institution.
+        example: National Ambulance Service
+        type: string
+      phone:
+        description: Phone is the contact phone number.
+        example: "+233241234567"
+        type: string
+      relationship:
+        description: Relationship describes how this contact is related to the user.
+        example: Mother
+        type: string
+      type:
+        description: |-
+          Type describes the contact category.
+
+          Examples:
+          personal, family, medical, police, fire, ambulance, government, organization, other
+        enum:
+        - personal
+        - family
+        - medical
+        - police
+        - fire
+        - ambulance
+        - government
+        - organization
+        - other
+        example: family
+        type: string
+    required:
+    - name
+    - phone
+    type: object
+  disaster_alert_backend_internal_dto.CreateEmergencyMessageRequest:
+    properties:
+      location:
+        allOf:
+        - $ref: '#/definitions/disaster_alert_backend_internal_dto.EmergencyMessageLocationRequest'
+        description: Location is optional location information attached to the message.
+      message:
+        description: Message is the full emergency message text.
+        example: I need urgent help at my current location.
+        type: string
+      title:
+        description: Title is the short title of the emergency message.
+        example: Need urgent help
+        type: string
+      type:
+        description: |-
+          Type describes the message category.
+
+          Examples:
+          free_text, sos, assistance, report, template
+        enum:
+        - free_text
+        - sos
+        - assistance
+        - report
+        - template
+        example: free_text
+        type: string
+    required:
+    - message
+    type: object
+  disaster_alert_backend_internal_dto.CreateSOSRequest:
+    properties:
+      accuracy:
+        description: Accuracy is the GPS accuracy in meters, if available from the
+          mobile device.
+        example: 8.5
+        type: number
+      address:
+        description: Address is the readable location, landmark, street, or area name.
+        example: Circle, Accra
+        type: string
+      emergencyType:
+        description: |-
+          EmergencyType describes the kind of emergency.
+
+          Allowed values:
+          medical, fire, security, flood, accident, other
+        enum:
+        - medical
+        - fire
+        - security
+        - flood
+        - accident
+        - other
+        example: medical
+        type: string
+      isLiveTracking:
+        description: |-
+          IsLiveTracking tells the backend whether the user wants location updates
+          to continue while the emergency is active.
+        example: true
+        type: boolean
+      latitude:
+        description: Latitude is the user's current GPS latitude.
+        example: 5.6037
+        type: number
+      longitude:
+        description: Longitude is the user's current GPS longitude.
+        example: -0.187
+        type: number
+      message:
+        description: Message is an optional emergency message from the user.
+        example: I need urgent help at my location.
+        type: string
+    required:
+    - emergencyType
+    - latitude
+    - longitude
+    type: object
+  disaster_alert_backend_internal_dto.EmergencyMessageLocationRequest:
+    properties:
+      address:
+        description: Address is the readable location or landmark.
+        example: Circle, Accra
+        type: string
+      latitude:
+        description: Latitude is the user's GPS latitude.
+        example: 5.6037
+        type: number
+      longitude:
+        description: Longitude is the user's GPS longitude.
+        example: -0.187
+        type: number
+    type: object
+  disaster_alert_backend_internal_dto.LoginRequest:
+    properties:
+      email:
+        description: Email is the user's registered email address.
+        example: kwame@example.com
+        type: string
+      password:
+        description: Password is the user's account password.
+        example: StrongPass123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  disaster_alert_backend_internal_dto.MarkAppNotificationReadRequest:
+    properties:
+      notificationIds:
+        items:
+          type: string
+        type: array
+    type: object
+  disaster_alert_backend_internal_dto.MarkConversationReadRequest:
+    properties:
+      messageIds:
+        description: MessageIDs is the list of chat message IDs to mark as read.
+        example:
+        - 667c9b2f12ab34cd56ef7892
+        items:
+          type: string
+        type: array
+    type: object
+  disaster_alert_backend_internal_dto.RegisterRequest:
+    properties:
+      email:
+        description: |-
+          Email is the user's login email address.
+          It must be a valid email format.
+        example: kwame@example.com
+        type: string
+      name:
+        description: |-
+          Name is the user's full name.
+          Minimum length: 2 characters.
+        example: Kwame Mensah
+        minLength: 2
+        type: string
+      password:
+        description: |-
+          Password is the user's account password.
+          Minimum length: 6 characters.
+        example: StrongPass123
+        minLength: 6
+        type: string
+      phone:
+        description: |-
+          Phone is the user's phone number.
+          This is optional.
+        example: "+233241234567"
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
   disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest:
     properties:
       reason:
+        description: Reason explains why the privilege code is being revoked.
         example: Access no longer needed
         type: string
+    type: object
+  disaster_alert_backend_internal_dto.SaveFCMTokenRequest:
+    properties:
+      deviceType:
+        type: string
+      token:
+        type: string
+    required:
+    - token
     type: object
   disaster_alert_backend_internal_dto.SendChatMessageRequest:
     properties:
       message:
         example: Help is on the way. Please remain in a safe location.
+        type: string
+    required:
+    - message
+    type: object
+  disaster_alert_backend_internal_dto.SendEmergencyMessageRequest:
+    properties:
+      contactIds:
+        description: |-
+          ContactIDs is the list of emergency contact IDs to send the message to.
+
+          Leave empty if sendToAllContacts is true.
+        example:
+        - 66e19b71c8f2a2b4d1234567
+        items:
+          type: string
+        type: array
+      location:
+        allOf:
+        - $ref: '#/definitions/disaster_alert_backend_internal_dto.EmergencyMessageLocationRequest'
+        description: Location is optional location information attached to the message.
+      message:
+        description: Message is the full emergency message text.
+        example: I need urgent help at my current location.
+        type: string
+      sendToAllContacts:
+        description: SendToAllContacts sends the message to all active emergency contacts
+          when true.
+        example: true
+        type: boolean
+      title:
+        description: Title is the short title of the emergency message.
+        example: Emergency help needed
         type: string
     required:
     - message
@@ -195,9 +645,72 @@ definitions:
     - body
     - title
     type: object
+  disaster_alert_backend_internal_dto.UpdateAlertPreferenceRequest:
+    properties:
+      conflict:
+        description: Conflict alerts.
+        example: true
+        type: boolean
+      criticalAlerts:
+        description: CriticalAlerts controls whether the user receives critical/highest
+          priority alerts.
+        example: true
+        type: boolean
+      drought:
+        description: Drought alerts.
+        example: false
+        type: boolean
+      earthquake:
+        description: Earthquake alerts.
+        example: false
+        type: boolean
+      fire:
+        description: Fire alerts.
+        example: true
+        type: boolean
+      flood:
+        description: Flood alerts.
+        example: true
+        type: boolean
+      galamsey:
+        description: Galamsey or illegal mining-related alerts.
+        example: false
+        type: boolean
+      health:
+        description: Health alerts such as outbreaks, contamination, or public health
+          warnings.
+        example: true
+        type: boolean
+      munitions:
+        description: Munitions or explosive-related alerts.
+        example: true
+        type: boolean
+      protests:
+        description: Protest or civil unrest alerts.
+        example: true
+        type: boolean
+      robbery:
+        description: Robbery or crime-related alerts.
+        example: true
+        type: boolean
+      unverifiedActivity:
+        description: Unverified activity alerts.
+        example: false
+        type: boolean
+      weather:
+        description: Weather alerts such as storms, heavy rainfall, heat, wind, or
+          severe weather.
+        example: true
+        type: boolean
+    type: object
   disaster_alert_backend_internal_dto.UpdateAlertStatusRequest:
     properties:
       status:
+        description: |-
+          Status is the new alert status.
+
+          Allowed values:
+          draft, active, resolved, expired, cancelled
         enum:
         - draft
         - active
@@ -212,6 +725,11 @@ definitions:
   disaster_alert_backend_internal_dto.UpdateAssistanceStatusRequest:
     properties:
       status:
+        description: |-
+          Status is the new assistance request status.
+
+          Allowed values:
+          pending, accepted, en_route, arrived, completed, cancelled, rejected
         enum:
         - pending
         - accepted
@@ -225,9 +743,69 @@ definitions:
     required:
     - status
     type: object
+  disaster_alert_backend_internal_dto.UpdateEmergencyContactRequest:
+    properties:
+      address:
+        description: Address is the contact's address or office location.
+        example: Accra, Ghana
+        type: string
+      email:
+        description: Email is the contact email address.
+        example: ama@example.com
+        type: string
+      isActive:
+        description: IsActive controls whether this contact is currently active.
+        example: true
+        type: boolean
+      isGovernment:
+        description: IsGovernment marks this contact as a government or official response
+          contact.
+        example: false
+        type: boolean
+      isPrimary:
+        description: IsPrimary marks this as the user's main emergency contact.
+        example: true
+        type: boolean
+      name:
+        description: Name is the contact person's or organization's name.
+        example: Ama Mensah
+        type: string
+      organization:
+        description: Organization is the organization name if this contact belongs
+          to an institution.
+        example: National Ambulance Service
+        type: string
+      phone:
+        description: Phone is the contact phone number.
+        example: "+233241234567"
+        type: string
+      relationship:
+        description: Relationship describes how this contact is related to the user.
+        example: Mother
+        type: string
+      type:
+        description: Type describes the contact category.
+        enum:
+        - personal
+        - family
+        - medical
+        - police
+        - fire
+        - ambulance
+        - government
+        - organization
+        - other
+        example: family
+        type: string
+    type: object
   disaster_alert_backend_internal_dto.UpdateSOSStatusRequest:
     properties:
       status:
+        description: |-
+          Status is the new SOS status.
+
+          Allowed values:
+          active, assigned, resolved, cancelled
         enum:
         - active
         - assigned
@@ -241,6 +819,10 @@ definitions:
   disaster_alert_backend_internal_dto.ValidateAdminPrivilegeCodeRequest:
     properties:
       uuid:
+        description: |-
+          UUID is the full privilege code returned during creation.
+
+          Do not use codePrefix here.
         example: 4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e
         type: string
     required:
@@ -358,21 +940,62 @@ paths:
       consumes:
       - application/json
       description: |-
-        Creates a manual emergency alert from the admin dashboard.
+        Creates a verified public alert from the admin dashboard.
 
-        Use this endpoint when an admin wants to publish a flood warning, fire outbreak, weather danger, health risk, security threat, or other public safety alert.
-        The alert can later be shown to users based on country/location and can also be delivered through notifications or WebSocket updates.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin wants to manually publish a public safety alert such as flood warning, fire outbreak, weather danger, health risk, security threat, conflict warning, or other emergency.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        IMPORTANT:
+        This is for admin-created alerts.
+        User-submitted reports should normally be approved through /admin/reports/{id}/approve so that the report is converted into an alert.
 
-        REQUIRED PERMISSION:
-        alerts:create
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `alerts:create`.
+
+        REQUIRED FIELDS:
+        - title: Short headline users will see.
+        - description: Full alert details.
+        - category: Type of emergency.
+        - severity: low, medium, high, or critical.
+        - latitude: Alert latitude.
+        - longitude: Alert longitude.
+
+        OPTIONAL FIELDS:
+        - summary: Short preview text.
+        - status: draft, active, resolved, expired, or cancelled.
+        - address, country, region: Human-readable location details.
+        - radiusKm: Approximate affected radius in kilometers.
+        - safetyInstructions: List of instructions for users.
+        - imageUrls/videoUrls: Media links.
+        - eventTime/expiresAt: ISO date/time values.
 
         EXAMPLE REQUEST BODY:
-        {"title":"Heavy Rainfall Warning","description":"Heavy rainfall expected in flood-prone areas.","category":"weather","severity":"high","latitude":5.6037,"longitude":-0.1870,"country":"Ghana","region":"Greater Accra","address":"Accra"}
+        {
+        "title": "Heavy rainfall warning",
+        "description": "Heavy rainfall is expected in Accra with possible flooding in low-lying areas.",
+        "summary": "Heavy rainfall expected in Accra with possible flooding.",
+        "category": "weather",
+        "severity": "high",
+        "status": "active",
+        "latitude": 5.6037,
+        "longitude": -0.1870,
+        "address": "Circle, Accra",
+        "country": "Ghana",
+        "region": "Greater Accra",
+        "radiusKm": 10,
+        "safetyInstructions": ["Move to higher ground", "Avoid flooded roads", "Follow official instructions"],
+        "sourceType": "admin",
+        "sourceName": "Admin Dashboard",
+        "priorityScore": 85,
+        "priorityLabel": "serious",
+        "eventTime": "2026-09-10T08:30:00Z",
+        "expiresAt": "2026-09-11T18:00:00Z",
+        "confidence": 0.95
+        }
       parameters:
-      - description: Alert creation payload
+      - description: Alert creation payload. title, description, category, severity,
+          latitude, and longitude are required.
         in: body
         name: request
         required: true
@@ -382,34 +1005,35 @@ paths:
       - application/json
       responses:
         "201":
-          description: Alert created successfully
+          description: Alert created successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body or validation failed
+          description: Invalid request body, validation failed, or alert could not
+            be created.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to create alert
+          description: Server error while creating alert.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Create a new admin alert
+      - PrivilegeCodeAuth: []
+      summary: Create a manual public alert
       tags:
       - Admin Alerts
   /admin/alerts/{id}:
@@ -417,13 +1041,22 @@ paths:
       description: |-
         Deletes an alert from the admin dashboard.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin needs to permanently remove an alert.
+
+        IMPORTANT:
+        For normal emergency operations, resolving or expiring an alert is usually better than deleting it.
+        Delete should be used carefully because it may remove the alert from history depending on repository logic.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `alerts:delete`.
 
         REQUIRED PERMISSION:
         alerts:delete
       parameters:
-      - description: Alert ID
+      - description: Alert ID. This is the MongoDB ObjectID of the alert.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
@@ -432,83 +1065,39 @@ paths:
       - application/json
       responses:
         "200":
-          description: Alert deleted successfully
+          description: Alert deleted successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid alert ID
+          description: Invalid alert ID.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Alert not found
+          description: Alert not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while deleting alert.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
+      - PrivilegeCodeAuth: []
       summary: Delete alert
-      tags:
-      - Admin Alerts
-    get:
-      description: |-
-        Fetches details of a single alert by ID.
-
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-
-        REQUIRED PERMISSION:
-        alerts:read
-      parameters:
-      - description: Alert ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Alert fetched successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid alert ID
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Missing or invalid Admin API Key
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Alert not found
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Get one alert for admin
       tags:
       - Admin Alerts
   /admin/alerts/{id}/status:
@@ -518,23 +1107,35 @@ paths:
       description: |-
         Updates the status of an alert from the admin dashboard.
 
-        Use this endpoint to mark an alert as active, inactive, resolved, expired, cancelled.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin wants to mark an alert as draft, active, resolved, expired, or cancelled.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `alerts:update`.
 
         REQUIRED PERMISSION:
         alerts:update
 
+        ALLOWED STATUS VALUES:
+        - draft: Alert is saved but not active.
+        - active: Alert is currently active.
+        - resolved: The emergency has been resolved.
+        - expired: The alert is no longer valid.
+        - cancelled: The alert was cancelled.
+
         EXAMPLE REQUEST BODY:
-        {"status":"resolved"}
+        {
+        "status": "resolved"
+        }
       parameters:
-      - description: Alert ID
+      - description: Alert ID. This is the MongoDB ObjectID of the alert.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
         type: string
-      - description: Alert status update payload
+      - description: Alert status update payload.
         in: body
         name: request
         required: true
@@ -544,192 +1145,82 @@ paths:
       - application/json
       responses:
         "200":
-          description: Alert status updated successfully
+          description: Alert status updated successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body, validation error, or invalid alert status
+          description: Invalid request body, validation error, or invalid alert status.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Alert not found
+          description: Alert not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while updating alert status.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
+      - PrivilegeCodeAuth: []
       summary: Update alert status
-      tags:
-      - Admin Alerts
-  /admin/alerts/global:
-    get:
-      description: |-
-        Fetches global alerts for the admin dashboard.
-
-        Optionally pass country to exclude or compare local context depending on your service logic.
-
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-
-        REQUIRED PERMISSION:
-        alerts:read
-      parameters:
-      - description: Optional country context
-        example: Ghana
-        in: query
-        name: country
-        type: string
-      - description: Maximum number of alerts to return. Default is 50, maximum is
-          200
-        example: 50
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Global alerts fetched successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Missing or invalid Admin API Key
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Failed to fetch global alerts
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: List global alerts for admin
-      tags:
-      - Admin Alerts
-  /admin/alerts/local:
-    get:
-      description: |-
-        Fetches alerts relevant to a specific country.
-
-        Example: country=Ghana returns alerts affecting Ghana.
-        Use this endpoint in the admin dashboard when reviewing local alerts by country.
-
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-
-        REQUIRED PERMISSION:
-        alerts:read
-      parameters:
-      - description: Country name used to filter local alerts
-        example: Ghana
-        in: query
-        name: country
-        required: true
-        type: string
-      - description: Maximum number of alerts to return. Default is 50, maximum is
-          200
-        example: 50
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Local alerts fetched successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Country query parameter is required
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Missing or invalid Admin API Key
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Failed to fetch local alerts
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: List local alerts for admin
       tags:
       - Admin Alerts
   /admin/assistance:
     get:
       description: |-
-        Returns all assistance requests submitted by users.
+        Returns assistance requests submitted by users.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        ADMIN USE:
+        Admins use this endpoint to view requests that need review, assignment, dispatch, or completion.
+
+        REQUIRED HEADERS FOR ADMIN ROUTE:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `assistance:read`.
 
         REQUIRED PERMISSION:
         assistance:read
-
-        SWAGGER TESTING:
-        1. Click Authorize.
-        2. Enter Sigtrack-Admin-API-Key under AdminApiKeyAuth.
-        3. Enter the generated full UUID under PrivilegeCodeAuth.
-        4. Execute this endpoint.
       produces:
       - application/json
       responses:
         "200":
-          description: Assistance requests fetched successfully
+          description: Assistance requests fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch assistance requests
+          description: Failed to fetch assistance requests.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: List assistance requests for admin
+      - PrivilegeCodeAuth: []
+      summary: List assistance requests
       tags:
       - Admin Assistance
   /admin/assistance/{id}:
@@ -737,13 +1228,19 @@ paths:
       description: |-
         Returns the full details of a single assistance request.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin wants to inspect one assistance request before accepting, dispatching, updating, completing, cancelling, or rejecting it.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `assistance:read`.
 
         REQUIRED PERMISSION:
         assistance:read
       parameters:
-      - description: Assistance Request ID
+      - description: Assistance request ID. This is the MongoDB ObjectID of the assistance
+          request.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
@@ -752,34 +1249,39 @@ paths:
       - application/json
       responses:
         "200":
-          description: Assistance request fetched successfully
+          description: Assistance request fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid assistance request ID
+          description: Invalid assistance request ID.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Assistance request not found
+          description: Assistance request not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while fetching assistance request.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Get one assistance request for admin
+      - PrivilegeCodeAuth: []
+      summary: Get one assistance request
       tags:
       - Admin Assistance
   /admin/assistance/{id}/status:
@@ -789,27 +1291,41 @@ paths:
       description: |-
         Updates the status of a user assistance request from the admin dashboard.
 
-        Use this endpoint when an admin accepts a request, dispatches help, marks responders as en route, confirms arrival, completes the request, cancels it, or rejects it.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin accepts a request, dispatches help, marks responders as en route, confirms arrival, completes the request, cancels it, or rejects it.
+
+        MOBILE APP EFFECT:
         The mobile app can use this status to update the user's assistance card in real time.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `assistance:update_status`.
 
         REQUIRED PERMISSION:
         assistance:update_status
 
-        EXAMPLE REQUEST BODY:
-        {"status":"en_route"}
+        ALLOWED STATUS VALUES:
+        - pending: Request has been submitted but not accepted yet.
+        - accepted: Admin/responder has accepted the request.
+        - en_route: Help is on the way.
+        - arrived: Responder has arrived.
+        - completed: Assistance has been completed.
+        - cancelled: Request was cancelled.
+        - rejected: Request was rejected.
 
-        COMMON STATUS VALUES:
-        pending, accepted, en_route, arrived, completed, cancelled, rejected
+        EXAMPLE REQUEST BODY:
+        {
+        "status": "en_route"
+        }
       parameters:
-      - description: Assistance Request ID
+      - description: Assistance request ID. This is the MongoDB ObjectID of the assistance
+          request.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
         type: string
-      - description: Status update payload
+      - description: Status update payload. status is required.
         in: body
         name: request
         required: true
@@ -819,188 +1335,41 @@ paths:
       - application/json
       responses:
         "200":
-          description: Assistance status updated successfully
+          description: Assistance status updated successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body, validation error, or invalid status
+          description: Invalid request body, validation error, or invalid status.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Assistance request not found
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Update assistance request status
-      tags:
-      - Admin Assistance
-  /admin/chats/conversations:
-    get:
-      description: |-
-        Returns user chat conversations visible to the admin dashboard.
-
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-
-        REQUIRED PERMISSION:
-        chats:read
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Conversations fetched successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Missing or invalid Admin API Key
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Assistance request not found.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch conversations
+          description: Server error while updating assistance status.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: List admin chat conversations
+      - PrivilegeCodeAuth: []
+      summary: Update assistance request status
       tags:
-      - Admin Chats
-  /admin/chats/conversations/{id}/messages:
-    get:
-      description: |-
-        Returns messages inside a selected chat conversation.
-
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-
-        REQUIRED PERMISSION:
-        chats:read
-      parameters:
-      - description: Conversation ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Messages fetched successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid conversation ID
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Missing or invalid Admin API Key
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Conversation not found
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Get admin conversation messages
-      tags:
-      - Admin Chats
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Sends a message from the admin dashboard into a user conversation.
-
-        Use this endpoint when an admin, responder, or support team needs to reply to a user during an SOS case, assistance request, incident report, or general support conversation.
-        The message can be delivered to the user through the app and real-time WebSocket updates.
-
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-
-        REQUIRED PERMISSION:
-        chats:send
-
-        EXAMPLE REQUEST BODY:
-        {"message":"Hello, this is the emergency response team. Please confirm your current location."}
-      parameters:
-      - description: Conversation ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Chat message payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Message sent successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request body or conversation ID
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Missing or invalid Admin API Key
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Conversation not found
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Send admin chat message
-      tags:
-      - Admin Chats
+      - Admin Assistance
   /admin/maintenance/cleanup-expired-alerts:
     post:
       description: |-
@@ -1049,18 +1418,31 @@ paths:
       description: |-
         Queues a broadcast test notification to all registered users.
 
-        Use this endpoint to verify Firebase Cloud Messaging, notification queue processing, and mobile push delivery.
+        WHEN TO USE THIS ENDPOINT:
+        Use this from the admin dashboard to verify Firebase Cloud Messaging, queue processing, and app push delivery.
 
-        SECURITY:
-        This admin endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        IMPORTANT:
+        This endpoint should be admin-only because it sends a notification to every registered user.
+        Do not expose this to normal mobile users in production.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `notifications:send`.
 
         REQUIRED PERMISSION:
         notifications:send
 
+        REQUIRED FIELDS:
+        - title: Notification title.
+        - body: Notification message.
+
         EXAMPLE REQUEST BODY:
-        {"title":"Disaster Alert Test","body":"This is a test broadcast notification."}
+        {
+        "title": "Disaster Alert Test",
+        "body": "This is a test broadcast notification."
+        }
       parameters:
-      - description: Broadcast test notification payload
+      - description: Broadcast test notification payload. title and body are required.
         in: body
         name: request
         required: true
@@ -1070,33 +1452,33 @@ paths:
       - application/json
       responses:
         "202":
-          description: Broadcast notification queued successfully
+          description: Broadcast notification queued successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body or validation error
+          description: Invalid request body or validation error.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "503":
-          description: Notification queue is full
+          description: Notification queue is full.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
+      - PrivilegeCodeAuth: []
       summary: Send notification to all users
       tags:
       - Admin Notifications
@@ -1105,17 +1487,16 @@ paths:
       description: |-
         Returns privilege-code records created for organisations, departments, units, or admin levels.
 
-        SECURITY:
-        This endpoint requires only AdminApiKeyAuth.
-
         IMPORTANT:
-        The full UUID is not returned here for security reasons.
-        Only codePrefix is returned so admins can identify the record without exposing the full secret UUID.
+        This endpoint does not return the full UUID.
+        It returns codePrefix only so admins can identify records without exposing the secret privilege code.
 
-        Use this endpoint to review active, revoked, expired, and previously created privilege codes.
+        REQUIRED HEADER:
+        - Sigtrack-Admin-API-Key: Your admin API key.
       parameters:
       - description: Maximum number of privilege-code records to return. Default is
           50. Maximum is 200.
+        example: 50
         in: query
         name: limit
         type: integer
@@ -1123,23 +1504,23 @@ paths:
       - application/json
       responses:
         "200":
-          description: Privilege codes fetched successfully
+          description: Privilege codes fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Admin API key missing or invalid
+          description: Admin API key missing or invalid.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch privilege codes
+          description: Failed to fetch privilege codes.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-      summary: List generated admin privilege codes
+      summary: List admin privilege codes
       tags:
       - Admin Privilege Codes
     post:
@@ -1148,25 +1529,53 @@ paths:
       description: |-
         Creates a new privilege code for an organisation, unit, department, or admin level.
 
-        This endpoint is used to generate the UUID that will later be sent in the X-Privilege-Code header.
-        It requires only the Admin API Key because this endpoint is used to create privilege codes.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when you want to give a department, organisation, responder group, or admin user controlled access to admin endpoints.
 
-        HOW TO USE IN SWAGGER:
-        1. Click Authorize.
-        2. Enter Sigtrack-Admin-API-Key under AdminApiKeyAuth.
-        3. Execute this endpoint.
-        4. Copy data.code from the response.
-        5. Click Authorize again.
-        6. Paste data.code under PrivilegeCodeAuth.
+        HOW PRIVILEGE CODES WORK:
+        1. This endpoint creates a full UUID privilege code.
+        2. The full UUID is returned only once.
+        3. The backend stores a secure hash, not the raw UUID.
+        4. The admin copies the UUID and sends it as X-Privilege-Code when calling protected admin endpoints.
+
+        REQUIRED HEADER:
+        - Sigtrack-Admin-API-Key: Your admin API key.
 
         IMPORTANT:
         The full UUID is returned only once during creation.
-        The codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+        codePrefix is only for display and audit logs.
+        Do not use codePrefix as X-Privilege-Code.
+        If the full UUID is lost, revoke the old code and generate a new one.
 
-        EXAMPLE PERMISSIONS:
-        assistance:read, assistance:update_status, sos:read, sos:update_status, reports:read, reports:approve, alerts:read, alerts:create, alerts:update, alerts:delete
+        EXAMPLE REQUEST BODY:
+        {
+        "label": "Police Traffic Unit Access",
+        "purpose": "Allow Police Traffic Unit to view reports and update SOS status",
+        "organisationId": "firebase_police_org_id",
+        "organisationName": "Ghana Police Service",
+        "levelId": "firebase_traffic_unit_id",
+        "levelName": "Traffic Unit",
+        "permissions": ["reports:read", "sos:read", "sos:update_status"],
+        "expiresAt": "2026-09-30T23:59:00Z"
+        }
+
+        COMMON PERMISSIONS:
+        - reports:read
+        - reports:approve
+        - alerts:read
+        - alerts:create
+        - alerts:update
+        - alerts:delete
+        - sos:read
+        - sos:update_status
+        - assistance:read
+        - assistance:update_status
+        - chats:read
+        - chats:send
+        - notifications:send
       parameters:
-      - description: Privilege code creation payload
+      - description: Privilege code creation payload. label, organisationId, organisationName,
+          and permissions are required.
         in: body
         name: request
         required: true
@@ -1176,23 +1585,24 @@ paths:
       - application/json
       responses:
         "201":
-          description: Privilege code created successfully. Copy data.code and use
-            it as X-Privilege-Code.
+          description: Privilege code created successfully. Copy data.uuid or data.code
+            depending on your service response and use it as X-Privilege-Code.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body, validation error, or invalid permissions
+          description: Invalid request body, validation error, invalid permission,
+            or invalid expiry date.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Admin API key missing or invalid
+          description: Admin API key missing or invalid.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to create privilege code
+          description: Server error while creating privilege code.
           schema:
             additionalProperties: true
             type: object
@@ -1206,14 +1616,13 @@ paths:
       description: |-
         Fetches one privilege-code record by database ID.
 
-        SECURITY:
-        This endpoint requires only AdminApiKeyAuth.
-
         IMPORTANT:
         This endpoint does not return the full UUID.
         If the full UUID is lost, revoke the old privilege code and generate a new one.
       parameters:
-      - description: Privilege-code database ID
+      - description: Privilege-code database ID. This is the MongoDB ObjectID of the
+          privilege-code record.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
@@ -1222,22 +1631,27 @@ paths:
       - application/json
       responses:
         "200":
-          description: Privilege code fetched successfully
+          description: Privilege code fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid privilege-code ID.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Admin API key missing or invalid
+          description: Admin API key missing or invalid.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Privilege code not found
+          description: Privilege code not found.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch privilege code
+          description: Failed to fetch privilege code.
           schema:
             additionalProperties: true
             type: object
@@ -1253,9 +1667,6 @@ paths:
       description: |-
         Disables a privilege UUID so it can no longer be used on protected admin endpoints.
 
-        SECURITY:
-        This endpoint requires only AdminApiKeyAuth.
-
         WHAT REVOKE MEANS:
         Revoke does not delete the database record.
         It changes the privilege-code status from active to revoked.
@@ -1263,38 +1674,49 @@ paths:
 
         WHEN TO REVOKE:
         Revoke a code when it is leaked, no longer trusted, assigned to the wrong level, or needs to be replaced by a new UUID.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "reason": "Access no longer needed"
+        }
       parameters:
-      - description: Privilege-code database ID
+      - description: Privilege-code database ID. This is the MongoDB ObjectID of the
+          privilege-code record.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
         type: string
-      - description: Revocation reason
+      - description: Optional revocation reason.
         in: body
         name: request
-        required: true
         schema:
           $ref: '#/definitions/disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Privilege code revoked successfully
+          description: Privilege code revoked successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request or privilege code already revoked
+          description: Invalid request or privilege code already revoked.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Admin API key missing or invalid
+          description: Admin API key missing or invalid.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Privilege code not found
+          description: Privilege code not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while revoking privilege code.
           schema:
             additionalProperties: true
             type: object
@@ -1310,17 +1732,20 @@ paths:
       description: |-
         Checks whether a full UUID privilege code is valid, active, not expired, and usable.
 
-        SECURITY:
-        This endpoint requires only AdminApiKeyAuth.
-
-        WHEN TO USE:
-        Use this endpoint when testing a generated UUID before applying it to protected admin endpoints.
+        WHEN TO USE THIS ENDPOINT:
+        Use this after generating a privilege code to confirm that the full UUID works before using protected admin endpoints.
 
         IMPORTANT:
         Send the full UUID in the request body.
-        Do not send codePrefix. codePrefix is only for display and logs.
+        Do not send codePrefix.
+        codePrefix is only for display and audit logs.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "uuid": "4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e"
+        }
       parameters:
-      - description: Full privilege UUID validation payload
+      - description: Full privilege UUID validation payload. uuid is required.
         in: body
         name: request
         required: true
@@ -1330,18 +1755,23 @@ paths:
       - application/json
       responses:
         "200":
-          description: Privilege code is valid
+          description: Privilege code is valid.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body, invalid UUID, expired code, or revoked
-            code
+          description: Invalid request body, invalid UUID, expired code, revoked code,
+            or inactive code.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Admin API key missing or invalid
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while validating privilege code.
           schema:
             additionalProperties: true
             type: object
@@ -1355,24 +1785,26 @@ paths:
       description: |-
         Fetches audit logs for privilege-code creation, validation, revocation, and permission checks.
 
-        SECURITY:
-        This endpoint requires only AdminApiKeyAuth.
-
         WHAT THIS LOG SHOWS:
-        - When a privilege code was created
-        - When a privilege code was validated
-        - When a privilege code was revoked
-        - Which admin endpoint was accessed
-        - Which permission was required
-        - Whether access was allowed or denied
-        - The codePrefix, organisation, level, IP address, and user agent involved
+        - When a privilege code was created.
+        - When a privilege code was validated.
+        - When a privilege code was revoked.
+        - Which admin endpoint was accessed.
+        - Which permission was required.
+        - Whether access was allowed or denied.
+        - The codePrefix, organisation, level, IP address, and user agent involved.
+
+        REQUIRED HEADER:
+        - Sigtrack-Admin-API-Key: Your admin API key.
       parameters:
       - description: Maximum number of logs to return. Default is 100. Maximum is
           500.
+        example: 100
         in: query
         name: limit
         type: integer
-      - description: Filter logs by privilege-code database ID
+      - description: Filter logs by privilege-code database ID.
+        example: 66e19b71c8f2a2b4d1234567
         in: query
         name: privilegeCodeId
         type: string
@@ -1380,17 +1812,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: Privilege logs fetched successfully
+          description: Privilege logs fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Admin API key missing or invalid
+          description: Admin API key missing or invalid.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch privilege logs
+          description: Failed to fetch privilege logs.
           schema:
             additionalProperties: true
             type: object
@@ -1567,10 +1999,14 @@ paths:
   /admin/sos:
     get:
       description: |-
-        Returns all SOS emergency requests submitted by users.
+        Returns SOS emergency requests submitted by users.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        ADMIN USE:
+        Admins use this endpoint to view urgent SOS emergencies that need response, assignment, or resolution.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `sos:read`.
 
         REQUIRED PERMISSION:
         sos:read
@@ -1578,29 +2014,29 @@ paths:
       - application/json
       responses:
         "200":
-          description: SOS requests fetched successfully
+          description: SOS requests fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch SOS requests
+          description: Failed to fetch SOS requests.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: List SOS requests for admin
+      - PrivilegeCodeAuth: []
+      summary: List SOS requests
       tags:
       - Admin SOS
   /admin/sos/{id}:
@@ -1608,13 +2044,18 @@ paths:
       description: |-
         Returns details of a single SOS emergency request.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin wants to inspect one SOS request, view its emergency type, message, location, live tracking flag, and response status.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `sos:read`.
 
         REQUIRED PERMISSION:
         sos:read
       parameters:
-      - description: SOS ID
+      - description: SOS ID. This is the MongoDB ObjectID of the SOS request.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
@@ -1623,34 +2064,39 @@ paths:
       - application/json
       responses:
         "200":
-          description: SOS request fetched successfully
+          description: SOS request fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid SOS ID
+          description: Invalid SOS ID.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: SOS request not found
+          description: SOS request not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while fetching SOS request.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Get one SOS request for admin
+      - PrivilegeCodeAuth: []
+      summary: Get one SOS request
       tags:
       - Admin SOS
   /admin/sos/{id}/status:
@@ -1660,27 +2106,37 @@ paths:
       description: |-
         Updates the status of an SOS emergency request from the admin dashboard.
 
-        Use assigned when a responder/admin has taken the case, resolved when the emergency is handled, and cancelled when the request is cancelled.
-        The mobile app can stop SOS alarm/live tracking when status becomes resolved or cancelled.
+        WHEN TO USE THIS ENDPOINT:
+        Use this when an admin or responder takes over an SOS case, assigns it, resolves it, or cancels it.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        MOBILE APP EFFECT:
+        The mobile app can stop SOS alarm/live tracking when status becomes resolved or cancelled, depending on your frontend logic.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `sos:update_status`.
 
         REQUIRED PERMISSION:
         sos:update_status
 
-        EXAMPLE REQUEST BODY:
-        {"status":"assigned"}
+        ALLOWED STATUS VALUES:
+        - active: SOS is still active.
+        - assigned: A responder/admin has taken the case.
+        - resolved: Emergency has been handled.
+        - cancelled: SOS was cancelled.
 
-        COMMON STATUS VALUES:
-        active, assigned, resolved, cancelled
+        EXAMPLE REQUEST BODY:
+        {
+        "status": "assigned"
+        }
       parameters:
-      - description: SOS ID
+      - description: SOS ID. This is the MongoDB ObjectID of the SOS request.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
         type: string
-      - description: SOS status update payload
+      - description: SOS status update payload. status is required.
         in: body
         name: request
         required: true
@@ -1690,63 +2146,103 @@ paths:
       - application/json
       responses:
         "200":
-          description: SOS status updated successfully
+          description: SOS status updated successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body, validation error, or invalid status
+          description: Invalid request body, validation error, or invalid status.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: SOS request not found
+          description: SOS request not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while updating SOS status.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Update SOS emergency status
+      - PrivilegeCodeAuth: []
+      summary: Update SOS status
       tags:
       - Admin SOS
   /admin/ws:
     get:
-      description: |
-        Establishes a real-time WebSocket connection for the admin dashboard.
+      description: |-
+        Establishes a real-time WebSocket connection for mobile users or admin dashboards.
 
-        Admin WebSocket URL:
+        USER WEBSOCKET URL:
+        ws://localhost:8080/api/v1/ws
+        wss://disaster-alert-backend-tiql.onrender.com/api/v1/ws
+
+        USER AUTH:
+        Mobile/user WebSocket connections require a valid JWT token.
+        Recommended connection style:
+        Authorization: Bearer YOUR_JWT_TOKEN
+
+        ADMIN WEBSOCKET URL:
+        ws://localhost:8080/api/v1/admin/ws
         wss://disaster-alert-backend-tiql.onrender.com/api/v1/admin/ws
 
+        ADMIN AUTH:
+        Admin WebSocket connections require the admin API key.
         Required header:
         Sigtrack-Admin-API-Key: YOUR_ADMIN_API_KEY
 
-        Event format:
-        {"type":"EVENT_NAME","data":{}}
+        EVENT FORMAT:
+        All WebSocket events follow this structure:
+        {
+        "type": "EVENT_NAME",
+        "data": {}
+        }
 
-        Admin dashboard events:
-        SOS_CREATED - sent when a user creates an SOS request.
-        ASSISTANCE_CREATED - sent when a user submits an assistance request.
-        REPORT_CREATED - sent when a user submits a report.
-        ALERT_CREATED - sent when an active alert is created.
-        ALERT_APPROVED - sent when an alert/report is approved.
-        CHAT_MESSAGE_CREATED - sent when a user sends a chat message.
+        EVENTS SENT TO ADMINS:
+        - SOS_CREATED: A user triggered SOS.
+        - ASSISTANCE_CREATED: A user submitted an assistance request.
+        - REPORT_CREATED: A user submitted an incident report.
+        - CHAT_MESSAGE_CREATED: A user sent a chat message.
 
-        SOS_CREATED example:
-        {"type":"SOS_CREATED","data":{"id":"sos_id","user":{"id":"user_id","name":"User","email":"user@email.com","phone":"0240000000","location":{"country":"Ghana","region":"Greater Accra","address":"Accra"}},"emergencyType":"medical","message":"Need help","latitude":5.6037,"longitude":-0.1870,"address":"Accra","status":"active","createdAt":"2026-06-11T10:00:00Z"}}
+        EVENTS SENT TO USERS BY COUNTRY:
+        - ALERT_CREATED: A new active alert was created for the user's country.
+        - ALERT_APPROVED: A report was approved and converted into an alert for the user's country.
 
-        ASSISTANCE_CREATED example:
-        {"type":"ASSISTANCE_CREATED","data":{"id":"assistance_id","user":{"id":"user_id","name":"User","email":"user@email.com"},"assistanceType":"medical","urgencyLevel":"high","affectedIndividuals":3,"address":"Accra","status":"pending","createdAt":"2026-06-11T10:00:00Z"}}
+        EVENTS SENT TO SPECIFIC USERS:
+        - NOTIFICATION_CREATED: A new in-app notification was created.
+        - CHAT_MESSAGE_CREATED: A new chat message was sent to the user.
+        - SOS_STATUS_UPDATED: The user's SOS status changed.
+        - ASSISTANCE_STATUS_UPDATED: The user's assistance request status changed.
+
+        EXAMPLE EVENT:
+        {
+        "type": "ALERT_CREATED",
+        "data": {
+        "id": "66e19b71c8f2a2b4d1234567",
+        "title": "Heavy rainfall warning",
+        "category": "weather",
+        "severity": "high",
+        "country": "Ghana",
+        "createdAt": "2026-09-10T10:00:00Z"
+        }
+        }
+
+        IMPORTANT:
+        Swagger UI does not fully test WebSocket connections like normal REST endpoints.
+        Use Postman, Hoppscotch, browser client code, or your Flutter app to test WebSocket connections.
       produces:
       - application/json
       responses:
@@ -1754,11 +2250,1598 @@ paths:
           description: Switching Protocols
           schema:
             type: string
+        "401":
+          description: Missing, invalid, or expired WebSocket authentication.
+          schema:
+            additionalProperties: true
+            type: object
       security:
-      - AdminApiKeyAuth: []
-      summary: Connect Admin WebSocket
+      - BearerAuth: []
+      summary: Connect to real-time WebSocket
       tags:
-      - Admin WebSocket
+      - WebSocket
+  /alerts:
+    get:
+      description: |-
+        Returns alerts from the system.
+
+        ADMIN USE:
+        When called from /admin/alerts, this is used by the admin dashboard to list all alerts.
+        Requires AdminApiKeyAuth and PrivilegeCodeAuth with `alerts:read` permission.
+
+        MOBILE USER USE:
+        When called from /alerts, this is used by the mobile app to show alerts to authenticated users.
+        Mobile users must provide BearerAuth.
+
+        NOTE:
+        This handler is currently shared by both mobile and admin routes.
+        Make sure your service response hides admin-only/internal fields from normal mobile users if required.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List alerts
+      tags:
+      - Alerts
+  /alerts/{id}:
+    get:
+      description: |-
+        Fetches details of a single alert by ID.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the mobile app or admin dashboard opens an alert detail screen.
+
+        PATH PARAMETER:
+        - id: MongoDB ObjectID of the alert.
+      parameters:
+      - description: Alert ID. This is the MongoDB ObjectID of the alert.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid alert ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Alert not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get one alert
+      tags:
+      - Alerts
+  /alerts/active:
+    get:
+      description: |-
+        Returns currently active alerts.
+
+        QUERY FILTERS:
+        - category: Optional category filter such as flood, weather, fire, health, security.
+        - severity: Optional severity filter such as low, medium, high, critical.
+        - sourceName: Optional source name filter.
+        - sourceType: Optional source type filter such as admin, weather, health, external.
+        - country: Optional country filter such as Ghana.
+        - limit: Optional result limit. Default is 50. Maximum is 200.
+
+        MOBILE USE:
+        The mobile app can use this endpoint to show active alerts on the home screen, alert feed, and map.
+      parameters:
+      - description: Filter by category.
+        example: flood
+        in: query
+        name: category
+        type: string
+      - description: Filter by severity.
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: high
+        in: query
+        name: severity
+        type: string
+      - description: Filter by source name.
+        example: Admin Dashboard
+        in: query
+        name: sourceName
+        type: string
+      - description: Filter by source type.
+        enum:
+        - internal
+        - external
+        - system
+        - user_report
+        - weather
+        - health
+        - news
+        - admin
+        example: admin
+        in: query
+        name: sourceType
+        type: string
+      - description: Filter by country.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch active alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List active alerts
+      tags:
+      - Alerts
+  /alerts/global:
+    get:
+      description: |-
+        Fetches global alerts.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the app or dashboard wants alerts that are not limited to one local country view.
+
+        OPTIONAL QUERY PARAMETERS:
+        - country: Optional country context depending on service logic.
+        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      parameters:
+      - description: Optional country context.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Global alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch global alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List global alerts
+      tags:
+      - Alerts
+  /alerts/health:
+    get:
+      description: |-
+        Fetches health-related alerts.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this for disease outbreaks, public health risks, contamination warnings, epidemic updates, or medical emergency alerts.
+
+        OPTIONAL QUERY PARAMETERS:
+        - country: Optional country filter. Example: Ghana.
+        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      parameters:
+      - description: Optional country filter.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch health alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List health alerts
+      tags:
+      - Alerts
+  /alerts/local:
+    get:
+      description: |-
+        Fetches alerts relevant to a specific country.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the app or admin dashboard wants alerts affecting a specific country.
+
+        EXAMPLE:
+        country=Ghana returns alerts affecting Ghana.
+
+        REQUIRED QUERY PARAMETER:
+        - country: Country name used to filter local alerts.
+
+        OPTIONAL QUERY PARAMETER:
+        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      parameters:
+      - description: Country name used to filter local alerts.
+        example: Ghana
+        in: query
+        name: country
+        required: true
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Local alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Country query parameter is required.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch local alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List local alerts
+      tags:
+      - Alerts
+  /alerts/weather:
+    get:
+      description: |-
+        Fetches weather-related alerts.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this for weather warnings such as storms, heavy rainfall, flooding risk, heat, wind, or severe weather.
+
+        OPTIONAL QUERY PARAMETERS:
+        - country: Optional country filter. Example: Ghana.
+        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      parameters:
+      - description: Optional country filter.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Weather alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch weather alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List weather alerts
+      tags:
+      - Alerts
+  /assistance:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Allows an authenticated mobile user to request help during or after an emergency.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a user needs medical help, rescue, food, shelter, security support, evacuation, or other assistance.
+
+        DIFFERENCE BETWEEN SOS AND ASSISTANCE:
+        - SOS is for immediate emergency panic situations.
+        - Assistance is for structured help requests that responders/admins can review and manage.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED FIELDS:
+        - assistanceType: Type of help needed. Example: medical.
+        - urgencyLevel: low, medium, high, or critical.
+        - affectedIndividuals: Number of people needing help. Minimum is 1.
+        - latitude: User/request latitude.
+        - longitude: User/request longitude.
+
+        OPTIONAL FIELDS:
+        - otherInformation: Extra details about the situation.
+        - address: Human-readable location or landmark.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "assistanceType": "medical",
+        "urgencyLevel": "high",
+        "affectedIndividuals": 3,
+        "otherInformation": "One person is injured and needs urgent medical support.",
+        "latitude": 5.6037,
+        "longitude": -0.1870,
+        "address": "Circle, Accra"
+        }
+      parameters:
+      - description: Assistance request payload. assistanceType, urgencyLevel, affectedIndividuals,
+          latitude, and longitude are required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateAssistanceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Assistance request submitted successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, validation failed, or request could not
+            be created.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while submitting assistance request.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit an assistance request
+      tags:
+      - User Assistance
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Authenticates a registered user and returns a JWT token.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this endpoint when a user wants to sign in to the mobile app.
+
+        REQUIRED FIELDS:
+        - email: Registered user email.
+        - password: Account password.
+
+        HOW TO USE THE TOKEN:
+        1. Copy the token from the response.
+        2. Click Authorize in Swagger.
+        3. Paste it under BearerAuth like this: Bearer YOUR_JWT_TOKEN.
+        4. Use protected endpoints like /reports, /alerts, /sos, /assistance, /notifications, and /chats.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "email": "kwame@example.com",
+        "password": "StrongPass123"
+        }
+      parameters:
+      - description: User login payload. email and password are required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful. Response includes token and user.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or validation failed.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Invalid email or password.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while logging in.
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login user
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: |-
+        Returns the profile of the currently authenticated user.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this endpoint after login to confirm the token is valid and fetch the logged-in user's details.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Current user fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while fetching current user.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new mobile/user account.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this endpoint when a new user wants to create an account in the mobile app.
+
+        REQUIRED FIELDS:
+        - name: User's full name. Minimum 2 characters.
+        - email: User's email address. Must be a valid email.
+        - password: User's password. Minimum 6 characters.
+
+        OPTIONAL FIELD:
+        - phone: User's phone number.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "name": "Kwame Mensah",
+        "email": "kwame@example.com",
+        "password": "StrongPass123",
+        "phone": "+233241234567"
+        }
+      parameters:
+      - description: User registration payload. name, email, and password are required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully. Response includes token and user.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, validation failed, or user already exists.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while registering user.
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
+      tags:
+      - Auth
+  /chats/conversations:
+    get:
+      description: |-
+        Returns chat conversations visible to the current actor.
+
+        MOBILE USER USE:
+        Users call /chats/conversations to see their own conversations.
+
+        ADMIN USE:
+        Admins call /admin/chats/conversations to see conversations available to the admin dashboard.
+        Admin route requires AdminApiKeyAuth and PrivilegeCodeAuth with `chats:read` permission.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conversations fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid authentication.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Missing, revoked, expired, or unauthorized privilege code for
+            admin route.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch conversations.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List chat conversations
+      tags:
+      - Chats
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates or opens a conversation for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a user wants to start a chat related to SOS, assistance, report follow-up, emergency contact support, or general help.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED FIELDS:
+        - title: Conversation title.
+
+        OPTIONAL FIELDS:
+        - caseType: sos, assistance, report, or general.
+        - caseId: Related case ID.
+        - contactId: Related contact ID.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "title": "Flood assistance conversation",
+        "caseType": "assistance",
+        "caseId": "667c9b2f12ab34cd56ef7890",
+        "contactId": "667c9b2f12ab34cd56ef7891"
+        }
+      parameters:
+      - description: Conversation payload. title is required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateConversationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Conversation created or opened successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or conversation could not be created.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while creating conversation.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create or open a chat conversation
+      tags:
+      - User Chats
+  /chats/conversations/{id}/messages:
+    get:
+      description: |-
+        Returns messages inside a selected chat conversation.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the mobile app or admin dashboard opens a conversation thread.
+
+        PATH PARAMETER:
+        - id: Conversation ID.
+      parameters:
+      - description: Conversation ID. This is the MongoDB ObjectID of the conversation.
+        example: 667c9b2f12ab34cd56ef7890
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Messages fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid conversation ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid authentication.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: User is not allowed to access this conversation.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Conversation not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while fetching messages.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get conversation messages
+      tags:
+      - Chats
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Sends a message into an existing conversation.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a user, admin, responder, or support team needs to reply inside an SOS, assistance, report, or general support conversation.
+
+        REAL-TIME EFFECT:
+        The message can be delivered through WebSocket updates and may also trigger push/in-app notifications depending on your service logic.
+
+        REQUIRED BODY:
+        - message: Text message to send.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "message": "Help is on the way. Please remain in a safe location."
+        }
+      parameters:
+      - description: Conversation ID. This is the MongoDB ObjectID of the conversation.
+        example: 667c9b2f12ab34cd56ef7890
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Chat message payload. message is required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendChatMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Message sent successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, invalid conversation ID, or message could
+            not be sent.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid authentication.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: User is not allowed to send messages in this conversation.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Conversation not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while sending message.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send chat message
+      tags:
+      - Chats
+  /chats/conversations/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Marks selected messages in a conversation as read for the current actor.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the user/admin opens a conversation and messages should no longer appear as unread.
+
+        REQUIRED BODY:
+        Send messageIds as a list of message IDs.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "messageIds": [
+        "667c9b2f12ab34cd56ef7892"
+        ]
+        }
+      parameters:
+      - description: Conversation ID. This is the MongoDB ObjectID of the conversation.
+        example: 667c9b2f12ab34cd56ef7890
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Conversation read payload. messageIds is the list of message
+          IDs to mark as read.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.MarkConversationReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Messages marked as read.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, invalid conversation ID, or messages
+            could not be marked as read.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid authentication.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: User is not allowed to update this conversation.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Conversation not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while marking conversation as read.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark conversation messages as read
+      tags:
+      - Chats
+  /emergency-contacts:
+    get:
+      description: Returns all emergency contacts belonging to the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency contacts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch emergency contacts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List emergency contacts
+      tags:
+      - Emergency Contacts
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new emergency contact for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a user adds a family member, friend, responder, organization, or government contact that can be reached during emergencies.
+
+        AUTH REQUIRED:
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED FIELDS:
+        - name: Contact name.
+        - phone: Contact phone number.
+
+        OPTIONAL FIELDS:
+        - email, relationship, type, organization, address, isPrimary, isGovernment.
+      parameters:
+      - description: Emergency contact payload. name and phone are required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateEmergencyContactRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Emergency contact created successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or contact could not be created.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while creating emergency contact.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create emergency contact
+      tags:
+      - Emergency Contacts
+  /emergency-contacts/{id}:
+    delete:
+      description: Deletes an emergency contact belonging to the authenticated user.
+      parameters:
+      - description: Emergency contact ID. This is the MongoDB ObjectID of the contact.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency contact deleted successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid contact ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Emergency contact not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to delete emergency contact.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete emergency contact
+      tags:
+      - Emergency Contacts
+    get:
+      description: Returns one emergency contact belonging to the authenticated user.
+      parameters:
+      - description: Emergency contact ID. This is the MongoDB ObjectID of the contact.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency contact fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid contact ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Emergency contact not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get one emergency contact
+      tags:
+      - Emergency Contacts
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Updates an existing emergency contact belonging to the authenticated user.
+
+        Send only the fields you want to change.
+      parameters:
+      - description: Emergency contact ID. This is the MongoDB ObjectID of the contact.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Emergency contact update payload. All fields are optional.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateEmergencyContactRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency contact updated successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid contact ID, invalid request body, or contact could
+            not be updated.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Emergency contact not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update emergency contact
+      tags:
+      - Emergency Contacts
+  /emergency-messages:
+    get:
+      description: Returns emergency messages saved or sent by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency messages fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch emergency messages.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List emergency messages
+      tags:
+      - Emergency Messages
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Saves an emergency message for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a user wants to save a reusable emergency message or draft.
+      parameters:
+      - description: Emergency message payload. message is required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateEmergencyMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Emergency message created successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or message could not be created.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create emergency message
+      tags:
+      - Emergency Messages
+  /emergency-messages/{id}:
+    delete:
+      description: Deletes an emergency message belonging to the authenticated user.
+      parameters:
+      - description: Emergency message ID. This is the MongoDB ObjectID of the message.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency message deleted successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid message ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Emergency message not found.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to delete emergency message.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete emergency message
+      tags:
+      - Emergency Messages
+    get:
+      description: Returns one emergency message belonging to the authenticated user.
+      parameters:
+      - description: Emergency message ID. This is the MongoDB ObjectID of the message.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Emergency message fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid message ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Emergency message not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get one emergency message
+      tags:
+      - Emergency Messages
+  /emergency-messages/send:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Sends an emergency message to selected emergency contacts or to all active contacts.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the user wants to notify emergency contacts with a free-text message and optional location.
+
+        REQUIRED FIELDS:
+        - message: The message to send.
+
+        CONTACT OPTIONS:
+        - To send to selected contacts, provide contactIds.
+        - To send to all contacts, set sendToAllContacts to true.
+      parameters:
+      - description: Send emergency message payload. message is required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendEmergencyMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Emergency message queued successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or message could not be sent.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send emergency message
+      tags:
+      - Emergency Messages
+  /notifications:
+    get:
+      description: |-
+        Returns in-app notifications for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this to show the user's notification inbox inside the mobile app.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        QUERY PARAMETERS:
+        - limit: Optional number of notifications to return. Default is 50.
+      parameters:
+      - description: Maximum number of notifications to return. Default is 50.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Notifications fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch notifications.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get my notifications
+      tags:
+      - User Notifications
+  /notifications/read:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Marks selected notifications as read for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the user opens one or more notifications and they should no longer appear as unread.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED BODY:
+        Send notificationIds as a list of notification IDs.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "notificationIds": [
+        "66e19b71c8f2a2b4d1234567"
+        ]
+        }
+      parameters:
+      - description: Notification read payload. notificationIds is the list of notification
+          IDs to mark as read.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.MarkAppNotificationReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Notification marked as read.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or notification could not be marked as
+            read.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while marking notification as read.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark notifications as read
+      tags:
+      - User Notifications
+  /notifications/read-all:
+    put:
+      description: |-
+        Marks all in-app notifications as read for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the user taps a “Mark all as read” button in the mobile app.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All notifications marked as read.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to mark notifications as read.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - User Notifications
+  /notifications/test/me:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Queues a test push notification for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this to confirm that the user's saved FCM token, Firebase setup, and notification queue are working.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED FIELDS:
+        - title: Notification title.
+        - body: Notification body.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "title": "Disaster Alert Test",
+        "body": "This is a test notification from Disaster Alert."
+        }
+      parameters:
+      - description: Test notification payload. title and body are required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SendTestNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Test notification queued successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or validation failed.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Notification queue is full.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send test notification to current user
+      tags:
+      - User Notifications
+  /notifications/token:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Saves the Firebase Cloud Messaging token for the authenticated user's device.
+
+        WHEN TO USE THIS ENDPOINT:
+        The mobile app should call this after login, app start, or whenever Firebase refreshes the push token.
+
+        WHY THIS IS IMPORTANT:
+        Without saving this token, the backend may not be able to send push notifications to the user's phone.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED FIELDS:
+        - token: Firebase Cloud Messaging token from the mobile app.
+
+        OPTIONAL FIELDS:
+        - deviceType: android, ios, or web.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "token": "fcm_token_example_abc123",
+        "deviceType": "android"
+        }
+      parameters:
+      - description: FCM token payload. token is required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.SaveFCMTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: FCM token saved successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, validation failed, or token could not
+            be saved.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while saving FCM token.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Save user FCM token
+      tags:
+      - User Notifications
+  /notifications/unread-count:
+    get:
+      description: |-
+        Returns the number of unread in-app notifications for the authenticated user.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this to show a badge count on the notification icon in the mobile app.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Unread notification count fetched successfully. Response data
+            contains count.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch unread notification count.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get unread notification count
+      tags:
+      - User Notifications
   /reports:
     post:
       consumes:
@@ -1898,6 +3981,248 @@ paths:
       summary: Submit a new incident report
       tags:
       - User Reports
+  /sos:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Allows an authenticated mobile user to trigger an urgent SOS emergency request.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a user is in immediate danger and needs urgent help.
+        Examples: medical emergency, fire, security threat, flood danger, road accident, or other emergency.
+
+        DIFFERENCE BETWEEN SOS AND ASSISTANCE:
+        - SOS is for immediate emergency panic situations.
+        - Assistance is for structured help requests such as food, shelter, evacuation, or medical support.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+
+        REQUIRED FIELDS:
+        - emergencyType: Type of emergency. Example: medical.
+        - latitude: User's current latitude.
+        - longitude: User's current longitude.
+
+        OPTIONAL FIELDS:
+        - message: Extra message from the user.
+        - address: Human-readable location or landmark.
+        - accuracy: GPS accuracy in meters.
+        - isLiveTracking: true if location tracking should continue while SOS is active.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "emergencyType": "medical",
+        "message": "I need urgent help at my location.",
+        "latitude": 5.6037,
+        "longitude": -0.1870,
+        "address": "Circle, Accra",
+        "accuracy": 8.5,
+        "isLiveTracking": true
+        }
+      parameters:
+      - description: SOS request payload. emergencyType, latitude, and longitude are
+          required.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateSOSRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: SOS request triggered successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, validation failed, or SOS could not be
+            created.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while triggering SOS request.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trigger an emergency SOS
+      tags:
+      - User SOS
+  /user/alert-preferences:
+    get:
+      description: |-
+        Returns the authenticated user's alert category preferences.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the app opens the user's alert settings/preferences screen.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert preferences fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch alert preferences.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get alert preferences
+      tags:
+      - User Settings
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Updates the authenticated user's alert category preferences.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when the user enables or disables alert categories in the app settings.
+
+        IMPORTANT:
+        All fields are optional. Send only the categories you want to change.
+        Use true to enable a category and false to disable it.
+
+        EXAMPLE REQUEST BODY:
+        {
+        "fire": true,
+        "flood": true,
+        "weather": true,
+        "health": true,
+        "criticalAlerts": true
+        }
+      parameters:
+      - description: Alert preference update payload. All fields are optional.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateAlertPreferenceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert preferences updated successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to update alert preferences.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update alert preferences
+      tags:
+      - User Settings
+  /ws:
+    get:
+      description: |-
+        Establishes a real-time WebSocket connection for mobile users or admin dashboards.
+
+        USER WEBSOCKET URL:
+        ws://localhost:8080/api/v1/ws
+        wss://disaster-alert-backend-tiql.onrender.com/api/v1/ws
+
+        USER AUTH:
+        Mobile/user WebSocket connections require a valid JWT token.
+        Recommended connection style:
+        Authorization: Bearer YOUR_JWT_TOKEN
+
+        ADMIN WEBSOCKET URL:
+        ws://localhost:8080/api/v1/admin/ws
+        wss://disaster-alert-backend-tiql.onrender.com/api/v1/admin/ws
+
+        ADMIN AUTH:
+        Admin WebSocket connections require the admin API key.
+        Required header:
+        Sigtrack-Admin-API-Key: YOUR_ADMIN_API_KEY
+
+        EVENT FORMAT:
+        All WebSocket events follow this structure:
+        {
+        "type": "EVENT_NAME",
+        "data": {}
+        }
+
+        EVENTS SENT TO ADMINS:
+        - SOS_CREATED: A user triggered SOS.
+        - ASSISTANCE_CREATED: A user submitted an assistance request.
+        - REPORT_CREATED: A user submitted an incident report.
+        - CHAT_MESSAGE_CREATED: A user sent a chat message.
+
+        EVENTS SENT TO USERS BY COUNTRY:
+        - ALERT_CREATED: A new active alert was created for the user's country.
+        - ALERT_APPROVED: A report was approved and converted into an alert for the user's country.
+
+        EVENTS SENT TO SPECIFIC USERS:
+        - NOTIFICATION_CREATED: A new in-app notification was created.
+        - CHAT_MESSAGE_CREATED: A new chat message was sent to the user.
+        - SOS_STATUS_UPDATED: The user's SOS status changed.
+        - ASSISTANCE_STATUS_UPDATED: The user's assistance request status changed.
+
+        EXAMPLE EVENT:
+        {
+        "type": "ALERT_CREATED",
+        "data": {
+        "id": "66e19b71c8f2a2b4d1234567",
+        "title": "Heavy rainfall warning",
+        "category": "weather",
+        "severity": "high",
+        "country": "Ghana",
+        "createdAt": "2026-09-10T10:00:00Z"
+        }
+        }
+
+        IMPORTANT:
+        Swagger UI does not fully test WebSocket connections like normal REST endpoints.
+        Use Postman, Hoppscotch, browser client code, or your Flutter app to test WebSocket connections.
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "401":
+          description: Missing, invalid, or expired WebSocket authentication.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Connect to real-time WebSocket
+      tags:
+      - WebSocket
 schemes:
 - http
 - https

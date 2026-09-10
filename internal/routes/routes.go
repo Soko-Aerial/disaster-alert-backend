@@ -281,7 +281,7 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 		{
 			notifications.POST("/token", notificationHandler.SaveFCMToken)
 			notifications.POST("/test/me", notificationHandler.SendTestToMe)
-			notifications.POST("/test/all", notificationHandler.SendTestToAll)
+			//notifications.POST("/test/all", notificationHandler.SendTestToAll)
 
 			notifications.GET("", appNotificationHandler.GetMyNotifications)
 			notifications.GET("/unread-count", appNotificationHandler.GetUnreadCount)

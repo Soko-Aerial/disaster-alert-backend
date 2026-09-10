@@ -30,32 +30,59 @@ func NewAdminPrivilegeCodeHandler(
 // @Summary Generate a new admin privilege UUID
 // @Description Creates a new privilege code for an organisation, unit, department, or admin level.
 // @Description
-// @Description This endpoint is used to generate the UUID that will later be sent in the X-Privilege-Code header.
-// @Description It requires only the Admin API Key because this endpoint is used to create privilege codes.
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when you want to give a department, organisation, responder group, or admin user controlled access to admin endpoints.
 // @Description
-// @Description HOW TO USE IN SWAGGER:
-// @Description 1. Click Authorize.
-// @Description 2. Enter Sigtrack-Admin-API-Key under AdminApiKeyAuth.
-// @Description 3. Execute this endpoint.
-// @Description 4. Copy data.code from the response.
-// @Description 5. Click Authorize again.
-// @Description 6. Paste data.code under PrivilegeCodeAuth.
+// @Description HOW PRIVILEGE CODES WORK:
+// @Description 1. This endpoint creates a full UUID privilege code.
+// @Description 2. The full UUID is returned only once.
+// @Description 3. The backend stores a secure hash, not the raw UUID.
+// @Description 4. The admin copies the UUID and sends it as X-Privilege-Code when calling protected admin endpoints.
+// @Description
+// @Description REQUIRED HEADER:
+// @Description - Sigtrack-Admin-API-Key: Your admin API key.
 // @Description
 // @Description IMPORTANT:
 // @Description The full UUID is returned only once during creation.
-// @Description The codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+// @Description codePrefix is only for display and audit logs.
+// @Description Do not use codePrefix as X-Privilege-Code.
+// @Description If the full UUID is lost, revoke the old code and generate a new one.
 // @Description
-// @Description EXAMPLE PERMISSIONS:
-// @Description assistance:read, assistance:update_status, sos:read, sos:update_status, reports:read, reports:approve, alerts:read, alerts:create, alerts:update, alerts:delete
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "label": "Police Traffic Unit Access",
+// @Description   "purpose": "Allow Police Traffic Unit to view reports and update SOS status",
+// @Description   "organisationId": "firebase_police_org_id",
+// @Description   "organisationName": "Ghana Police Service",
+// @Description   "levelId": "firebase_traffic_unit_id",
+// @Description   "levelName": "Traffic Unit",
+// @Description   "permissions": ["reports:read", "sos:read", "sos:update_status"],
+// @Description   "expiresAt": "2026-09-30T23:59:00Z"
+// @Description }
+// @Description
+// @Description COMMON PERMISSIONS:
+// @Description - reports:read
+// @Description - reports:approve
+// @Description - alerts:read
+// @Description - alerts:create
+// @Description - alerts:update
+// @Description - alerts:delete
+// @Description - sos:read
+// @Description - sos:update_status
+// @Description - assistance:read
+// @Description - assistance:update_status
+// @Description - chats:read
+// @Description - chats:send
+// @Description - notifications:send
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.CreateAdminPrivilegeCodeRequest true "Privilege code creation payload"
-// @Success 201 {object} map[string]interface{} "Privilege code created successfully. Copy data.code and use it as X-Privilege-Code."
-// @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, or invalid permissions"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
-// @Failure 500 {object} map[string]interface{} "Failed to create privilege code"
+// @Param request body dto.CreateAdminPrivilegeCodeRequest true "Privilege code creation payload. label, organisationId, organisationName, and permissions are required."
+// @Success 201 {object} map[string]interface{} "Privilege code created successfully. Copy data.uuid or data.code depending on your service response and use it as X-Privilege-Code."
+// @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, invalid permission, or invalid expiry date."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 500 {object} map[string]interface{} "Server error while creating privilege code."
 // @Router /admin/privilege-codes [post]
 func (h *AdminPrivilegeCodeHandler) CreatePrivilegeCode(c *gin.Context) {
 	var req dto.CreateAdminPrivilegeCodeRequest
@@ -93,24 +120,22 @@ func (h *AdminPrivilegeCodeHandler) CreatePrivilegeCode(c *gin.Context) {
 }
 
 // GetPrivilegeCodes godoc
-// @Summary List generated admin privilege codes
+// @Summary List admin privilege codes
 // @Description Returns privilege-code records created for organisations, departments, units, or admin levels.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires only AdminApiKeyAuth.
-// @Description
 // @Description IMPORTANT:
-// @Description The full UUID is not returned here for security reasons.
-// @Description Only codePrefix is returned so admins can identify the record without exposing the full secret UUID.
+// @Description This endpoint does not return the full UUID.
+// @Description It returns codePrefix only so admins can identify records without exposing the secret privilege code.
 // @Description
-// @Description Use this endpoint to review active, revoked, expired, and previously created privilege codes.
+// @Description REQUIRED HEADER:
+// @Description - Sigtrack-Admin-API-Key: Your admin API key.
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Produce json
-// @Param limit query int false "Maximum number of privilege-code records to return. Default is 50. Maximum is 200."
-// @Success 200 {object} map[string]interface{} "Privilege codes fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
-// @Failure 500 {object} map[string]interface{} "Failed to fetch privilege codes"
+// @Param limit query int false "Maximum number of privilege-code records to return. Default is 50. Maximum is 200." example(50)
+// @Success 200 {object} map[string]interface{} "Privilege codes fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch privilege codes."
 // @Router /admin/privilege-codes [get]
 func (h *AdminPrivilegeCodeHandler) GetPrivilegeCodes(c *gin.Context) {
 	limit := parseInt64Query(c, "limit", 50, 200)
@@ -128,20 +153,18 @@ func (h *AdminPrivilegeCodeHandler) GetPrivilegeCodes(c *gin.Context) {
 // @Summary Get one privilege-code record
 // @Description Fetches one privilege-code record by database ID.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires only AdminApiKeyAuth.
-// @Description
 // @Description IMPORTANT:
 // @Description This endpoint does not return the full UUID.
 // @Description If the full UUID is lost, revoke the old privilege code and generate a new one.
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Produce json
-// @Param id path string true "Privilege-code database ID"
-// @Success 200 {object} map[string]interface{} "Privilege code fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
-// @Failure 404 {object} map[string]interface{} "Privilege code not found"
-// @Failure 500 {object} map[string]interface{} "Failed to fetch privilege code"
+// @Param id path string true "Privilege-code database ID. This is the MongoDB ObjectID of the privilege-code record." example(66e19b71c8f2a2b4d1234567)
+// @Success 200 {object} map[string]interface{} "Privilege code fetched successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid privilege-code ID."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 404 {object} map[string]interface{} "Privilege code not found."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch privilege code."
 // @Router /admin/privilege-codes/{id} [get]
 func (h *AdminPrivilegeCodeHandler) GetPrivilegeCodeByID(c *gin.Context) {
 	id := c.Param("id")
@@ -159,23 +182,27 @@ func (h *AdminPrivilegeCodeHandler) GetPrivilegeCodeByID(c *gin.Context) {
 // @Summary Validate a privilege UUID
 // @Description Checks whether a full UUID privilege code is valid, active, not expired, and usable.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires only AdminApiKeyAuth.
-// @Description
-// @Description WHEN TO USE:
-// @Description Use this endpoint when testing a generated UUID before applying it to protected admin endpoints.
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this after generating a privilege code to confirm that the full UUID works before using protected admin endpoints.
 // @Description
 // @Description IMPORTANT:
 // @Description Send the full UUID in the request body.
-// @Description Do not send codePrefix. codePrefix is only for display and logs.
+// @Description Do not send codePrefix.
+// @Description codePrefix is only for display and audit logs.
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "uuid": "4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e"
+// @Description }
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.ValidateAdminPrivilegeCodeRequest true "Full privilege UUID validation payload"
-// @Success 200 {object} map[string]interface{} "Privilege code is valid"
-// @Failure 400 {object} map[string]interface{} "Invalid request body, invalid UUID, expired code, or revoked code"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
+// @Param request body dto.ValidateAdminPrivilegeCodeRequest true "Full privilege UUID validation payload. uuid is required."
+// @Success 200 {object} map[string]interface{} "Privilege code is valid."
+// @Failure 400 {object} map[string]interface{} "Invalid request body, invalid UUID, expired code, revoked code, or inactive code."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 500 {object} map[string]interface{} "Server error while validating privilege code."
 // @Router /admin/privilege-codes/validate [post]
 func (h *AdminPrivilegeCodeHandler) ValidatePrivilegeCode(c *gin.Context) {
 	var req dto.ValidateAdminPrivilegeCodeRequest
@@ -208,9 +235,6 @@ func (h *AdminPrivilegeCodeHandler) ValidatePrivilegeCode(c *gin.Context) {
 // @Summary Revoke a privilege code
 // @Description Disables a privilege UUID so it can no longer be used on protected admin endpoints.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires only AdminApiKeyAuth.
-// @Description
 // @Description WHAT REVOKE MEANS:
 // @Description Revoke does not delete the database record.
 // @Description It changes the privilege-code status from active to revoked.
@@ -218,16 +242,22 @@ func (h *AdminPrivilegeCodeHandler) ValidatePrivilegeCode(c *gin.Context) {
 // @Description
 // @Description WHEN TO REVOKE:
 // @Description Revoke a code when it is leaked, no longer trusted, assigned to the wrong level, or needs to be replaced by a new UUID.
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "reason": "Access no longer needed"
+// @Description }
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param id path string true "Privilege-code database ID"
-// @Param request body dto.RevokeAdminPrivilegeCodeRequest true "Revocation reason"
-// @Success 200 {object} map[string]interface{} "Privilege code revoked successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request or privilege code already revoked"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
-// @Failure 404 {object} map[string]interface{} "Privilege code not found"
+// @Param id path string true "Privilege-code database ID. This is the MongoDB ObjectID of the privilege-code record." example(66e19b71c8f2a2b4d1234567)
+// @Param request body dto.RevokeAdminPrivilegeCodeRequest false "Optional revocation reason."
+// @Success 200 {object} map[string]interface{} "Privilege code revoked successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid request or privilege code already revoked."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 404 {object} map[string]interface{} "Privilege code not found."
+// @Failure 500 {object} map[string]interface{} "Server error while revoking privilege code."
 // @Router /admin/privilege-codes/{id}/revoke [put]
 func (h *AdminPrivilegeCodeHandler) RevokePrivilegeCode(c *gin.Context) {
 	id := c.Param("id")
@@ -257,25 +287,25 @@ func (h *AdminPrivilegeCodeHandler) RevokePrivilegeCode(c *gin.Context) {
 // @Summary List privilege audit logs
 // @Description Fetches audit logs for privilege-code creation, validation, revocation, and permission checks.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires only AdminApiKeyAuth.
-// @Description
 // @Description WHAT THIS LOG SHOWS:
-// @Description - When a privilege code was created
-// @Description - When a privilege code was validated
-// @Description - When a privilege code was revoked
-// @Description - Which admin endpoint was accessed
-// @Description - Which permission was required
-// @Description - Whether access was allowed or denied
-// @Description - The codePrefix, organisation, level, IP address, and user agent involved
+// @Description - When a privilege code was created.
+// @Description - When a privilege code was validated.
+// @Description - When a privilege code was revoked.
+// @Description - Which admin endpoint was accessed.
+// @Description - Which permission was required.
+// @Description - Whether access was allowed or denied.
+// @Description - The codePrefix, organisation, level, IP address, and user agent involved.
+// @Description
+// @Description REQUIRED HEADER:
+// @Description - Sigtrack-Admin-API-Key: Your admin API key.
 // @Tags Admin Privilege Logs
 // @Security AdminApiKeyAuth
 // @Produce json
-// @Param limit query int false "Maximum number of logs to return. Default is 100. Maximum is 500."
-// @Param privilegeCodeId query string false "Filter logs by privilege-code database ID"
-// @Success 200 {object} map[string]interface{} "Privilege logs fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid"
-// @Failure 500 {object} map[string]interface{} "Failed to fetch privilege logs"
+// @Param limit query int false "Maximum number of logs to return. Default is 100. Maximum is 500." example(100)
+// @Param privilegeCodeId query string false "Filter logs by privilege-code database ID." example(66e19b71c8f2a2b4d1234567)
+// @Success 200 {object} map[string]interface{} "Privilege logs fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch privilege logs."
 // @Router /admin/privilege-logs [get]
 func (h *AdminPrivilegeCodeHandler) GetPrivilegeLogs(c *gin.Context) {
 	limit := parseInt64Query(c, "limit", 100, 500)

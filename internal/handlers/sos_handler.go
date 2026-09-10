@@ -23,6 +23,53 @@ func NewSOSHandler(sosService *services.SOSService) *SOSHandler {
 	}
 }
 
+// CreateSOSRequest godoc
+// @Summary Trigger an emergency SOS
+// @Description Allows an authenticated mobile user to trigger an urgent SOS emergency request.
+// @Description
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when a user is in immediate danger and needs urgent help.
+// @Description Examples: medical emergency, fire, security threat, flood danger, road accident, or other emergency.
+// @Description
+// @Description DIFFERENCE BETWEEN SOS AND ASSISTANCE:
+// @Description - SOS is for immediate emergency panic situations.
+// @Description - Assistance is for structured help requests such as food, shelter, evacuation, or medical support.
+// @Description
+// @Description AUTH REQUIRED:
+// @Description This endpoint requires a valid user JWT token.
+// @Description Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+// @Description
+// @Description REQUIRED FIELDS:
+// @Description - emergencyType: Type of emergency. Example: medical.
+// @Description - latitude: User's current latitude.
+// @Description - longitude: User's current longitude.
+// @Description
+// @Description OPTIONAL FIELDS:
+// @Description - message: Extra message from the user.
+// @Description - address: Human-readable location or landmark.
+// @Description - accuracy: GPS accuracy in meters.
+// @Description - isLiveTracking: true if location tracking should continue while SOS is active.
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "emergencyType": "medical",
+// @Description   "message": "I need urgent help at my location.",
+// @Description   "latitude": 5.6037,
+// @Description   "longitude": -0.1870,
+// @Description   "address": "Circle, Accra",
+// @Description   "accuracy": 8.5,
+// @Description   "isLiveTracking": true
+// @Description }
+// @Tags User SOS
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateSOSRequest true "SOS request payload. emergencyType, latitude, and longitude are required."
+// @Success 201 {object} map[string]interface{} "SOS request triggered successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid request body, validation failed, or SOS could not be created."
+// @Failure 401 {object} map[string]interface{} "Missing, invalid, or expired user token."
+// @Failure 500 {object} map[string]interface{} "Server error while triggering SOS request."
+// @Router /sos [post]
 func (h *SOSHandler) CreateSOSRequest(c *gin.Context) {
 	userIDValue, exists := c.Get("userId")
 	if !exists {
@@ -88,21 +135,26 @@ func (h *SOSHandler) CreateSOSRequest(c *gin.Context) {
 }
 
 // GetSOSRequests godoc
-// @Summary List SOS requests for admin
-// @Description Returns all SOS emergency requests submitted by users.
+// @Summary List SOS requests
+// @Description Returns SOS emergency requests submitted by users.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description ADMIN USE:
+// @Description Admins use this endpoint to view urgent SOS emergencies that need response, assignment, or resolution.
+// @Description
+// @Description REQUIRED HEADERS:
+// @Description - Sigtrack-Admin-API-Key: Your admin API key.
+// @Description - X-Privilege-Code: A valid privilege code with `sos:read`.
 // @Description
 // @Description REQUIRED PERMISSION:
 // @Description sos:read
 // @Tags Admin SOS
-// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
 // @Produce json
-// @Success 200 {object} map[string]interface{} "SOS requests fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
-// @Failure 500 {object} map[string]interface{} "Failed to fetch SOS requests"
+// @Success 200 {object} map[string]interface{} "SOS requests fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch SOS requests."
 // @Router /admin/sos [get]
 func (h *SOSHandler) GetSOSRequests(c *gin.Context) {
 	requests, err := h.sosService.GetSOSRequests()
@@ -125,23 +177,29 @@ func (h *SOSHandler) GetSOSRequests(c *gin.Context) {
 }
 
 // GetSOSByID godoc
-// @Summary Get one SOS request for admin
+// @Summary Get one SOS request
 // @Description Returns details of a single SOS emergency request.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when an admin wants to inspect one SOS request, view its emergency type, message, location, live tracking flag, and response status.
+// @Description
+// @Description REQUIRED HEADERS:
+// @Description - Sigtrack-Admin-API-Key: Your admin API key.
+// @Description - X-Privilege-Code: A valid privilege code with `sos:read`.
 // @Description
 // @Description REQUIRED PERMISSION:
 // @Description sos:read
 // @Tags Admin SOS
-// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
 // @Produce json
-// @Param id path string true "SOS ID"
-// @Success 200 {object} map[string]interface{} "SOS request fetched successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid SOS ID"
-// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
-// @Failure 404 {object} map[string]interface{} "SOS request not found"
+// @Param id path string true "SOS ID. This is the MongoDB ObjectID of the SOS request." example(66e19b71c8f2a2b4d1234567)
+// @Success 200 {object} map[string]interface{} "SOS request fetched successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid SOS ID."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code."
+// @Failure 404 {object} map[string]interface{} "SOS request not found."
+// @Failure 500 {object} map[string]interface{} "Server error while fetching SOS request."
 // @Router /admin/sos/{id} [get]
 func (h *SOSHandler) GetSOSByID(c *gin.Context) {
 	sosID := c.Param("id")
@@ -166,34 +224,45 @@ func (h *SOSHandler) GetSOSByID(c *gin.Context) {
 }
 
 // UpdateSOSStatus godoc
-// @Summary Update SOS emergency status
+// @Summary Update SOS status
 // @Description Updates the status of an SOS emergency request from the admin dashboard.
 // @Description
-// @Description Use assigned when a responder/admin has taken the case, resolved when the emergency is handled, and cancelled when the request is cancelled.
-// @Description The mobile app can stop SOS alarm/live tracking when status becomes resolved or cancelled.
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when an admin or responder takes over an SOS case, assigns it, resolves it, or cancels it.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description MOBILE APP EFFECT:
+// @Description The mobile app can stop SOS alarm/live tracking when status becomes resolved or cancelled, depending on your frontend logic.
+// @Description
+// @Description REQUIRED HEADERS:
+// @Description - Sigtrack-Admin-API-Key: Your admin API key.
+// @Description - X-Privilege-Code: A valid privilege code with `sos:update_status`.
 // @Description
 // @Description REQUIRED PERMISSION:
 // @Description sos:update_status
 // @Description
-// @Description EXAMPLE REQUEST BODY:
-// @Description {"status":"assigned"}
+// @Description ALLOWED STATUS VALUES:
+// @Description - active: SOS is still active.
+// @Description - assigned: A responder/admin has taken the case.
+// @Description - resolved: Emergency has been handled.
+// @Description - cancelled: SOS was cancelled.
 // @Description
-// @Description COMMON STATUS VALUES:
-// @Description active, assigned, resolved, cancelled
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "status": "assigned"
+// @Description }
 // @Tags Admin SOS
-// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
 // @Accept json
 // @Produce json
-// @Param id path string true "SOS ID"
-// @Param request body dto.UpdateSOSStatusRequest true "SOS status update payload"
-// @Success 200 {object} map[string]interface{} "SOS status updated successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, or invalid status"
-// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
-// @Failure 404 {object} map[string]interface{} "SOS request not found"
+// @Param id path string true "SOS ID. This is the MongoDB ObjectID of the SOS request." example(66e19b71c8f2a2b4d1234567)
+// @Param request body dto.UpdateSOSStatusRequest true "SOS status update payload. status is required."
+// @Success 200 {object} map[string]interface{} "SOS status updated successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, or invalid status."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code."
+// @Failure 404 {object} map[string]interface{} "SOS request not found."
+// @Failure 500 {object} map[string]interface{} "Server error while updating SOS status."
 // @Router /admin/sos/{id}/status [put]
 func (h *SOSHandler) UpdateSOSStatus(c *gin.Context) {
 	sosID := c.Param("id")

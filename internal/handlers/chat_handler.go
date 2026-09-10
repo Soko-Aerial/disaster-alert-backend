@@ -26,6 +26,42 @@ func NewChatHandler(chatService *services.ChatService) *ChatHandler {
 	}
 }
 
+// CreateConversation godoc
+// @Summary Create or open a chat conversation
+// @Description Creates or opens a conversation for the authenticated user.
+// @Description
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when a user wants to start a chat related to SOS, assistance, report follow-up, emergency contact support, or general help.
+// @Description
+// @Description AUTH REQUIRED:
+// @Description This endpoint requires a valid user JWT token.
+// @Description Click Authorize and paste: Bearer YOUR_JWT_TOKEN.
+// @Description
+// @Description REQUIRED FIELDS:
+// @Description - title: Conversation title.
+// @Description
+// @Description OPTIONAL FIELDS:
+// @Description - caseType: sos, assistance, report, or general.
+// @Description - caseId: Related case ID.
+// @Description - contactId: Related contact ID.
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "title": "Flood assistance conversation",
+// @Description   "caseType": "assistance",
+// @Description   "caseId": "667c9b2f12ab34cd56ef7890",
+// @Description   "contactId": "667c9b2f12ab34cd56ef7891"
+// @Description }
+// @Tags User Chats
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateConversationRequest true "Conversation payload. title is required."
+// @Success 201 {object} map[string]interface{} "Conversation created or opened successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid request body or conversation could not be created."
+// @Failure 401 {object} map[string]interface{} "Missing, invalid, or expired user token."
+// @Failure 500 {object} map[string]interface{} "Server error while creating conversation."
+// @Router /chats/conversations [post]
 func (h *ChatHandler) CreateConversation(c *gin.Context) {
 	userID, ok := getUserIDFromContext(c)
 	if !ok {
@@ -48,28 +84,29 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 	utils.SuccessResponse(
 		c,
 		http.StatusCreated,
-		"Conversation ready successfully",
+		"Conversation created successfully",
 		conversation,
 	)
 }
 
 // GetConversations godoc
-// @Summary List admin chat conversations
-// @Description Returns user chat conversations visible to the admin dashboard.
+// @Summary List chat conversations
+// @Description Returns chat conversations visible to the current actor.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description MOBILE USER USE:
+// @Description Users call /chats/conversations to see their own conversations.
 // @Description
-// @Description REQUIRED PERMISSION:
-// @Description chats:read
-// @Tags Admin Chats
-// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Description ADMIN USE:
+// @Description Admins call /admin/chats/conversations to see conversations available to the admin dashboard.
+// @Description Admin route requires AdminApiKeyAuth and PrivilegeCodeAuth with `chats:read` permission.
+// @Tags Chats
+// @Security BearerAuth
 // @Produce json
-// @Success 200 {object} map[string]interface{} "Conversations fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
-// @Failure 500 {object} map[string]interface{} "Failed to fetch conversations"
-// @Router /admin/chats/conversations [get]
+// @Success 200 {object} map[string]interface{} "Conversations fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid authentication."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code for admin route."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch conversations."
+// @Router /chats/conversations [get]
 func (h *ChatHandler) GetConversations(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
@@ -92,24 +129,25 @@ func (h *ChatHandler) GetConversations(c *gin.Context) {
 }
 
 // GetConversationMessages godoc
-// @Summary Get admin conversation messages
+// @Summary Get conversation messages
 // @Description Returns messages inside a selected chat conversation.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when the mobile app or admin dashboard opens a conversation thread.
 // @Description
-// @Description REQUIRED PERMISSION:
-// @Description chats:read
-// @Tags Admin Chats
-// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Description PATH PARAMETER:
+// @Description - id: Conversation ID.
+// @Tags Chats
+// @Security BearerAuth
 // @Produce json
-// @Param id path string true "Conversation ID"
-// @Success 200 {object} map[string]interface{} "Messages fetched successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid conversation ID"
-// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
-// @Failure 404 {object} map[string]interface{} "Conversation not found"
-// @Router /admin/chats/conversations/{id}/messages [get]
+// @Param id path string true "Conversation ID. This is the MongoDB ObjectID of the conversation." example(667c9b2f12ab34cd56ef7890)
+// @Success 200 {object} map[string]interface{} "Messages fetched successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid conversation ID."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid authentication."
+// @Failure 403 {object} map[string]interface{} "User is not allowed to access this conversation."
+// @Failure 404 {object} map[string]interface{} "Conversation not found."
+// @Failure 500 {object} map[string]interface{} "Server error while fetching messages."
+// @Router /chats/conversations/{id}/messages [get]
 func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
@@ -142,32 +180,35 @@ func (h *ChatHandler) GetConversationMessages(c *gin.Context) {
 }
 
 // SendMessage godoc
-// @Summary Send admin chat message
-// @Description Sends a message from the admin dashboard into a user conversation.
+// @Summary Send chat message
+// @Description Sends a message into an existing conversation.
 // @Description
-// @Description Use this endpoint when an admin, responder, or support team needs to reply to a user during an SOS case, assistance request, incident report, or general support conversation.
-// @Description The message can be delivered to the user through the app and real-time WebSocket updates.
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when a user, admin, responder, or support team needs to reply inside an SOS, assistance, report, or general support conversation.
 // @Description
-// @Description SECURITY:
-// @Description This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+// @Description REAL-TIME EFFECT:
+// @Description The message can be delivered through WebSocket updates and may also trigger push/in-app notifications depending on your service logic.
 // @Description
-// @Description REQUIRED PERMISSION:
-// @Description chats:send
+// @Description REQUIRED BODY:
+// @Description - message: Text message to send.
 // @Description
 // @Description EXAMPLE REQUEST BODY:
-// @Description {"message":"Hello, this is the emergency response team. Please confirm your current location."}
-// @Tags Admin Chats
-// @Security AdminApiKeyAuth && PrivilegeCodeAuth
+// @Description {
+// @Description   "message": "Help is on the way. Please remain in a safe location."
+// @Description }
+// @Tags Chats
+// @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param id path string true "Conversation ID"
-// @Param request body dto.SendChatMessageRequest true "Chat message payload"
-// @Success 201 {object} map[string]interface{} "Message sent successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request body or conversation ID"
-// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
-// @Failure 404 {object} map[string]interface{} "Conversation not found"
-// @Router /admin/chats/conversations/{id}/messages [post]
+// @Param id path string true "Conversation ID. This is the MongoDB ObjectID of the conversation." example(667c9b2f12ab34cd56ef7890)
+// @Param request body dto.SendChatMessageRequest true "Chat message payload. message is required."
+// @Success 201 {object} map[string]interface{} "Message sent successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid request body, invalid conversation ID, or message could not be sent."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid authentication."
+// @Failure 403 {object} map[string]interface{} "User is not allowed to send messages in this conversation."
+// @Failure 404 {object} map[string]interface{} "Conversation not found."
+// @Failure 500 {object} map[string]interface{} "Server error while sending message."
+// @Router /chats/conversations/{id}/messages [post]
 func (h *ChatHandler) SendMessage(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {
@@ -206,6 +247,35 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 	)
 }
 
+// MarkConversationRead godoc
+// @Summary Mark conversation messages as read
+// @Description Marks selected messages in a conversation as read for the current actor.
+// @Description
+// @Description WHEN TO USE THIS ENDPOINT:
+// @Description Use this when the user/admin opens a conversation and messages should no longer appear as unread.
+// @Description
+// @Description REQUIRED BODY:
+// @Description Send messageIds as a list of message IDs.
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "messageIds": [
+// @Description     "667c9b2f12ab34cd56ef7892"
+// @Description   ]
+// @Description }
+// @Tags Chats
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Conversation ID. This is the MongoDB ObjectID of the conversation." example(667c9b2f12ab34cd56ef7890)
+// @Param request body dto.MarkConversationReadRequest true "Conversation read payload. messageIds is the list of message IDs to mark as read."
+// @Success 200 {object} map[string]interface{} "Messages marked as read."
+// @Failure 400 {object} map[string]interface{} "Invalid request body, invalid conversation ID, or messages could not be marked as read."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid authentication."
+// @Failure 403 {object} map[string]interface{} "User is not allowed to update this conversation."
+// @Failure 404 {object} map[string]interface{} "Conversation not found."
+// @Failure 500 {object} map[string]interface{} "Server error while marking conversation as read."
+// @Router /chats/conversations/{id}/read [put]
 func (h *ChatHandler) MarkConversationRead(c *gin.Context) {
 	userID, role, ok := getChatActorFromContext(c)
 	if !ok {

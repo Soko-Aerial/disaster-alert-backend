@@ -26,39 +26,73 @@ func NewHandler(
 	}
 }
 
-
-// Connect Admin WebSocket
-//
-// @Summary Connect Admin WebSocket
-// @Description Establishes a real-time WebSocket connection for the admin dashboard.
+// Connect godoc
+// @Summary Connect to real-time WebSocket
+// @Description Establishes a real-time WebSocket connection for mobile users or admin dashboards.
 // @Description
-// @Description Admin WebSocket URL:
+// @Description USER WEBSOCKET URL:
+// @Description ws://localhost:8080/api/v1/ws
+// @Description wss://disaster-alert-backend-tiql.onrender.com/api/v1/ws
+// @Description
+// @Description USER AUTH:
+// @Description Mobile/user WebSocket connections require a valid JWT token.
+// @Description Recommended connection style:
+// @Description Authorization: Bearer YOUR_JWT_TOKEN
+// @Description
+// @Description ADMIN WEBSOCKET URL:
+// @Description ws://localhost:8080/api/v1/admin/ws
 // @Description wss://disaster-alert-backend-tiql.onrender.com/api/v1/admin/ws
 // @Description
+// @Description ADMIN AUTH:
+// @Description Admin WebSocket connections require the admin API key.
 // @Description Required header:
 // @Description Sigtrack-Admin-API-Key: YOUR_ADMIN_API_KEY
 // @Description
-// @Description Event format:
-// @Description {"type":"EVENT_NAME","data":{}}
+// @Description EVENT FORMAT:
+// @Description All WebSocket events follow this structure:
+// @Description {
+// @Description   "type": "EVENT_NAME",
+// @Description   "data": {}
+// @Description }
 // @Description
-// @Description Admin dashboard events:
-// @Description SOS_CREATED - sent when a user creates an SOS request.
-// @Description ASSISTANCE_CREATED - sent when a user submits an assistance request.
-// @Description REPORT_CREATED - sent when a user submits a report.
-// @Description ALERT_CREATED - sent when an active alert is created.
-// @Description ALERT_APPROVED - sent when an alert/report is approved.
-// @Description CHAT_MESSAGE_CREATED - sent when a user sends a chat message.
+// @Description EVENTS SENT TO ADMINS:
+// @Description - SOS_CREATED: A user triggered SOS.
+// @Description - ASSISTANCE_CREATED: A user submitted an assistance request.
+// @Description - REPORT_CREATED: A user submitted an incident report.
+// @Description - CHAT_MESSAGE_CREATED: A user sent a chat message.
 // @Description
-// @Description SOS_CREATED example:
-// @Description {"type":"SOS_CREATED","data":{"id":"sos_id","user":{"id":"user_id","name":"User","email":"user@email.com","phone":"0240000000","location":{"country":"Ghana","region":"Greater Accra","address":"Accra"}},"emergencyType":"medical","message":"Need help","latitude":5.6037,"longitude":-0.1870,"address":"Accra","status":"active","createdAt":"2026-06-11T10:00:00Z"}}
+// @Description EVENTS SENT TO USERS BY COUNTRY:
+// @Description - ALERT_CREATED: A new active alert was created for the user's country.
+// @Description - ALERT_APPROVED: A report was approved and converted into an alert for the user's country.
 // @Description
-// @Description ASSISTANCE_CREATED example:
-// @Description {"type":"ASSISTANCE_CREATED","data":{"id":"assistance_id","user":{"id":"user_id","name":"User","email":"user@email.com"},"assistanceType":"medical","urgencyLevel":"high","affectedIndividuals":3,"address":"Accra","status":"pending","createdAt":"2026-06-11T10:00:00Z"}}
+// @Description EVENTS SENT TO SPECIFIC USERS:
+// @Description - NOTIFICATION_CREATED: A new in-app notification was created.
+// @Description - CHAT_MESSAGE_CREATED: A new chat message was sent to the user.
+// @Description - SOS_STATUS_UPDATED: The user's SOS status changed.
+// @Description - ASSISTANCE_STATUS_UPDATED: The user's assistance request status changed.
 // @Description
-// @Tags Admin WebSocket
-// @Security AdminApiKeyAuth
+// @Description EXAMPLE EVENT:
+// @Description {
+// @Description   "type": "ALERT_CREATED",
+// @Description   "data": {
+// @Description     "id": "66e19b71c8f2a2b4d1234567",
+// @Description     "title": "Heavy rainfall warning",
+// @Description     "category": "weather",
+// @Description     "severity": "high",
+// @Description     "country": "Ghana",
+// @Description     "createdAt": "2026-09-10T10:00:00Z"
+// @Description   }
+// @Description }
+// @Description
+// @Description IMPORTANT:
+// @Description Swagger UI does not fully test WebSocket connections like normal REST endpoints.
+// @Description Use Postman, Hoppscotch, browser client code, or your Flutter app to test WebSocket connections.
+// @Tags WebSocket
+// @Security BearerAuth
 // @Produce json
 // @Success 101 {string} string "Switching Protocols"
+// @Failure 401 {object} map[string]interface{} "Missing, invalid, or expired WebSocket authentication."
+// @Router /ws [get]
 // @Router /admin/ws [get]
 func (h *Handler) Connect(c *gin.Context) {
 	userIDValue, exists := c.Get("userId")

@@ -265,9 +265,9 @@ func (s *ChatService) MarkConversationRead(
 	messageIDs := make([]primitive.ObjectID, 0)
 
 	for _, idString := range req.MessageIDs {
-		id, err := primitive.ObjectIDFromHex(idString)
+		id, err := primitive.ObjectIDFromHex(*idString)
 		if err != nil {
-			return errors.New("invalid message id: " + idString)
+			return errors.New("invalid message id: " + *idString)
 		}
 
 		messageIDs = append(messageIDs, id)

@@ -463,7 +463,6 @@ func buildAlertPayload(alert *models.Alert) map[string]interface{} {
 	}
 }
 
-
 func manualAlertPriorityScore(severity string, category string) int {
 	score := 0
 
