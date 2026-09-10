@@ -249,22 +249,41 @@ definitions:
 info:
   contact: {}
   description: |-
-    Mission-control API for real-time disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, alerts, chats, notifications, and administrator response operations.
+    Disaster Alert API is a mission-control backend for disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, public alerts, chats, notifications, and administrator response operations.
+
+    ================================
+    QUICK START
+    ================================
+
+    Use this Swagger page to test the API safely.
+
+    For mobile/user endpoints:
+    1. Register or login using /auth/register or /auth/login.
+    2. Copy the token from the login response.
+    3. Click Authorize.
+    4. Paste it like this: Bearer YOUR_JWT_TOKEN.
+    5. Test endpoints such as /reports, /alerts, /sos, /assistance, /notifications, and /chats.
+
+    For admin endpoints:
+    1. Enter the Admin API Key under AdminApiKeyAuth.
+    2. Create or validate a privilege code.
+    3. Enter the full privilege code under PrivilegeCodeAuth.
+    4. Test admin endpoints such as /admin/reports, /admin/alerts, /admin/sos, /admin/assistance, and /admin/chats.
 
     ================================
     AUTHENTICATION GUIDE
     ================================
 
     1. Mobile/User endpoints use BearerAuth.
-    Header:
+    Required header:
     Authorization: Bearer <JWT_TOKEN>
 
-    2. Basic admin management endpoints use AdminApiKeyAuth only.
-    Header:
+    2. Basic admin management endpoints use AdminApiKeyAuth.
+    Required header:
     Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
 
     3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-    Headers:
+    Required headers:
     Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
     X-Privilege-Code: <GENERATED_UUID>
 
@@ -277,11 +296,24 @@ info:
     Step 3: Call POST /admin/privilege-codes to generate a privilege UUID.
     Step 4: Copy the full UUID from data.code in the response.
     Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
-    Step 6: Test protected admin endpoints such as reports, assistance, SOS, alerts, chats, and notifications.
+    Step 6: Test protected admin endpoints.
 
-    IMPORTANT:
+    Important:
     The full UUID is returned only once during creation.
     codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+
+    ================================
+    COMMON REQUEST NOTES
+    ================================
+
+    POST and PUT endpoints usually require a request body.
+    Open the endpoint in Swagger and check the Parameters section.
+    For JSON endpoints, send Content-Type: application/json.
+    For upload endpoints, send Content-Type: multipart/form-data.
+
+    Required fields are marked as required in the request schema or form fields.
+    Optional fields can be omitted unless your frontend needs them.
+    Date/time fields should use ISO format where possible, for example: 2026-09-10T08:30:00Z.
 
     ================================
     ADMIN PERMISSION CATALOG
@@ -1370,54 +1402,58 @@ paths:
   /admin/reports:
     get:
       description: |-
-        Returns all user-submitted incident reports for review in the admin dashboard.
+        Returns incident reports.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        ADMIN USE:
+        When called from /admin/reports, this returns user-submitted reports for admin review.
+        Admin must provide both AdminApiKeyAuth and PrivilegeCodeAuth with `reports:read` permission.
 
-        REQUIRED PERMISSION:
-        reports:read
+        MOBILE USER NOTE:
+        If this handler is exposed on /reports, make sure normal users only see reports they are allowed to see.
+        Do not expose all users' reports to normal mobile users.
       produces:
       - application/json
       responses:
         "200":
-          description: Reports fetched successfully
+          description: Reports fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch reports
+          description: Failed to fetch reports.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: List incident reports for admin
+      - PrivilegeCodeAuth: []
+      summary: List incident reports
       tags:
       - Admin Reports
   /admin/reports/{id}:
     get:
       description: |-
-        Returns details of a single user-submitted incident report.
+        Returns the details of one user-submitted incident report.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        ADMIN USE:
+        Use this when an admin wants to inspect a report before approving it.
+        The admin should review the description, location, media evidence, reporter information, and status.
 
         REQUIRED PERMISSION:
         reports:read
       parameters:
-      - description: Report ID
+      - description: Report ID. This is the MongoDB ObjectID of the report.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
@@ -1426,51 +1462,62 @@ paths:
       - application/json
       responses:
         "200":
-          description: Report fetched successfully
+          description: Report fetched successfully.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid report ID
+          description: Invalid report ID.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Report not found
+          description: Report not found.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Get one incident report for admin
+      - PrivilegeCodeAuth: []
+      summary: Get one incident report
       tags:
       - Admin Reports
   /admin/reports/{id}/approve:
     put:
       description: |-
-        Approves a user-submitted incident report and converts it into a public alert.
-        The public alert is shown in alert feeds, notifications, WebSocket updates, and home screen alert cards.
+        Approves a pending user-submitted report and converts it into a public alert.
 
-        SECURITY:
-        This endpoint requires BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+        WHAT HAPPENS WHEN THIS ENDPOINT IS CALLED:
+        1. Backend finds the report by ID.
+        2. Backend checks that the report is not already approved or rejected.
+        3. Backend creates a new public alert from the report.
+        4. Backend copies report media into alert imageUrls or videoUrls.
+        5. Backend updates the report status to approved.
+        6. Backend sends notifications and WebSocket updates where configured.
+
+        IMPORTANT:
+        Use this endpoint only after an admin has verified that the report is credible.
+        A normal mobile user should not be allowed to call this endpoint.
+
+        REQUIRED HEADERS:
+        - Sigtrack-Admin-API-Key: Your admin API key.
+        - X-Privilege-Code: A valid privilege code with `reports:approve`.
 
         REQUIRED PERMISSION:
         reports:approve
-
-        Use this endpoint only after an admin verifies that the submitted report is credible and should become an official alert.
       parameters:
-      - description: Report ID
+      - description: Report ID to approve. This must be a pending report ID.
+        example: 66e19b71c8f2a2b4d1234567
         in: path
         name: id
         required: true
@@ -1479,39 +1526,42 @@ paths:
       - application/json
       responses:
         "200":
-          description: Report approved and alert published successfully
+          description: Report approved and public alert created successfully. Response
+            includes alertId and alert.
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Report cannot be approved
+          description: Report cannot be approved. It may already be approved, rejected,
+            or invalid.
           schema:
             additionalProperties: true
             type: object
         "401":
-          description: Missing or invalid Admin API Key
+          description: Missing or invalid Admin API Key.
           schema:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code
+          description: Missing, revoked, expired, or unauthorized privilege code.
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: Report not found
+          description: Report not found.
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to approve report
+          description: Failed to approve report because of server, repository, or
+            database error.
           schema:
             additionalProperties: true
             type: object
       security:
       - AdminApiKeyAuth: []
-        PrivilegeCodeAuth: []
-      summary: Approve user report and publish alert
+      - PrivilegeCodeAuth: []
+      summary: Approve a report and publish it as a public alert
       tags:
       - Admin Reports
   /admin/sos:
@@ -1709,6 +1759,145 @@ paths:
       summary: Connect Admin WebSocket
       tags:
       - Admin WebSocket
+  /reports:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Allows an authenticated mobile user to report an emergency, disaster, hazard, or incident.
+
+        The report is saved as `pending` first.
+        It does not become a public alert until an admin reviews and approves it.
+
+        WHEN TO USE THIS ENDPOINT:
+        Use this when a mobile user wants to report flooding, fire, road accident, health outbreak, weather danger, security incident, or another emergency.
+
+        AUTH REQUIRED:
+        This endpoint requires a valid user JWT token.
+        Click Authorize and paste: Bearer YOUR_JWT_TOKEN
+
+        REQUEST OPTIONS:
+        This same endpoint supports two request types:
+
+        1. JSON request for reports without file upload.
+        Content-Type: application/json
+
+        Example JSON body:
+        {
+        "category": "flood",
+        "description": "Flooding has started around the roadside and vehicles cannot pass.",
+        "timeOfOccurrence": "2026-09-10T08:30:00Z",
+        "latitude": 5.6037,
+        "longitude": -0.1870,
+        "address": "Circle, Accra",
+        "country": "Ghana",
+        "region": "Greater Accra"
+        }
+
+        2. Multipart request for reports with image or video upload.
+        Content-Type: multipart/form-data
+        Use the form field named `media` for the uploaded file.
+
+        REQUIRED FIELDS:
+        - category: Type of incident. Example: flood
+        - description: What happened. Example: Flooding has blocked the road.
+        - timeOfOccurrence: When it happened. Example: 2026-09-10T08:30:00Z
+        - latitude: Incident latitude. Example: 5.6037
+        - longitude: Incident longitude. Example: -0.1870
+
+        OPTIONAL FIELDS:
+        - address: Human-readable location or landmark.
+        - country: Country name.
+        - region: Region/state name.
+        - media: Optional image or video file.
+      parameters:
+      - description: 'Incident category. Allowed examples: flood, fire, security,
+          health, weather, accident, other'
+        enum:
+        - flood
+        - fire
+        - security
+        - health
+        - weather
+        - accident
+        - other
+        example: flood
+        in: formData
+        name: category
+        required: true
+        type: string
+      - description: Describe what happened clearly.
+        example: Flooding has started around the roadside and vehicles cannot pass.
+        in: formData
+        name: description
+        required: true
+        type: string
+      - description: 'When the incident happened. Recommended format: ISO date/time.'
+        example: "2026-09-10T08:30:00Z"
+        in: formData
+        name: timeOfOccurrence
+        required: true
+        type: string
+      - description: Incident latitude.
+        example: 5.6037
+        in: formData
+        name: latitude
+        required: true
+        type: number
+      - description: Incident longitude.
+        example: -0.187
+        in: formData
+        name: longitude
+        required: true
+        type: number
+      - description: Readable location, area, landmark, or street.
+        example: Circle, Accra
+        in: formData
+        name: address
+        type: string
+      - description: Country where the incident happened.
+        example: Ghana
+        in: formData
+        name: country
+        type: string
+      - description: Region or state where the incident happened.
+        example: Greater Accra
+        in: formData
+        name: region
+        type: string
+      - description: Optional image or video evidence.
+        in: formData
+        name: media
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Report submitted successfully. The report status will be pending.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body, validation failed, invalid location,
+            or media upload failed.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Server error while submitting report.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit a new incident report
+      tags:
+      - User Reports
 schemes:
 - http
 - https

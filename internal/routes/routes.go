@@ -56,7 +56,58 @@ func RegisterRoutes(
 	})
 
 	docs.SwaggerInfo.Title = "Disaster Alert API"
-	docs.SwaggerInfo.Description = `Mission-control API for real-time disaster intelligence, SOS escalation, assistance coordination, incident reports, alerts, chats, notifications, and administrator response operations.
+	docs.SwaggerInfo.Description = `Disaster Alert API is a mission-control backend for disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, public alerts, chats, notifications, and administrator response operations.
+
+QUICK START
+
+Mobile/User endpoints:
+1. Register or login using /auth/register or /auth/login.
+2. Copy the token from the login response.
+3. Click Authorize.
+4. Paste it under BearerAuth like this: Bearer YOUR_JWT_TOKEN.
+5. Test user endpoints such as /reports, /alerts, /sos, /assistance, /notifications, and /chats.
+
+Admin endpoints:
+1. Enter the Admin API Key under AdminApiKeyAuth.
+2. Create or validate a privilege code.
+3. Enter the full privilege code under PrivilegeCodeAuth.
+4. Test admin endpoints such as /admin/reports, /admin/alerts, /admin/sos, /admin/assistance, and /admin/chats.
+
+AUTHENTICATION GUIDE
+
+1. Mobile/User endpoints use BearerAuth.
+Header:
+Authorization: Bearer <JWT_TOKEN>
+
+2. Basic admin management endpoints use AdminApiKeyAuth.
+Header:
+Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
+
+3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
+Headers:
+Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
+X-Privilege-Code: <GENERATED_UUID>
+
+ADMIN PRIVILEGE CODE FLOW
+
+Step 1: Click Authorize.
+Step 2: Enter your Admin API Key under AdminApiKeyAuth.
+Step 3: Call POST /admin/privilege-codes.
+Step 4: Copy the full UUID from data.code.
+Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
+Step 6: Test protected admin endpoints.
+
+IMPORTANT:
+The full UUID is returned only once during creation.
+codePrefix is only for display and logs. Do not use codePrefix as X-Privilege-Code.
+
+COMMON REQUEST NOTES
+
+POST and PUT endpoints require data to be sent in the request.
+For JSON requests, use application/json.
+For upload requests, use multipart/form-data.
+Required fields are shown in each endpoint's Parameters section.
+Date/time values should use ISO format where possible, for example: 2026-09-10T08:30:00Z.
 
 	AUTHENTICATION GUIDE
 
@@ -243,7 +294,6 @@ func RegisterRoutes(
 			reports.POST("", reportHandler.CreateReport)
 			reports.GET("", reportHandler.GetReports)
 			reports.GET("/:id", reportHandler.GetReportByID)
-			reports.PUT("/:id/approve", reportHandler.ApproveReport)
 		}
 
 		assistance := protected.Group("/assistance")

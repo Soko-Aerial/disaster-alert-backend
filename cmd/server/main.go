@@ -26,22 +26,41 @@ import (
 
 // @title Disaster Alert API
 // @version 1.0.0
-// @description Mission-control API for real-time disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, alerts, chats, notifications, and administrator response operations.
+// @description Disaster Alert API is a mission-control backend for disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, public alerts, chats, notifications, and administrator response operations.
+// @description
+// @description ================================
+// @description QUICK START
+// @description ================================
+// @description
+// @description Use this Swagger page to test the API safely.
+// @description
+// @description For mobile/user endpoints:
+// @description 1. Register or login using /auth/register or /auth/login.
+// @description 2. Copy the token from the login response.
+// @description 3. Click Authorize.
+// @description 4. Paste it like this: Bearer YOUR_JWT_TOKEN.
+// @description 5. Test endpoints such as /reports, /alerts, /sos, /assistance, /notifications, and /chats.
+// @description
+// @description For admin endpoints:
+// @description 1. Enter the Admin API Key under AdminApiKeyAuth.
+// @description 2. Create or validate a privilege code.
+// @description 3. Enter the full privilege code under PrivilegeCodeAuth.
+// @description 4. Test admin endpoints such as /admin/reports, /admin/alerts, /admin/sos, /admin/assistance, and /admin/chats.
 // @description
 // @description ================================
 // @description AUTHENTICATION GUIDE
 // @description ================================
 // @description
 // @description 1. Mobile/User endpoints use BearerAuth.
-// @description Header:
+// @description Required header:
 // @description Authorization: Bearer <JWT_TOKEN>
 // @description
-// @description 2. Basic admin management endpoints use AdminApiKeyAuth only.
-// @description Header:
+// @description 2. Basic admin management endpoints use AdminApiKeyAuth.
+// @description Required header:
 // @description Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
 // @description
 // @description 3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-// @description Headers:
+// @description Required headers:
 // @description Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
 // @description X-Privilege-Code: <GENERATED_UUID>
 // @description
@@ -54,11 +73,24 @@ import (
 // @description Step 3: Call POST /admin/privilege-codes to generate a privilege UUID.
 // @description Step 4: Copy the full UUID from data.code in the response.
 // @description Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
-// @description Step 6: Test protected admin endpoints such as reports, assistance, SOS, alerts, chats, and notifications.
+// @description Step 6: Test protected admin endpoints.
 // @description
-// @description IMPORTANT:
+// @description Important:
 // @description The full UUID is returned only once during creation.
 // @description codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+// @description
+// @description ================================
+// @description COMMON REQUEST NOTES
+// @description ================================
+// @description
+// @description POST and PUT endpoints usually require a request body.
+// @description Open the endpoint in Swagger and check the Parameters section.
+// @description For JSON endpoints, send Content-Type: application/json.
+// @description For upload endpoints, send Content-Type: multipart/form-data.
+// @description
+// @description Required fields are marked as required in the request schema or form fields.
+// @description Optional fields can be omitted unless your frontend needs them.
+// @description Date/time fields should use ISO format where possible, for example: 2026-09-10T08:30:00Z.
 // @description
 // @description ================================
 // @description ADMIN PERMISSION CATALOG
