@@ -9,31 +9,40 @@ import "time"
 // and notifications.
 type CreateAdminPrivilegeCodeRequest struct {
 	// Label is the readable name of this privilege code.
-	Label string `json:"label" validate:"required" example:"Police Traffic Unit Access"`
+	//
+	// Optional.
+	// Example: Police Traffic Unit Access
+	Label string `json:"label,omitempty" example:"Police Traffic Unit Access"`
 
 	// Purpose explains why this privilege code exists.
-	Purpose string `json:"purpose,omitempty" example:"Allow Police Traffic Unit to view SOS and update SOS status"`
+	//
+	// Optional.
+	Purpose string `json:"purpose,omitempty" example:"Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies"`
 
 	// OrganisationID is the external/internal organisation identifier.
-	OrganisationID string `json:"organisationId" validate:"required" example:"firebase_police_org_id"`
+	//
+	// Optional.
+	OrganisationID string `json:"organisationId,omitempty" example:"firebase_police_org_id"`
 
 	// OrganisationName is the readable organisation name.
-	OrganisationName string `json:"organisationName" validate:"required" example:"Ghana Police Service"`
+	//
+	// Optional.
+	OrganisationName string `json:"organisationName,omitempty" example:"Ghana Police Service"`
 
 	// LevelID is the optional department, unit, role, or level identifier.
+	//
+	// Optional.
 	LevelID string `json:"levelId,omitempty" example:"firebase_traffic_unit_id"`
 
 	// LevelName is the readable department, unit, role, or level name.
+	//
+	// Optional.
 	LevelName string `json:"levelName,omitempty" example:"Traffic Unit"`
 
 	// Permissions is the list of allowed admin actions for this privilege code.
 	//
-	// Examples:
-	// reports:read, reports:approve, alerts:read, alerts:create,
-	// alerts:update, alerts:delete, sos:read, sos:update_status,
-	// assistance:read, assistance:update_status, chats:read, chats:send,
-	// notifications:send
-	Permissions []string `json:"permissions" validate:"required,min=1" example:"reports:read,reports:approve,alerts:read"`
+	// Required.
+	Permissions []string `json:"permissions" validate:"required,min=1" example:"dashboard:read,reports:read,sos:read"`
 
 	// ExpiresAt is the optional expiry date/time for the privilege code.
 	//

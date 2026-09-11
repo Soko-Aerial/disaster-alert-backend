@@ -42,6 +42,18 @@ func NewAdminPrivilegeCodeHandler(
 // @Description REQUIRED HEADER:
 // @Description - Sigtrack-Admin-API-Key: Your admin API key.
 // @Description
+// @Description REQUIRED BODY FIELD:
+// @Description - permissions: At least one permission is required.
+// @Description
+// @Description OPTIONAL BODY FIELDS:
+// @Description - label
+// @Description - purpose
+// @Description - organisationId
+// @Description - organisationName
+// @Description - levelId
+// @Description - levelName
+// @Description - expiresAt
+// @Description
 // @Description IMPORTANT:
 // @Description The full UUID is returned only once during creation.
 // @Description codePrefix is only for display and audit logs.
@@ -50,36 +62,58 @@ func NewAdminPrivilegeCodeHandler(
 // @Description
 // @Description EXAMPLE REQUEST BODY:
 // @Description {
+// @Description   "permissions": [
+// @Description     "dashboard:read",
+// @Description     "reports:read",
+// @Description     "sos:read",
+// @Description     "sos:update_status",
+// @Description     "chats:send"
+// @Description   ],
+// @Description   "expiresAt": "2026-09-30T23:59:00Z"
+// @Description }
+// @Description
+// @Description FULL OPTIONAL REQUEST BODY EXAMPLE:
+// @Description {
 // @Description   "label": "Police Traffic Unit Access",
-// @Description   "purpose": "Allow Police Traffic Unit to view reports and update SOS status",
+// @Description   "purpose": "Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies",
 // @Description   "organisationId": "firebase_police_org_id",
 // @Description   "organisationName": "Ghana Police Service",
 // @Description   "levelId": "firebase_traffic_unit_id",
 // @Description   "levelName": "Traffic Unit",
-// @Description   "permissions": ["reports:read", "sos:read", "sos:update_status"],
+// @Description   "permissions": [
+// @Description     "reports:read",
+// @Description     "sos:read",
+// @Description     "sos:update_status",
+// @Description     "chats:send"
+// @Description   ],
 // @Description   "expiresAt": "2026-09-30T23:59:00Z"
 // @Description }
 // @Description
-// @Description COMMON PERMISSIONS:
-// @Description - reports:read
-// @Description - reports:approve
+// @Description COMMON PERMISSIONS CURRENTLY SUPPORTED IN CODE:
 // @Description - alerts:read
 // @Description - alerts:create
 // @Description - alerts:update
 // @Description - alerts:delete
+// @Description - reports:read
+// @Description - reports:approve
 // @Description - sos:read
+// @Description - sos:respond
 // @Description - sos:update_status
 // @Description - assistance:read
 // @Description - assistance:update_status
 // @Description - chats:read
 // @Description - chats:send
+// @Description - notifications:read
 // @Description - notifications:send
+// @Description - privilege_codes:read
+// @Description - privilege_codes:create
+// @Description - privilege_codes:revoke
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.CreateAdminPrivilegeCodeRequest true "Privilege code creation payload. label, organisationId, organisationName, and permissions are required."
-// @Success 201 {object} map[string]interface{} "Privilege code created successfully. Copy data.uuid or data.code depending on your service response and use it as X-Privilege-Code."
+// @Param request body dto.CreateAdminPrivilegeCodeRequest true "Privilege code creation payload. permissions is required. label, purpose, organisationId, organisationName, levelId, levelName, and expiresAt are optional."
+// @Success 201 {object} map[string]interface{} "Privilege code created successfully. Copy the returned full UUID and use it as X-Privilege-Code."
 // @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, invalid permission, or invalid expiry date."
 // @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
 // @Failure 500 {object} map[string]interface{} "Server error while creating privilege code."

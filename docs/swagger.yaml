@@ -11,50 +11,63 @@ definitions:
         example: "2026-09-30T23:59:00Z"
         type: string
       label:
-        description: Label is the readable name of this privilege code.
+        description: |-
+          Label is the readable name of this privilege code.
+
+          Optional.
+          Example: Police Traffic Unit Access
         example: Police Traffic Unit Access
         type: string
       levelId:
-        description: LevelID is the optional department, unit, role, or level identifier.
+        description: |-
+          LevelID is the optional department, unit, role, or level identifier.
+
+          Optional.
         example: firebase_traffic_unit_id
         type: string
       levelName:
-        description: LevelName is the readable department, unit, role, or level name.
+        description: |-
+          LevelName is the readable department, unit, role, or level name.
+
+          Optional.
         example: Traffic Unit
         type: string
       organisationId:
-        description: OrganisationID is the external/internal organisation identifier.
+        description: |-
+          OrganisationID is the external/internal organisation identifier.
+
+          Optional.
         example: firebase_police_org_id
         type: string
       organisationName:
-        description: OrganisationName is the readable organisation name.
+        description: |-
+          OrganisationName is the readable organisation name.
+
+          Optional.
         example: Ghana Police Service
         type: string
       permissions:
         description: |-
           Permissions is the list of allowed admin actions for this privilege code.
 
-          Examples:
-          reports:read, reports:approve, alerts:read, alerts:create,
-          alerts:update, alerts:delete, sos:read, sos:update_status,
-          assistance:read, assistance:update_status, chats:read, chats:send,
-          notifications:send
+          Required.
         example:
+        - dashboard:read
         - reports:read
-        - reports:approve
-        - alerts:read
+        - sos:read
         items:
           type: string
         minItems: 1
         type: array
       purpose:
-        description: Purpose explains why this privilege code exists.
-        example: Allow Police Traffic Unit to view SOS and update SOS status
+        description: |-
+          Purpose explains why this privilege code exists.
+
+          Optional.
+        example: Allow Police Traffic Unit to view reports, respond to SOS, and send
+          chat replies
         type: string
     required:
-    - label
-    - organisationId
-    - organisationName
     - permissions
     type: object
   disaster_alert_backend_internal_dto.CreateAlertRequest:
@@ -1541,6 +1554,18 @@ paths:
         REQUIRED HEADER:
         - Sigtrack-Admin-API-Key: Your admin API key.
 
+        REQUIRED BODY FIELD:
+        - permissions: At least one permission is required.
+
+        OPTIONAL BODY FIELDS:
+        - label
+        - purpose
+        - organisationId
+        - organisationName
+        - levelId
+        - levelName
+        - expiresAt
+
         IMPORTANT:
         The full UUID is returned only once during creation.
         codePrefix is only for display and audit logs.
@@ -1549,33 +1574,56 @@ paths:
 
         EXAMPLE REQUEST BODY:
         {
+        "permissions": [
+        "dashboard:read",
+        "reports:read",
+        "sos:read",
+        "sos:update_status",
+        "chats:send"
+        ],
+        "expiresAt": "2026-09-30T23:59:00Z"
+        }
+
+        FULL OPTIONAL REQUEST BODY EXAMPLE:
+        {
         "label": "Police Traffic Unit Access",
-        "purpose": "Allow Police Traffic Unit to view reports and update SOS status",
+        "purpose": "Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies",
         "organisationId": "firebase_police_org_id",
         "organisationName": "Ghana Police Service",
         "levelId": "firebase_traffic_unit_id",
         "levelName": "Traffic Unit",
-        "permissions": ["reports:read", "sos:read", "sos:update_status"],
+        "permissions": [
+        "reports:read",
+        "sos:read",
+        "sos:update_status",
+        "chats:send"
+        ],
         "expiresAt": "2026-09-30T23:59:00Z"
         }
 
-        COMMON PERMISSIONS:
-        - reports:read
-        - reports:approve
+        COMMON PERMISSIONS CURRENTLY SUPPORTED IN CODE:
         - alerts:read
         - alerts:create
         - alerts:update
         - alerts:delete
+        - reports:read
+        - reports:approve
         - sos:read
+        - sos:respond
         - sos:update_status
         - assistance:read
         - assistance:update_status
         - chats:read
         - chats:send
+        - notifications:read
         - notifications:send
+        - privilege_codes:read
+        - privilege_codes:create
+        - privilege_codes:revoke
       parameters:
-      - description: Privilege code creation payload. label, organisationId, organisationName,
-          and permissions are required.
+      - description: Privilege code creation payload. permissions is required. label,
+          purpose, organisationId, organisationName, levelId, levelName, and expiresAt
+          are optional.
         in: body
         name: request
         required: true
@@ -1585,8 +1633,8 @@ paths:
       - application/json
       responses:
         "201":
-          description: Privilege code created successfully. Copy data.uuid or data.code
-            depending on your service response and use it as X-Privilege-Code.
+          description: Privilege code created successfully. Copy the returned full
+            UUID and use it as X-Privilege-Code.
           schema:
             additionalProperties: true
             type: object

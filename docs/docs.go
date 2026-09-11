@@ -629,7 +629,7 @@ const docTemplate = `{
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Creates a new privilege code for an organisation, unit, department, or admin level.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when you want to give a department, organisation, responder group, or admin user controlled access to admin endpoints.\n\nHOW PRIVILEGE CODES WORK:\n1. This endpoint creates a full UUID privilege code.\n2. The full UUID is returned only once.\n3. The backend stores a secure hash, not the raw UUID.\n4. The admin copies the UUID and sends it as X-Privilege-Code when calling protected admin endpoints.\n\nREQUIRED HEADER:\n- Sigtrack-Admin-API-Key: Your admin API key.\n\nIMPORTANT:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs.\nDo not use codePrefix as X-Privilege-Code.\nIf the full UUID is lost, revoke the old code and generate a new one.\n\nEXAMPLE REQUEST BODY:\n{\n\"label\": \"Police Traffic Unit Access\",\n\"purpose\": \"Allow Police Traffic Unit to view reports and update SOS status\",\n\"organisationId\": \"firebase_police_org_id\",\n\"organisationName\": \"Ghana Police Service\",\n\"levelId\": \"firebase_traffic_unit_id\",\n\"levelName\": \"Traffic Unit\",\n\"permissions\": [\"reports:read\", \"sos:read\", \"sos:update_status\"],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nCOMMON PERMISSIONS:\n- reports:read\n- reports:approve\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n- sos:read\n- sos:update_status\n- assistance:read\n- assistance:update_status\n- chats:read\n- chats:send\n- notifications:send",
+                "description": "Creates a new privilege code for an organisation, unit, department, or admin level.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when you want to give a department, organisation, responder group, or admin user controlled access to admin endpoints.\n\nHOW PRIVILEGE CODES WORK:\n1. This endpoint creates a full UUID privilege code.\n2. The full UUID is returned only once.\n3. The backend stores a secure hash, not the raw UUID.\n4. The admin copies the UUID and sends it as X-Privilege-Code when calling protected admin endpoints.\n\nREQUIRED HEADER:\n- Sigtrack-Admin-API-Key: Your admin API key.\n\nREQUIRED BODY FIELD:\n- permissions: At least one permission is required.\n\nOPTIONAL BODY FIELDS:\n- label\n- purpose\n- organisationId\n- organisationName\n- levelId\n- levelName\n- expiresAt\n\nIMPORTANT:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs.\nDo not use codePrefix as X-Privilege-Code.\nIf the full UUID is lost, revoke the old code and generate a new one.\n\nEXAMPLE REQUEST BODY:\n{\n\"permissions\": [\n\"dashboard:read\",\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:send\"\n],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nFULL OPTIONAL REQUEST BODY EXAMPLE:\n{\n\"label\": \"Police Traffic Unit Access\",\n\"purpose\": \"Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies\",\n\"organisationId\": \"firebase_police_org_id\",\n\"organisationName\": \"Ghana Police Service\",\n\"levelId\": \"firebase_traffic_unit_id\",\n\"levelName\": \"Traffic Unit\",\n\"permissions\": [\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:send\"\n],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nCOMMON PERMISSIONS CURRENTLY SUPPORTED IN CODE:\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n- reports:read\n- reports:approve\n- sos:read\n- sos:respond\n- sos:update_status\n- assistance:read\n- assistance:update_status\n- chats:read\n- chats:send\n- notifications:read\n- notifications:send\n- privilege_codes:read\n- privilege_codes:create\n- privilege_codes:revoke",
                 "consumes": [
                     "application/json"
                 ],
@@ -642,7 +642,7 @@ const docTemplate = `{
                 "summary": "Generate a new admin privilege UUID",
                 "parameters": [
                     {
-                        "description": "Privilege code creation payload. label, organisationId, organisationName, and permissions are required.",
+                        "description": "Privilege code creation payload. permissions is required. label, purpose, organisationId, organisationName, levelId, levelName, and expiresAt are optional.",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -653,7 +653,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Privilege code created successfully. Copy data.uuid or data.code depending on your service response and use it as X-Privilege-Code.",
+                        "description": "Privilege code created successfully. Copy the returned full UUID and use it as X-Privilege-Code.",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3542,9 +3542,6 @@ const docTemplate = `{
         "disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest": {
             "type": "object",
             "required": [
-                "label",
-                "organisationId",
-                "organisationName",
                 "permissions"
             ],
             "properties": {
@@ -3554,47 +3551,47 @@ const docTemplate = `{
                     "example": "2026-09-30T23:59:00Z"
                 },
                 "label": {
-                    "description": "Label is the readable name of this privilege code.",
+                    "description": "Label is the readable name of this privilege code.\n\nOptional.\nExample: Police Traffic Unit Access",
                     "type": "string",
                     "example": "Police Traffic Unit Access"
                 },
                 "levelId": {
-                    "description": "LevelID is the optional department, unit, role, or level identifier.",
+                    "description": "LevelID is the optional department, unit, role, or level identifier.\n\nOptional.",
                     "type": "string",
                     "example": "firebase_traffic_unit_id"
                 },
                 "levelName": {
-                    "description": "LevelName is the readable department, unit, role, or level name.",
+                    "description": "LevelName is the readable department, unit, role, or level name.\n\nOptional.",
                     "type": "string",
                     "example": "Traffic Unit"
                 },
                 "organisationId": {
-                    "description": "OrganisationID is the external/internal organisation identifier.",
+                    "description": "OrganisationID is the external/internal organisation identifier.\n\nOptional.",
                     "type": "string",
                     "example": "firebase_police_org_id"
                 },
                 "organisationName": {
-                    "description": "OrganisationName is the readable organisation name.",
+                    "description": "OrganisationName is the readable organisation name.\n\nOptional.",
                     "type": "string",
                     "example": "Ghana Police Service"
                 },
                 "permissions": {
-                    "description": "Permissions is the list of allowed admin actions for this privilege code.\n\nExamples:\nreports:read, reports:approve, alerts:read, alerts:create,\nalerts:update, alerts:delete, sos:read, sos:update_status,\nassistance:read, assistance:update_status, chats:read, chats:send,\nnotifications:send",
+                    "description": "Permissions is the list of allowed admin actions for this privilege code.\n\nRequired.",
                     "type": "array",
                     "minItems": 1,
                     "items": {
                         "type": "string"
                     },
                     "example": [
+                        "dashboard:read",
                         "reports:read",
-                        "reports:approve",
-                        "alerts:read"
+                        "sos:read"
                     ]
                 },
                 "purpose": {
-                    "description": "Purpose explains why this privilege code exists.",
+                    "description": "Purpose explains why this privilege code exists.\n\nOptional.",
                     "type": "string",
-                    "example": "Allow Police Traffic Unit to view SOS and update SOS status"
+                    "example": "Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies"
                 }
             }
         },
