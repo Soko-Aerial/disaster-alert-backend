@@ -308,7 +308,6 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			sos.POST("", sosHandler.CreateSOSRequest)
 			sos.GET("", sosHandler.GetSOSRequests)
 			sos.GET("/:id", sosHandler.GetSOSByID)
-			sos.PUT("/:id/status", sosHandler.UpdateSOSStatus)
 		}
 
 		alerts := protected.Group("/alerts")
@@ -322,11 +321,6 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			alerts.GET("/health", alertHandler.GetHealthAlerts)
 
 			alerts.GET("/:id", alertHandler.GetAlertByID)
-		}
-
-		maintenance := protected.Group("/maintenance")
-		{
-			maintenance.POST("/cleanup-expired-alerts", cleanupHandler.CleanupExpiredExternalAlerts)
 		}
 
 		emergencyContacts := protected.Group("/emergency-contacts")
