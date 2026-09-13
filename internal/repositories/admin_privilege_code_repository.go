@@ -65,6 +65,52 @@ func (r *AdminPrivilegeCodeRepository) Create(
 	return nil
 }
 
+func (r *AdminPrivilegeCodeRepository) Update(
+	ctx context.Context,
+	id string,
+	setFields bson.M,
+	unsetFields bson.M,
+) (*models.AdminPrivilegeCode, error) {
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if setFields == nil {
+		setFields = bson.M{}
+	}
+
+	setFields["updatedAt"] = time.Now().UTC()
+
+	update := bson.M{
+		"$set": setFields,
+	}
+
+	if len(unsetFields) > 0 {
+		update["$unset"] = unsetFields
+	}
+
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	var updated models.AdminPrivilegeCode
+	err = r.collection.FindOneAndUpdate(
+		ctx,
+		bson.M{"_id": objectID},
+		update,
+		opts,
+	).Decode(&updated)
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
 func (r *AdminPrivilegeCodeRepository) FindByCodeHash(
 	ctx context.Context,
 	codeHash string,

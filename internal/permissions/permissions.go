@@ -23,6 +23,7 @@ const (
 
 	PrivilegeCodesCreate = "privilege_codes:create"
 	PrivilegeCodesRead   = "privilege_codes:read"
+	PrivilegeCodesUpdate = "privilege_codes:update"
 	PrivilegeCodesRevoke = "privilege_codes:revoke"
 
 	AuditLogsRead = "audit_logs:read"
@@ -51,6 +52,7 @@ var AllPermissions = []string{
 
 	PrivilegeCodesCreate,
 	PrivilegeCodesRead,
+	PrivilegeCodesUpdate,
 	PrivilegeCodesRevoke,
 
 	AuditLogsRead,

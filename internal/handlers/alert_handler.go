@@ -3,8 +3,11 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
+	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
@@ -80,6 +83,35 @@ func NewAlertHandler(alertService *services.AlertService) *AlertHandler {
 // @Description   "expiresAt": "2026-09-11T18:00:00Z",
 // @Description   "confidence": 0.95
 // @Description }
+// @Description
+// @Description HOW ADMIN ALERT ROUTING WORKS:
+// @Description Admin-created alerts also support auto-routing.
+// @Description The backend checks the alert category and automatically fills the access-control routing fields unless the admin provides routing overrides.
+// @Description
+// @Description CATEGORY ROUTING EXAMPLES:
+// @Description - fire -> Ghana Fire Service
+// @Description - flood -> NADMO
+// @Description - weather -> NADMO
+// @Description - drought -> NADMO
+// @Description - earthquake -> NADMO
+// @Description - health -> Ghana Health Service
+// @Description - medical -> Ambulance or Health Service
+// @Description - robbery -> Ghana Police Service
+// @Description - security -> Ghana Police Service
+// @Description - protests -> Ghana Police Service
+// @Description - accident -> Police and Ambulance
+// @Description - conflict -> National Security, Police, and Armed Forces
+// @Description - munitions -> National Security, Police, and Armed Forces
+// @Description - galamsey -> Police, Minerals Commission, and National Security
+// @Description - other -> system/manual review
+// @Description
+// @Description ADMIN OVERRIDE:
+// @Description For manual alerts, an admin can optionally provide ownerOrganisationId, leadOrganisationId, assignedOrgIds, and visibleToOrgIds.
+// @Description If those fields are omitted, the backend uses the default auto-routing rules.
+// @Description
+// @Description TECHNICAL ACCESS RULE:
+// @Description Read, update, and delete actions are protected by both permission checks and record-level scope checks.
+// @Description For example, alerts:update allows the route to be called, but the alert must still be assigned or visible to that organisation before it can be updated.
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Security PrivilegeCodeAuth
@@ -461,7 +493,15 @@ func (h *AlertHandler) GetHealthAlerts(c *gin.Context) {
 func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 	alertID := c.Param("id")
 
-	alert, err := h.alertService.GetAlertByID(alertID)
+	var alert *models.Alert
+	var err error
+
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		alert, err = h.alertService.GetAlertByIDForPrivilege(alertID, privilegeCtx)
+	} else {
+		alert, err = h.alertService.GetAlertByID(alertID)
+	}
+
 	if err != nil {
 		utils.ErrorResponse(
 			c,
@@ -595,11 +635,28 @@ func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 	alertID := c.Param("id")
 
-	err := h.alertService.DeleteAlert(alertID)
+	var err error
+
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		err = h.alertService.DeleteAlertForPrivilege(alertID, privilegeCtx)
+	} else {
+		err = h.alertService.DeleteAlert(alertID)
+	}
+
 	if err != nil {
+		statusCode := http.StatusBadRequest
+
+		if strings.Contains(strings.ToLower(err.Error()), "do not have access") {
+			statusCode = http.StatusForbidden
+		}
+
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
 		utils.ErrorResponse(
 			c,
-			http.StatusBadRequest,
+			statusCode,
 			err.Error(),
 			nil,
 		)

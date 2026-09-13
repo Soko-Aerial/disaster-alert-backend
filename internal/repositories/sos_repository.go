@@ -126,3 +126,38 @@ func (r *SOSRepository) UpdateStatus(
 
 	return &updatedSOS, nil
 }
+
+func (r *SOSRepository) FindAllWithFilter(filter bson.M) ([]models.SOSRequest, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if filter == nil {
+		filter = bson.M{}
+	}
+
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "createdAt", Value: -1}})
+
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	requests := make([]models.SOSRequest, 0)
+
+	for cursor.Next(ctx) {
+		var sos models.SOSRequest
+		if err := cursor.Decode(&sos); err != nil {
+			return nil, err
+		}
+
+		requests = append(requests, sos)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return requests, nil
+}

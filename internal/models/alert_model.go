@@ -20,11 +20,19 @@ type Alert struct {
 	Description        string             `bson:"description" json:"description"`
 	Summary            string             `bson:"summary,omitempty" json:"summary,omitempty"`
 	Category           string             `bson:"category" json:"category"`
-	Severity           string             `bson:"severity" json:"severity"`
-	Status             string             `bson:"status" json:"status"`
-	Location           AlertLocation      `bson:"location" json:"location"`
-	RadiusKm           float64            `bson:"radiusKm" json:"radiusKm"`
-	SafetyInstructions []string           `bson:"safetyInstructions,omitempty" json:"safetyInstructions,omitempty"`
+	AccessCategoryID   string             `bson:"accessCategoryId,omitempty" json:"accessCategoryId,omitempty"`
+	AccessCategorySlug string             `bson:"accessCategorySlug,omitempty" json:"accessCategorySlug,omitempty"`
+	AccessCategoryName string             `bson:"accessCategoryName,omitempty" json:"accessCategoryName,omitempty"`
+
+	OwnerOrganisationID string        `bson:"ownerOrganisationId,omitempty" json:"ownerOrganisationId,omitempty"`
+	LeadOrganisationID  string        `bson:"leadOrganisationId,omitempty" json:"leadOrganisationId,omitempty"`
+	AssignedOrgIDs      []string      `bson:"assignedOrgIds,omitempty" json:"assignedOrgIds,omitempty"`
+	VisibleToOrgIDs     []string      `bson:"visibleToOrgIds,omitempty" json:"visibleToOrgIds,omitempty"`
+	Severity            string        `bson:"severity" json:"severity"`
+	Status              string        `bson:"status" json:"status"`
+	Location            AlertLocation `bson:"location" json:"location"`
+	RadiusKm            float64       `bson:"radiusKm" json:"radiusKm"`
+	SafetyInstructions  []string      `bson:"safetyInstructions,omitempty" json:"safetyInstructions,omitempty"`
 
 	SourceType string `bson:"sourceType" json:"sourceType"`
 	SourceName string `bson:"sourceName" json:"sourceName"`

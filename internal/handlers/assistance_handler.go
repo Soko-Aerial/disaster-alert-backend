@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
@@ -61,6 +63,26 @@ func NewAssistanceHandler(
 // @Description   "longitude": -0.1870,
 // @Description   "address": "Circle, Accra"
 // @Description }
+// @Description
+// @Description HOW ASSISTANCE AUTO-ROUTING WORKS:
+// @Description When a user requests assistance, the backend uses assistanceType to decide which organisation should receive it.
+// @Description This means the correct agency can respond without waiting for a global/internal admin to assign the case manually.
+// @Description
+// @Description ASSISTANCE TYPE ROUTING EXAMPLES:
+// @Description - medical -> Ambulance Service and Ghana Health Service
+// @Description - rescue -> NADMO or Fire Service depending on category rules
+// @Description - food -> NADMO or relief coordination
+// @Description - shelter -> NADMO or relief coordination
+// @Description - security -> Ghana Police Service
+// @Description - evacuation -> NADMO, Police, or Fire Service depending on routing rules
+// @Description - other -> system/manual review
+// @Description
+// @Description TECHNICAL EXPLANATION:
+// @Description The backend stores accessCategorySlug, ownerOrganisationId, leadOrganisationId, assignedOrgIds, and visibleToOrgIds on the assistance record.
+// @Description Organisation privilege codes use these fields to decide who can read or update the assistance request.
+// @Description
+// @Description SECURITY RULE:
+// @Description An organisation can only work on assistance requests assigned to it, visible to it, led by it, or owned by it.
 // @Tags User Assistance
 // @Security BearerAuth
 // @Accept json
@@ -293,14 +315,35 @@ func (h *AssistanceHandler) UpdateAssistanceStatus(c *gin.Context) {
 		return
 	}
 
-	request, err := h.assistanceService.UpdateAssistanceStatus(
-		requestID,
-		req.Status,
-	)
+	var request map[string]interface{}
+	var err error
+
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		request, err = h.assistanceService.UpdateAssistanceStatusForPrivilege(
+			requestID,
+			req.Status,
+			privilegeCtx,
+		)
+	} else {
+		request, err = h.assistanceService.UpdateAssistanceStatus(
+			requestID,
+			req.Status,
+		)
+	}
 	if err != nil {
+		statusCode := http.StatusBadRequest
+
+		if strings.Contains(strings.ToLower(err.Error()), "do not have access") {
+			statusCode = http.StatusForbidden
+		}
+
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
 		utils.ErrorResponse(
 			c,
-			http.StatusBadRequest,
+			statusCode,
 			err.Error(),
 			nil,
 		)

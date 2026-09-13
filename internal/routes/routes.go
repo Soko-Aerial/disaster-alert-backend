@@ -38,6 +38,7 @@ func RegisterRoutes(
 	chatHandler *handlers.ChatHandler,
 	newsHandler *handlers.NewsHandler,
 	adminPrivilegeCodeHandler *handlers.AdminPrivilegeCodeHandler,
+	accessCategoryHandler *handlers.AccessCategoryHandler,
 	adminPrivilegeCodeService *services.AdminPrivilegeCodeService,
 	webSocketHandler *websocket.Handler,
 	jwtService *services.JWTService,
@@ -207,8 +208,57 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			adminPrivilegeCodes.POST("", adminPrivilegeCodeHandler.CreatePrivilegeCode)
 			adminPrivilegeCodes.GET("", adminPrivilegeCodeHandler.GetPrivilegeCodes)
 			adminPrivilegeCodes.GET("/:id", adminPrivilegeCodeHandler.GetPrivilegeCodeByID)
+			adminPrivilegeCodes.PUT("/:id", adminPrivilegeCodeHandler.UpdatePrivilegeCode)
 			adminPrivilegeCodes.POST("/validate", adminPrivilegeCodeHandler.ValidatePrivilegeCode)
 			adminPrivilegeCodes.PUT("/:id/revoke", adminPrivilegeCodeHandler.RevokePrivilegeCode)
+		}
+
+		adminAccessCategories := admin.Group("/access-categories")
+		{
+			adminAccessCategories.POST(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.PrivilegeCodesCreate,
+				),
+				accessCategoryHandler.CreateCategory,
+			)
+
+			adminAccessCategories.GET(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.PrivilegeCodesRead,
+				),
+				accessCategoryHandler.GetCategories,
+			)
+
+			adminAccessCategories.GET(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.PrivilegeCodesRead,
+				),
+				accessCategoryHandler.GetCategoryByID,
+			)
+
+			adminAccessCategories.PUT(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.PrivilegeCodesCreate,
+				),
+				accessCategoryHandler.UpdateCategory,
+			)
+
+			adminAccessCategories.DELETE(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.PrivilegeCodesRevoke,
+				),
+				accessCategoryHandler.DeactivateCategory,
+			)
 		}
 
 		admin.GET("/privilege-logs", adminPrivilegeCodeHandler.GetPrivilegeLogs)

@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
+
+	"disaster_alert_backend/internal/authz"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -60,6 +63,27 @@ func NewSOSHandler(sosService *services.SOSService) *SOSHandler {
 // @Description   "accuracy": 8.5,
 // @Description   "isLiveTracking": true
 // @Description }
+// @Description
+// @Description HOW SOS AUTO-ROUTING WORKS:
+// @Description When a user triggers SOS, the backend uses emergencyType to decide which agency should receive the case immediately.
+// @Description The global/internal admin does not need to be online to manually assign every SOS.
+// @Description
+// @Description SIMPLE EXAMPLES:
+// @Description - emergencyType=fire -> Ghana Fire Service
+// @Description - emergencyType=medical -> Ambulance or Health Service
+// @Description - emergencyType=security -> Ghana Police Service
+// @Description - emergencyType=robbery -> Ghana Police Service
+// @Description - emergencyType=flood -> NADMO
+// @Description - emergencyType=accident -> Police and Ambulance
+// @Description - emergencyType=other -> system/manual review
+// @Description
+// @Description TECHNICAL EXPLANATION:
+// @Description The backend converts emergencyType into accessCategorySlug.
+// @Description Then it fills leadOrganisationId, assignedOrgIds, and visibleToOrgIds automatically.
+// @Description This allows the correct organisation's privilege code to see and update the SOS immediately.
+// @Description
+// @Description SECURITY RULE:
+// @Description A Police privilege code cannot update a Fire Service SOS unless that SOS is assigned or visible to Police and the privilege code has the correct action grant.
 // @Tags User SOS
 // @Security BearerAuth
 // @Accept json
@@ -289,11 +313,28 @@ func (h *SOSHandler) UpdateSOSStatus(c *gin.Context) {
 		return
 	}
 
-	sos, err := h.sosService.UpdateSOSStatus(sosID, req.Status)
+	var sos map[string]interface{}
+	var err error
+
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		sos, err = h.sosService.UpdateSOSStatusForPrivilege(sosID, req.Status, privilegeCtx)
+	} else {
+		sos, err = h.sosService.UpdateSOSStatus(sosID, req.Status)
+	}
 	if err != nil {
+		statusCode := http.StatusBadRequest
+
+		if strings.Contains(strings.ToLower(err.Error()), "do not have access") {
+			statusCode = http.StatusForbidden
+		}
+
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
 		utils.ErrorResponse(
 			c,
-			http.StatusBadRequest,
+			statusCode,
 			err.Error(),
 			nil,
 		)

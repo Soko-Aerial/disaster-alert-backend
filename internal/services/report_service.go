@@ -5,8 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
+	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/websocket"
 
@@ -58,17 +60,44 @@ func (s *ReportService) CreateReport(
 
 	location = s.enrichReportLocationFromUser(objectID, location)
 
+	category := strings.TrimSpace(req.Category)
+	accessCategorySlug := strings.TrimSpace(req.AccessCategorySlug)
+	if accessCategorySlug == "" {
+		accessCategorySlug = category
+	}
+	accessCategoryName := strings.TrimSpace(req.AccessCategoryName)
+	if accessCategoryName == "" {
+		accessCategoryName = category
+	}
+
+	route := ResolveAutoRoute(
+		req.AccessCategoryID,
+		req.AccessCategorySlug,
+		req.AccessCategoryName,
+		category,
+	)
+
 	report := models.Report{
 		UserID:           objectID,
-		Category:         strings.TrimSpace(req.Category),
+		Category:         category,
 		Description:      strings.TrimSpace(req.Description),
 		TimeOfOccurrence: strings.TrimSpace(req.TimeOfOccurrence),
-		Location:         location,
-		MediaURLs:        cleanStringList(req.MediaURLs),
-		Media:            req.Media,
-		Status:           "pending",
-		CreatedAt:        now,
-		UpdatedAt:        now,
+
+		AccessCategoryID:   route.AccessCategoryID,
+		AccessCategorySlug: route.AccessCategorySlug,
+		AccessCategoryName: route.AccessCategoryName,
+
+		OwnerOrganisationID: route.OwnerOrganisationID,
+		LeadOrganisationID:  route.LeadOrganisationID,
+		AssignedOrgIDs:      route.AssignedOrgIDs,
+		VisibleToOrgIDs:     route.VisibleToOrgIDs,
+
+		Location:  location,
+		MediaURLs: cleanStringList(req.MediaURLs),
+		Media:     req.Media,
+		Status:    "pending",
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	createdReport, err := s.reportRepo.Create(report)
@@ -195,13 +224,28 @@ func (s *ReportService) ApproveReport(
 
 	eventTime := parseReportEventTime(report.TimeOfOccurrence, now)
 
+	ownerOrganisationID := strings.TrimSpace(report.OwnerOrganisationID)
+	if ownerOrganisationID == "" {
+		ownerOrganisationID = "system"
+	}
+
 	alert := models.Alert{
 		Title:       title,
 		Summary:     summary,
 		Description: description,
 		Category:    category,
-		Severity:    severity,
-		Status:      "active",
+
+		AccessCategoryID:   report.AccessCategoryID,
+		AccessCategorySlug: report.AccessCategorySlug,
+		AccessCategoryName: report.AccessCategoryName,
+
+		OwnerOrganisationID: ownerOrganisationID,
+		LeadOrganisationID:  report.LeadOrganisationID,
+		AssignedOrgIDs:      cleanStringList(report.AssignedOrgIDs),
+		VisibleToOrgIDs:     cleanStringList(report.VisibleToOrgIDs),
+
+		Severity: severity,
+		Status:   "active",
 
 		Location: location,
 
@@ -282,6 +326,31 @@ func (s *ReportService) ApproveReport(
 	return createdAlert, nil
 }
 
+func (s *ReportService) ApproveReportForPrivilege(
+	reportID string,
+	privilegeCtx *authz.PrivilegeContext,
+) (*models.Alert, error) {
+	objectID, err := primitive.ObjectIDFromHex(reportID)
+	if err != nil {
+		return nil, errors.New("invalid report id")
+	}
+
+	report, err := s.reportRepo.FindByID(objectID)
+	if err != nil || report == nil {
+		return nil, errors.New("report not found")
+	}
+
+	if !authz.CanAccessRecord(
+		privilegeCtx,
+		permissions.ReportsApprove,
+		reportScope(report),
+	) {
+		return nil, errors.New("you do not have access to approve this report")
+	}
+
+	return s.ApproveReport(reportID)
+}
+
 func (s *ReportService) buildReportResponse(
 	report *models.Report,
 ) map[string]interface{} {
@@ -290,18 +359,25 @@ func (s *ReportService) buildReportResponse(
 	}
 
 	return map[string]interface{}{
-		"id":               report.ID.Hex(),
-		"userId":           report.UserID.Hex(),
-		"user":             s.buildUserSummary(report.UserID),
-		"category":         report.Category,
-		"description":      report.Description,
-		"timeOfOccurrence": report.TimeOfOccurrence,
-		"location":         report.Location,
-		"mediaUrls":        report.MediaURLs,
-		"media":            report.Media,
-		"status":           report.Status,
-		"createdAt":        report.CreatedAt,
-		"updatedAt":        report.UpdatedAt,
+		"id":                  report.ID.Hex(),
+		"userId":              report.UserID.Hex(),
+		"user":                s.buildUserSummary(report.UserID),
+		"category":            report.Category,
+		"accessCategoryId":    report.AccessCategoryID,
+		"accessCategorySlug":  report.AccessCategorySlug,
+		"accessCategoryName":  report.AccessCategoryName,
+		"ownerOrganisationId": report.OwnerOrganisationID,
+		"leadOrganisationId":  report.LeadOrganisationID,
+		"assignedOrgIds":      report.AssignedOrgIDs,
+		"visibleToOrgIds":     report.VisibleToOrgIDs,
+		"description":         report.Description,
+		"timeOfOccurrence":    report.TimeOfOccurrence,
+		"location":            report.Location,
+		"mediaUrls":           report.MediaURLs,
+		"media":               report.Media,
+		"status":              report.Status,
+		"createdAt":           report.CreatedAt,
+		"updatedAt":           report.UpdatedAt,
 	}
 }
 
@@ -749,4 +825,68 @@ func titleCase(value string) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+func (s *ReportService) GetReportsForPrivilege(
+	privilegeCtx *authz.PrivilegeContext,
+) ([]map[string]interface{}, error) {
+	filter := authz.BuildMongoScopeFilter(
+		privilegeCtx,
+		permissions.ReportsRead,
+		"accessCategorySlug",
+		"location.country",
+		"location.region",
+	)
+
+	reports, err := s.reportRepo.FindAllWithFilter(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(reports))
+
+	for i := range reports {
+		response = append(response, s.buildReportResponse(&reports[i]))
+	}
+
+	return response, nil
+}
+
+func (s *ReportService) GetReportByIDForPrivilege(
+	reportID string,
+	privilegeCtx *authz.PrivilegeContext,
+) (map[string]interface{}, error) {
+	objectID, err := primitive.ObjectIDFromHex(reportID)
+	if err != nil {
+		return nil, errors.New("invalid report id")
+	}
+
+	report, err := s.reportRepo.FindByID(objectID)
+	if err != nil || report == nil {
+		return nil, errors.New("report not found")
+	}
+
+	if !authz.CanAccessRecord(privilegeCtx, permissions.ReportsRead, reportScope(report)) {
+		return nil, errors.New("you do not have access to this report")
+	}
+
+	return s.buildReportResponse(report), nil
+}
+
+func reportScope(report *models.Report) authz.RecordScope {
+	if report == nil {
+		return authz.RecordScope{}
+	}
+
+	return authz.RecordScope{
+		AccessCategoryID:    report.AccessCategoryID,
+		AccessCategorySlug:  report.AccessCategorySlug,
+		AccessCategoryName:  report.AccessCategoryName,
+		OwnerOrganisationID: report.OwnerOrganisationID,
+		LeadOrganisationID:  report.LeadOrganisationID,
+		AssignedOrgIDs:      report.AssignedOrgIDs,
+		VisibleToOrgIDs:     report.VisibleToOrgIDs,
+		Country:             report.Location.Country,
+		Region:              report.Location.Region,
+	}
 }

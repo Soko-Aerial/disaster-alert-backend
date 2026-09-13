@@ -15,6 +15,329 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/access-categories": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Returns system and admin-created access categories.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Access Categories"
+                ],
+                "summary": "List access categories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by category kind: public, access, or both.",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by owner organisation ID.",
+                        "name": "ownerOrganisationId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include inactive/deactivated categories.",
+                        "name": "includeInactive",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum records to return. Default 100. Maximum 500.",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Access categories fetched successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Privilege code missing or permission denied.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch access categories.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Creates a public, access, or both-type category for user-facing reporting and/or organisation privilege grants.\n\nExisting system categories are seeded from the current alert preference categories such as fire, flood, weather, health, conflict, protests, robbery, munitions, galamsey, unverified activity, and critical alerts.\nAdmin-created categories can be added later without changing code.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Access Categories"
+                ],
+                "summary": "Create an access category",
+                "parameters": [
+                    {
+                        "description": "Access category creation payload.",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.CreateAccessCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Access category created successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or invalid allowedActions.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Privilege code missing or permission denied.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/access-categories/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Fetches one access category by MongoDB ObjectID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Access Categories"
+                ],
+                "summary": "Get one access category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access category ID.",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Access category fetched successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Privilege code missing or permission denied.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Access category not found.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Updates an existing access category.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Access Categories"
+                ],
+                "summary": "Update an access category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access category ID.",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Access category update payload.",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateAccessCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Access category updated successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or invalid allowedActions.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Privilege code missing or permission denied.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Soft-deactivates an access category by setting isActive to false.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Access Categories"
+                ],
+                "summary": "Deactivate an access category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access category ID.",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Access category deactivated successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Privilege code missing or permission denied.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/alerts": {
             "post": {
                 "security": [
@@ -25,7 +348,7 @@ const docTemplate = `{
                         "PrivilegeCodeAuth": []
                     }
                 ],
-                "description": "Creates a verified public alert from the admin dashboard.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when an admin wants to manually publish a public safety alert such as flood warning, fire outbreak, weather danger, health risk, security threat, conflict warning, or other emergency.\n\nIMPORTANT:\nThis is for admin-created alerts.\nUser-submitted reports should normally be approved through /admin/reports/{id}/approve so that the report is converted into an alert.\n\nREQUIRED HEADERS:\n- Sigtrack-Admin-API-Key: Your admin API key.\n- X-Privilege-Code: A valid privilege code with ` + "`" + `alerts:create` + "`" + `.\n\nREQUIRED FIELDS:\n- title: Short headline users will see.\n- description: Full alert details.\n- category: Type of emergency.\n- severity: low, medium, high, or critical.\n- latitude: Alert latitude.\n- longitude: Alert longitude.\n\nOPTIONAL FIELDS:\n- summary: Short preview text.\n- status: draft, active, resolved, expired, or cancelled.\n- address, country, region: Human-readable location details.\n- radiusKm: Approximate affected radius in kilometers.\n- safetyInstructions: List of instructions for users.\n- imageUrls/videoUrls: Media links.\n- eventTime/expiresAt: ISO date/time values.\n\nEXAMPLE REQUEST BODY:\n{\n\"title\": \"Heavy rainfall warning\",\n\"description\": \"Heavy rainfall is expected in Accra with possible flooding in low-lying areas.\",\n\"summary\": \"Heavy rainfall expected in Accra with possible flooding.\",\n\"category\": \"weather\",\n\"severity\": \"high\",\n\"status\": \"active\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\",\n\"country\": \"Ghana\",\n\"region\": \"Greater Accra\",\n\"radiusKm\": 10,\n\"safetyInstructions\": [\"Move to higher ground\", \"Avoid flooded roads\", \"Follow official instructions\"],\n\"sourceType\": \"admin\",\n\"sourceName\": \"Admin Dashboard\",\n\"priorityScore\": 85,\n\"priorityLabel\": \"serious\",\n\"eventTime\": \"2026-09-10T08:30:00Z\",\n\"expiresAt\": \"2026-09-11T18:00:00Z\",\n\"confidence\": 0.95\n}",
+                "description": "Creates a verified public alert from the admin dashboard.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when an admin wants to manually publish a public safety alert such as flood warning, fire outbreak, weather danger, health risk, security threat, conflict warning, or other emergency.\n\nIMPORTANT:\nThis is for admin-created alerts.\nUser-submitted reports should normally be approved through /admin/reports/{id}/approve so that the report is converted into an alert.\n\nREQUIRED HEADERS:\n- Sigtrack-Admin-API-Key: Your admin API key.\n- X-Privilege-Code: A valid privilege code with ` + "`" + `alerts:create` + "`" + `.\n\nREQUIRED FIELDS:\n- title: Short headline users will see.\n- description: Full alert details.\n- category: Type of emergency.\n- severity: low, medium, high, or critical.\n- latitude: Alert latitude.\n- longitude: Alert longitude.\n\nOPTIONAL FIELDS:\n- summary: Short preview text.\n- status: draft, active, resolved, expired, or cancelled.\n- address, country, region: Human-readable location details.\n- radiusKm: Approximate affected radius in kilometers.\n- safetyInstructions: List of instructions for users.\n- imageUrls/videoUrls: Media links.\n- eventTime/expiresAt: ISO date/time values.\n\nEXAMPLE REQUEST BODY:\n{\n\"title\": \"Heavy rainfall warning\",\n\"description\": \"Heavy rainfall is expected in Accra with possible flooding in low-lying areas.\",\n\"summary\": \"Heavy rainfall expected in Accra with possible flooding.\",\n\"category\": \"weather\",\n\"severity\": \"high\",\n\"status\": \"active\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\",\n\"country\": \"Ghana\",\n\"region\": \"Greater Accra\",\n\"radiusKm\": 10,\n\"safetyInstructions\": [\"Move to higher ground\", \"Avoid flooded roads\", \"Follow official instructions\"],\n\"sourceType\": \"admin\",\n\"sourceName\": \"Admin Dashboard\",\n\"priorityScore\": 85,\n\"priorityLabel\": \"serious\",\n\"eventTime\": \"2026-09-10T08:30:00Z\",\n\"expiresAt\": \"2026-09-11T18:00:00Z\",\n\"confidence\": 0.95\n}\n\nHOW ADMIN ALERT ROUTING WORKS:\nAdmin-created alerts also support auto-routing.\nThe backend checks the alert category and automatically fills the access-control routing fields unless the admin provides routing overrides.\n\nCATEGORY ROUTING EXAMPLES:\n- fire -\u003e Ghana Fire Service\n- flood -\u003e NADMO\n- weather -\u003e NADMO\n- drought -\u003e NADMO\n- earthquake -\u003e NADMO\n- health -\u003e Ghana Health Service\n- medical -\u003e Ambulance or Health Service\n- robbery -\u003e Ghana Police Service\n- security -\u003e Ghana Police Service\n- protests -\u003e Ghana Police Service\n- accident -\u003e Police and Ambulance\n- conflict -\u003e National Security, Police, and Armed Forces\n- munitions -\u003e National Security, Police, and Armed Forces\n- galamsey -\u003e Police, Minerals Commission, and National Security\n- other -\u003e system/manual review\n\nADMIN OVERRIDE:\nFor manual alerts, an admin can optionally provide ownerOrganisationId, leadOrganisationId, assignedOrgIds, and visibleToOrgIds.\nIf those fields are omitted, the backend uses the default auto-routing rules.\n\nTECHNICAL ACCESS RULE:\nRead, update, and delete actions are protected by both permission checks and record-level scope checks.\nFor example, alerts:update allows the route to be called, but the alert must still be assigned or visible to that organisation before it can be updated.",
                 "consumes": [
                     "application/json"
                 ],
@@ -629,7 +952,7 @@ const docTemplate = `{
                         "AdminApiKeyAuth": []
                     }
                 ],
-                "description": "Creates a new privilege code for an organisation, unit, department, or admin level.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when you want to give a department, organisation, responder group, or admin user controlled access to admin endpoints.\n\nHOW PRIVILEGE CODES WORK:\n1. This endpoint creates a full UUID privilege code.\n2. The full UUID is returned only once.\n3. The backend stores a secure hash, not the raw UUID.\n4. The admin copies the UUID and sends it as X-Privilege-Code when calling protected admin endpoints.\n\nREQUIRED HEADER:\n- Sigtrack-Admin-API-Key: Your admin API key.\n\nREQUIRED BODY FIELD:\n- permissions: At least one permission is required.\n\nOPTIONAL BODY FIELDS:\n- label\n- purpose\n- organisationId\n- organisationName\n- levelId\n- levelName\n- expiresAt\n\nIMPORTANT:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs.\nDo not use codePrefix as X-Privilege-Code.\nIf the full UUID is lost, revoke the old code and generate a new one.\n\nEXAMPLE REQUEST BODY:\n{\n\"permissions\": [\n\"dashboard:read\",\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:send\"\n],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nFULL OPTIONAL REQUEST BODY EXAMPLE:\n{\n\"label\": \"Police Traffic Unit Access\",\n\"purpose\": \"Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies\",\n\"organisationId\": \"firebase_police_org_id\",\n\"organisationName\": \"Ghana Police Service\",\n\"levelId\": \"firebase_traffic_unit_id\",\n\"levelName\": \"Traffic Unit\",\n\"permissions\": [\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:send\"\n],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nCOMMON PERMISSIONS CURRENTLY SUPPORTED IN CODE:\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n- reports:read\n- reports:approve\n- sos:read\n- sos:respond\n- sos:update_status\n- assistance:read\n- assistance:update_status\n- chats:read\n- chats:send\n- notifications:read\n- notifications:send\n- privilege_codes:read\n- privilege_codes:create\n- privilege_codes:revoke",
+                "description": "Creates a new privilege code for an organisation, unit, department, or admin level.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when you want to give a department, organisation, responder group, or admin user controlled access to admin endpoints.\n\nHOW PRIVILEGE CODES WORK:\n1. This endpoint creates a full UUID privilege code.\n2. The full UUID is returned only once.\n3. The backend stores a secure hash, not the raw UUID.\n4. The admin copies the UUID and sends it as X-Privilege-Code when calling protected admin endpoints.\n\nREQUIRED HEADER:\n- Sigtrack-Admin-API-Key: Your admin API key.\n\nREQUIRED BODY FIELD:\n- permissions: At least one permission is required.\n\nOPTIONAL BODY FIELDS:\n- label\n- purpose\n- organisationId\n- organisationName\n- levelId\n- levelName\n- expiresAt\n\nIMPORTANT:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs.\nDo not use codePrefix as X-Privilege-Code.\nIf the full UUID is lost, revoke the old code and generate a new one.\n\nEXAMPLE REQUEST BODY:\n{\n\"permissions\": [\n\"dashboard:read\",\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:send\"\n],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nFULL OPTIONAL REQUEST BODY EXAMPLE:\n{\n\"label\": \"Police Traffic Unit Access\",\n\"purpose\": \"Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies\",\n\"organisationId\": \"firebase_police_org_id\",\n\"organisationName\": \"Ghana Police Service\",\n\"levelId\": \"firebase_traffic_unit_id\",\n\"levelName\": \"Traffic Unit\",\n\"permissions\": [\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:send\"\n],\n\"expiresAt\": \"2026-09-30T23:59:00Z\"\n}\n\nCOMMON PERMISSIONS CURRENTLY SUPPORTED IN CODE:\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n- reports:read\n- reports:approve\n- sos:read\n- sos:respond\n- sos:update_status\n- assistance:read\n- assistance:update_status\n- chats:read\n- chats:send\n- notifications:read\n- notifications:send\n- privilege_codes:read\n- privilege_codes:create\n- privilege_codes:revoke\n\nPRIVILEGE CODE EXPLANATION:\nA privilege code is like an organisation office key.\nIt identifies which organisation is using the admin system, which categories it can handle, and which actions it can perform.\n\nPERMISSIONS VS GRANTS:\npermissions are the flat route-level actions such as reports:read, sos:update_status, alerts:update, and chats:send.\ngrants are category-specific permissions.\nFor example, a Police code may have reports:read under categorySlug=robbery.\nThis means Police can read robbery reports assigned or visible to Police.\n\nIMPORTANT:\nThe admin does not need to type permissions twice.\nThe backend can derive the flat permissions list from grants.actions.\n\nCATEGORY GRANT EXAMPLE:\n{\n\"categorySlug\": \"robbery\",\n\"categoryName\": \"Robbery\",\n\"actions\": [\"reports:read\", \"sos:read\", \"sos:update_status\", \"chats:read\", \"chats:send\"],\n\"accessMode\": \"assigned_only\"\n}\n\nACCESS MODE EXPLANATION:\nglobal means the code can access all records if it has the required permission.\nassigned_only means the organisation can only access records assigned or visible to it.\nowned_only means the organisation can only access records it owns.\nscoped means the organisation is restricted by category, geography, and visibility rules.\n\nSECURITY RULE:\nCategory permission alone is not enough.\nThe record must also be owned by, led by, assigned to, or visible to the organisation using the privilege code.",
                 "consumes": [
                     "application/json"
                 ],
@@ -800,6 +1123,72 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to fetch privilege code.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates privilege-code metadata, organisation details, accessMode, permissions, grants, or expiry.\n\nIMPORTANT:\nThis does not change the UUID itself.\nThis does not expose the full UUID again.\nIf grants are supplied, backend automatically derives flat permissions from grants.actions.\n\nWHAT CAN BE UPDATED:\n- label\n- purpose\n- organisationId\n- organisationName\n- organisationType\n- levelId\n- levelName\n- permissions\n- grants\n- accessMode\n- expiresAt\n\nEXAMPLE REQUEST BODY:\n{\n\"label\": \"Police Robbery Access Updated\",\n\"accessMode\": \"assigned_only\",\n\"grants\": [\n{\n\"categorySlug\": \"robbery\",\n\"categoryName\": \"Robbery\",\n\"actions\": [\n\"reports:read\",\n\"sos:read\",\n\"sos:update_status\",\n\"chats:read\",\n\"chats:send\"\n],\n\"accessMode\": \"assigned_only\"\n}\n]\n}",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Privilege Codes"
+                ],
+                "summary": "Update a privilege-code record",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Privilege-code database ID.",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Privilege-code update payload.",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.UpdateAdminPrivilegeCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Privilege code updated successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request, invalid permission, invalid grant, or invalid expiry date.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Admin API key missing or invalid.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Privilege code not found.",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1808,7 +2197,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allows an authenticated mobile user to request help during or after an emergency.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when a user needs medical help, rescue, food, shelter, security support, evacuation, or other assistance.\n\nDIFFERENCE BETWEEN SOS AND ASSISTANCE:\n- SOS is for immediate emergency panic situations.\n- Assistance is for structured help requests that responders/admins can review and manage.\n\nAUTH REQUIRED:\nThis endpoint requires a valid user JWT token.\nClick Authorize and paste: Bearer YOUR_JWT_TOKEN.\n\nREQUIRED FIELDS:\n- assistanceType: Type of help needed. Example: medical.\n- urgencyLevel: low, medium, high, or critical.\n- affectedIndividuals: Number of people needing help. Minimum is 1.\n- latitude: User/request latitude.\n- longitude: User/request longitude.\n\nOPTIONAL FIELDS:\n- otherInformation: Extra details about the situation.\n- address: Human-readable location or landmark.\n\nEXAMPLE REQUEST BODY:\n{\n\"assistanceType\": \"medical\",\n\"urgencyLevel\": \"high\",\n\"affectedIndividuals\": 3,\n\"otherInformation\": \"One person is injured and needs urgent medical support.\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\"\n}",
+                "description": "Allows an authenticated mobile user to request help during or after an emergency.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when a user needs medical help, rescue, food, shelter, security support, evacuation, or other assistance.\n\nDIFFERENCE BETWEEN SOS AND ASSISTANCE:\n- SOS is for immediate emergency panic situations.\n- Assistance is for structured help requests that responders/admins can review and manage.\n\nAUTH REQUIRED:\nThis endpoint requires a valid user JWT token.\nClick Authorize and paste: Bearer YOUR_JWT_TOKEN.\n\nREQUIRED FIELDS:\n- assistanceType: Type of help needed. Example: medical.\n- urgencyLevel: low, medium, high, or critical.\n- affectedIndividuals: Number of people needing help. Minimum is 1.\n- latitude: User/request latitude.\n- longitude: User/request longitude.\n\nOPTIONAL FIELDS:\n- otherInformation: Extra details about the situation.\n- address: Human-readable location or landmark.\n\nEXAMPLE REQUEST BODY:\n{\n\"assistanceType\": \"medical\",\n\"urgencyLevel\": \"high\",\n\"affectedIndividuals\": 3,\n\"otherInformation\": \"One person is injured and needs urgent medical support.\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\"\n}\n\nHOW ASSISTANCE AUTO-ROUTING WORKS:\nWhen a user requests assistance, the backend uses assistanceType to decide which organisation should receive it.\nThis means the correct agency can respond without waiting for a global/internal admin to assign the case manually.\n\nASSISTANCE TYPE ROUTING EXAMPLES:\n- medical -\u003e Ambulance Service and Ghana Health Service\n- rescue -\u003e NADMO or Fire Service depending on category rules\n- food -\u003e NADMO or relief coordination\n- shelter -\u003e NADMO or relief coordination\n- security -\u003e Ghana Police Service\n- evacuation -\u003e NADMO, Police, or Fire Service depending on routing rules\n- other -\u003e system/manual review\n\nTECHNICAL EXPLANATION:\nThe backend stores accessCategorySlug, ownerOrganisationId, leadOrganisationId, assignedOrgIds, and visibleToOrgIds on the assistance record.\nOrganisation privilege codes use these fields to decide who can read or update the assistance request.\n\nSECURITY RULE:\nAn organisation can only work on assistance requests assigned to it, visible to it, led by it, or owned by it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3224,7 +3613,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allows an authenticated mobile user to report an emergency, disaster, hazard, or incident.\n\nThe report is saved as ` + "`" + `pending` + "`" + ` first.\nIt does not become a public alert until an admin reviews and approves it.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when a mobile user wants to report flooding, fire, road accident, health outbreak, weather danger, security incident, or another emergency.\n\nAUTH REQUIRED:\nThis endpoint requires a valid user JWT token.\nClick Authorize and paste: Bearer YOUR_JWT_TOKEN\n\nREQUEST OPTIONS:\nThis same endpoint supports two request types:\n\n1. JSON request for reports without file upload.\nContent-Type: application/json\n\nExample JSON body:\n{\n\"category\": \"flood\",\n\"description\": \"Flooding has started around the roadside and vehicles cannot pass.\",\n\"timeOfOccurrence\": \"2026-09-10T08:30:00Z\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\",\n\"country\": \"Ghana\",\n\"region\": \"Greater Accra\"\n}\n\n2. Multipart request for reports with image or video upload.\nContent-Type: multipart/form-data\nUse the form field named ` + "`" + `media` + "`" + ` for the uploaded file.\n\nREQUIRED FIELDS:\n- category: Type of incident. Example: flood\n- description: What happened. Example: Flooding has blocked the road.\n- timeOfOccurrence: When it happened. Example: 2026-09-10T08:30:00Z\n- latitude: Incident latitude. Example: 5.6037\n- longitude: Incident longitude. Example: -0.1870\n\nOPTIONAL FIELDS:\n- address: Human-readable location or landmark.\n- country: Country name.\n- region: Region/state name.\n- media: Optional image or video file.",
+                "description": "Allows an authenticated mobile user to report an emergency, disaster, hazard, or incident.\n\nThe report is saved as ` + "`" + `pending` + "`" + ` first.\nIt does not become a public alert until an admin reviews and approves it.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when a mobile user wants to report flooding, fire, road accident, health outbreak, weather danger, security incident, or another emergency.\n\nAUTH REQUIRED:\nThis endpoint requires a valid user JWT token.\nClick Authorize and paste: Bearer YOUR_JWT_TOKEN\n\nREQUEST OPTIONS:\nThis same endpoint supports two request types:\n\n1. JSON request for reports without file upload.\nContent-Type: application/json\n\nExample JSON body:\n{\n\"category\": \"flood\",\n\"description\": \"Flooding has started around the roadside and vehicles cannot pass.\",\n\"timeOfOccurrence\": \"2026-09-10T08:30:00Z\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\",\n\"country\": \"Ghana\",\n\"region\": \"Greater Accra\"\n}\n\n2. Multipart request for reports with image or video upload.\nContent-Type: multipart/form-data\nUse the form field named ` + "`" + `media` + "`" + ` for the uploaded file.\n\nREQUIRED FIELDS:\n- category: Type of incident. Example: flood\n- description: What happened. Example: Flooding has blocked the road.\n- timeOfOccurrence: When it happened. Example: 2026-09-10T08:30:00Z\n- latitude: Incident latitude. Example: 5.6037\n- longitude: Incident longitude. Example: -0.1870\n\nOPTIONAL FIELDS:\n- address: Human-readable location or landmark.\n- country: Country name.\n- region: Region/state name.\n- media: Optional image or video file.\n\nHOW AUTO-ROUTING WORKS:\nWhen a mobile user submits a report, the backend automatically checks the report category and routes the case to the correct organisation.\nThe user does not need to choose Police, Fire Service, NADMO, Health, or any other agency manually.\n\nSIMPLE EXPLANATION:\nThe system works like an emergency call center with automatic dispatching.\nIf the report is fire-related, it goes to Ghana Fire Service.\nIf the report is robbery/security-related, it goes to Ghana Police Service.\nIf the report is flood/weather/drought/earthquake-related, it goes to NADMO.\nIf the report is medical/health-related, it goes to Health or Ambulance services.\nIf the category is unknown or unclear, it can be kept for system/manual review.\n\nREPORT CATEGORY ROUTING EXAMPLES:\n- fire -\u003e Ghana Fire Service\n- flood -\u003e NADMO\n- weather -\u003e NADMO\n- drought -\u003e NADMO\n- earthquake -\u003e NADMO\n- robbery -\u003e Ghana Police Service\n- security -\u003e Ghana Police Service\n- protests -\u003e Ghana Police Service\n- accident -\u003e Ghana Police Service and Ambulance\n- medical -\u003e Ambulance or Health Service\n- health -\u003e Ghana Health Service\n- conflict -\u003e National Security, Police, and Armed Forces\n- munitions -\u003e National Security, Police, and Armed Forces\n- galamsey -\u003e Police, Minerals Commission, and National Security\n- other -\u003e system/manual review\n\nTECHNICAL ACCESS-CONTROL EXPLANATION:\nThe backend saves routing fields on the record after creation.\naccessCategorySlug stores the operational category such as fire, flood, robbery, medical, weather, or security.\nownerOrganisationId usually starts as system for user-created records.\nleadOrganisationId is the main organisation responsible for handling the case.\nassignedOrgIds contains organisations allowed to work on the case.\nvisibleToOrgIds contains organisations allowed to view the case.\n\nIMPORTANT SECURITY RULE:\nHaving a category grant alone is not enough.\nA privilege code must have the required permission and the record must also be owned by, led by, assigned to, or visible to that organisation.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -3352,7 +3741,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Allows an authenticated mobile user to trigger an urgent SOS emergency request.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when a user is in immediate danger and needs urgent help.\nExamples: medical emergency, fire, security threat, flood danger, road accident, or other emergency.\n\nDIFFERENCE BETWEEN SOS AND ASSISTANCE:\n- SOS is for immediate emergency panic situations.\n- Assistance is for structured help requests such as food, shelter, evacuation, or medical support.\n\nAUTH REQUIRED:\nThis endpoint requires a valid user JWT token.\nClick Authorize and paste: Bearer YOUR_JWT_TOKEN.\n\nREQUIRED FIELDS:\n- emergencyType: Type of emergency. Example: medical.\n- latitude: User's current latitude.\n- longitude: User's current longitude.\n\nOPTIONAL FIELDS:\n- message: Extra message from the user.\n- address: Human-readable location or landmark.\n- accuracy: GPS accuracy in meters.\n- isLiveTracking: true if location tracking should continue while SOS is active.\n\nEXAMPLE REQUEST BODY:\n{\n\"emergencyType\": \"medical\",\n\"message\": \"I need urgent help at my location.\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\",\n\"accuracy\": 8.5,\n\"isLiveTracking\": true\n}",
+                "description": "Allows an authenticated mobile user to trigger an urgent SOS emergency request.\n\nWHEN TO USE THIS ENDPOINT:\nUse this when a user is in immediate danger and needs urgent help.\nExamples: medical emergency, fire, security threat, flood danger, road accident, or other emergency.\n\nDIFFERENCE BETWEEN SOS AND ASSISTANCE:\n- SOS is for immediate emergency panic situations.\n- Assistance is for structured help requests such as food, shelter, evacuation, or medical support.\n\nAUTH REQUIRED:\nThis endpoint requires a valid user JWT token.\nClick Authorize and paste: Bearer YOUR_JWT_TOKEN.\n\nREQUIRED FIELDS:\n- emergencyType: Type of emergency. Example: medical.\n- latitude: User's current latitude.\n- longitude: User's current longitude.\n\nOPTIONAL FIELDS:\n- message: Extra message from the user.\n- address: Human-readable location or landmark.\n- accuracy: GPS accuracy in meters.\n- isLiveTracking: true if location tracking should continue while SOS is active.\n\nEXAMPLE REQUEST BODY:\n{\n\"emergencyType\": \"medical\",\n\"message\": \"I need urgent help at my location.\",\n\"latitude\": 5.6037,\n\"longitude\": -0.1870,\n\"address\": \"Circle, Accra\",\n\"accuracy\": 8.5,\n\"isLiveTracking\": true\n}\n\nHOW SOS AUTO-ROUTING WORKS:\nWhen a user triggers SOS, the backend uses emergencyType to decide which agency should receive the case immediately.\nThe global/internal admin does not need to be online to manually assign every SOS.\n\nSIMPLE EXAMPLES:\n- emergencyType=fire -\u003e Ghana Fire Service\n- emergencyType=medical -\u003e Ambulance or Health Service\n- emergencyType=security -\u003e Ghana Police Service\n- emergencyType=robbery -\u003e Ghana Police Service\n- emergencyType=flood -\u003e NADMO\n- emergencyType=accident -\u003e Police and Ambulance\n- emergencyType=other -\u003e system/manual review\n\nTECHNICAL EXPLANATION:\nThe backend converts emergencyType into accessCategorySlug.\nThen it fills leadOrganisationId, assignedOrgIds, and visibleToOrgIds automatically.\nThis allows the correct organisation's privilege code to see and update the SOS immediately.\n\nSECURITY RULE:\nA Police privilege code cannot update a Fire Service SOS unless that SOS is assigned or visible to Police and the privilege code has the correct action grant.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3539,57 +3928,129 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest": {
+        "disaster_alert_backend_internal_dto.CreateAccessCategoryRequest": {
             "type": "object",
             "required": [
-                "permissions"
+                "name"
             ],
             "properties": {
-                "expiresAt": {
-                    "description": "ExpiresAt is the optional expiry date/time for the privilege code.\n\nRecommended format:\n2026-09-30T23:59:00Z",
-                    "type": "string",
-                    "example": "2026-09-30T23:59:00Z"
-                },
-                "label": {
-                    "description": "Label is the readable name of this privilege code.\n\nOptional.\nExample: Police Traffic Unit Access",
-                    "type": "string",
-                    "example": "Police Traffic Unit Access"
-                },
-                "levelId": {
-                    "description": "LevelID is the optional department, unit, role, or level identifier.\n\nOptional.",
-                    "type": "string",
-                    "example": "firebase_traffic_unit_id"
-                },
-                "levelName": {
-                    "description": "LevelName is the readable department, unit, role, or level name.\n\nOptional.",
-                    "type": "string",
-                    "example": "Traffic Unit"
-                },
-                "organisationId": {
-                    "description": "OrganisationID is the external/internal organisation identifier.\n\nOptional.",
-                    "type": "string",
-                    "example": "firebase_police_org_id"
-                },
-                "organisationName": {
-                    "description": "OrganisationName is the readable organisation name.\n\nOptional.",
-                    "type": "string",
-                    "example": "Ghana Police Service"
-                },
-                "permissions": {
-                    "description": "Permissions is the list of allowed admin actions for this privilege code.\n\nRequired.",
+                "allowedActions": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "type": "string"
                     },
                     "example": [
-                        "dashboard:read",
                         "reports:read",
-                        "sos:read"
+                        "sos:read",
+                        "chats:send"
+                    ]
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Robbery, theft, armed robbery, and related security cases"
+                },
+                "kind": {
+                    "description": "public, access, both",
+                    "type": "string",
+                    "enum": [
+                        "public",
+                        "access",
+                        "both"
+                    ],
+                    "example": "both"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Robbery"
+                },
+                "ownerOrganisationId": {
+                    "type": "string",
+                    "example": "ghana_police_service"
+                },
+                "ownerOrganisationName": {
+                    "type": "string",
+                    "example": "Ghana Police Service"
+                },
+                "preferenceKey": {
+                    "type": "string",
+                    "example": "robbery"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "robbery"
+                },
+                "visibility": {
+                    "description": "private, shared",
+                    "type": "string",
+                    "enum": [
+                        "private",
+                        "shared"
+                    ],
+                    "example": "private"
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest": {
+            "type": "object",
+            "properties": {
+                "accessMode": {
+                    "type": "string",
+                    "enum": [
+                        "global",
+                        "owned_only",
+                        "assigned_only",
+                        "scoped"
+                    ],
+                    "example": "assigned_only"
+                },
+                "expiresAt": {
+                    "type": "string",
+                    "example": "2026-09-30T23:59:00Z"
+                },
+                "grants": {
+                    "description": "Recommended for organisation-specific access.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/disaster_alert_backend_internal_dto.PrivilegeGrantRequest"
+                    }
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Police Traffic Unit Access"
+                },
+                "levelId": {
+                    "type": "string",
+                    "example": "traffic_unit"
+                },
+                "levelName": {
+                    "type": "string",
+                    "example": "Traffic Unit"
+                },
+                "organisationId": {
+                    "type": "string",
+                    "example": "ghana_police_service"
+                },
+                "organisationName": {
+                    "type": "string",
+                    "example": "Ghana Police Service"
+                },
+                "organisationType": {
+                    "type": "string",
+                    "example": "police"
+                },
+                "permissions": {
+                    "description": "Optional.\nIf omitted, backend derives permissions from grants.actions.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "reports:read",
+                        "sos:read",
+                        "chats:send"
                     ]
                 },
                 "purpose": {
-                    "description": "Purpose explains why this privilege code exists.\n\nOptional.",
                     "type": "string",
                     "example": "Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies"
                 }
@@ -3606,10 +4067,36 @@ const docTemplate = `{
                 "title"
             ],
             "properties": {
+                "accessCategoryId": {
+                    "description": "AccessCategoryID is optional.\nIf omitted, the backend will auto-route using category.",
+                    "type": "string",
+                    "example": "66e19b71c8f2a2b4d1234567"
+                },
+                "accessCategoryName": {
+                    "description": "AccessCategoryName is the readable category name.\nIf omitted, backend generates it from accessCategorySlug.",
+                    "type": "string",
+                    "example": "Weather"
+                },
+                "accessCategorySlug": {
+                    "description": "AccessCategorySlug is the operational category used for organisation access control.\nIf omitted, backend uses category.\nExamples: fire, flood, weather, health, robbery, security, conflict, galamsey.",
+                    "type": "string",
+                    "example": "weather"
+                },
                 "address": {
                     "description": "Address is a readable location, landmark, town, street, or area name.",
                     "type": "string",
                     "example": "Circle, Accra"
+                },
+                "assignedOrgIds": {
+                    "description": "AssignedOrgIDs are organisations allowed to work on this alert.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "nadmo",
+                        "ghana_police_service"
+                    ]
                 },
                 "category": {
                     "description": "Category describes the type of alert.\n\nAllowed values:\nflood, fire, weather, health, security, earthquake, conflict, other",
@@ -3672,10 +4159,20 @@ const docTemplate = `{
                     "type": "number",
                     "example": 5.6037
                 },
+                "leadOrganisationId": {
+                    "description": "LeadOrganisationID is the main organisation responsible for the alert.",
+                    "type": "string",
+                    "example": "nadmo"
+                },
                 "longitude": {
                     "description": "Longitude is the GPS longitude of the alert location.",
                     "type": "number",
                     "example": -0.187
+                },
+                "ownerOrganisationId": {
+                    "description": "OwnerOrganisationID is optional for admin-created alerts.\nIf omitted, backend uses system.",
+                    "type": "string",
+                    "example": "nadmo"
                 },
                 "priorityLabel": {
                     "description": "PriorityLabel is a readable priority level.\n\nAllowed values:\nbreaking, serious, watch, low",
@@ -3794,6 +4291,18 @@ const docTemplate = `{
                     "example": [
                         "https://example.com/flood-video.mp4"
                     ]
+                },
+                "visibleToOrgIds": {
+                    "description": "VisibleToOrgIDs are organisations allowed to view this alert.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "nadmo",
+                        "ghana_police_service",
+                        "ghana_fire_service"
+                    ]
                 }
             }
         },
@@ -3807,6 +4316,21 @@ const docTemplate = `{
                 "urgencyLevel"
             ],
             "properties": {
+                "accessCategoryId": {
+                    "description": "AccessCategoryID is optional.\nIf omitted, the backend will auto-route using assistanceType.",
+                    "type": "string",
+                    "example": "66e19b71c8f2a2b4d1234567"
+                },
+                "accessCategoryName": {
+                    "description": "AccessCategoryName is the readable category name.\nIf omitted, backend generates it from accessCategorySlug.",
+                    "type": "string",
+                    "example": "Medical"
+                },
+                "accessCategorySlug": {
+                    "description": "AccessCategorySlug is the operational category used for organisation access control.\nIf omitted, backend uses assistanceType.\nExamples: medical, rescue, security, evacuation, food, shelter, other.",
+                    "type": "string",
+                    "example": "medical"
+                },
                 "address": {
                     "description": "Address is the readable location, landmark, street, or area name.",
                     "type": "string",
@@ -3832,6 +4356,11 @@ const docTemplate = `{
                     ],
                     "example": "medical"
                 },
+                "country": {
+                    "description": "Country is optional but helps with routing, filtering, and dashboards.",
+                    "type": "string",
+                    "example": "Ghana"
+                },
                 "latitude": {
                     "description": "Latitude is the user's current GPS latitude.",
                     "type": "number",
@@ -3846,6 +4375,11 @@ const docTemplate = `{
                     "description": "OtherInformation gives extra details about the situation.\n\nExample: injuries, blocked access, trapped people, security concern,\nfood shortage, shelter need, or evacuation challenge.",
                     "type": "string",
                     "example": "One person is injured and needs urgent medical support."
+                },
+                "region": {
+                    "description": "Region is optional but helps with regional filtering and response coordination.",
+                    "type": "string",
+                    "example": "Greater Accra"
                 },
                 "urgencyLevel": {
                     "description": "UrgencyLevel describes how urgent the assistance request is.\n\nAllowed values:\nlow, medium, high, critical",
@@ -4005,6 +4539,21 @@ const docTemplate = `{
                 "longitude"
             ],
             "properties": {
+                "accessCategoryId": {
+                    "description": "AccessCategoryID is optional.\nIf omitted, the backend will auto-route using emergencyType.",
+                    "type": "string",
+                    "example": "66e19b71c8f2a2b4d1234567"
+                },
+                "accessCategoryName": {
+                    "description": "AccessCategoryName is the readable category name.\nIf omitted, backend generates it from accessCategorySlug.",
+                    "type": "string",
+                    "example": "Medical"
+                },
+                "accessCategorySlug": {
+                    "description": "AccessCategorySlug is the operational category used for organisation access control.\nIf omitted, backend uses emergencyType.\nExamples: fire, medical, security, robbery, flood, accident.",
+                    "type": "string",
+                    "example": "medical"
+                },
                 "accuracy": {
                     "description": "Accuracy is the GPS accuracy in meters, if available from the mobile device.",
                     "type": "number",
@@ -4014,6 +4563,11 @@ const docTemplate = `{
                     "description": "Address is the readable location, landmark, street, or area name.",
                     "type": "string",
                     "example": "Circle, Accra"
+                },
+                "country": {
+                    "description": "Country is optional but helps with routing, filtering, and dashboards.",
+                    "type": "string",
+                    "example": "Ghana"
                 },
                 "emergencyType": {
                     "description": "EmergencyType describes the kind of emergency.\n\nAllowed values:\nmedical, fire, security, flood, accident, other",
@@ -4047,6 +4601,11 @@ const docTemplate = `{
                     "description": "Message is an optional emergency message from the user.",
                     "type": "string",
                     "example": "I need urgent help at my location."
+                },
+                "region": {
+                    "description": "Region is optional but helps with regional filtering and response coordination.",
+                    "type": "string",
+                    "example": "Greater Accra"
                 }
             }
         },
@@ -4115,6 +4674,75 @@ const docTemplate = `{
                 }
             }
         },
+        "disaster_alert_backend_internal_dto.PrivilegeGrantRequest": {
+            "type": "object",
+            "required": [
+                "actions"
+            ],
+            "properties": {
+                "accessMode": {
+                    "type": "string",
+                    "enum": [
+                        "global",
+                        "owned_only",
+                        "assigned_only",
+                        "scoped"
+                    ],
+                    "example": "assigned_only"
+                },
+                "actions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "reports:read",
+                        "sos:read",
+                        "chats:send"
+                    ]
+                },
+                "categoryId": {
+                    "type": "string",
+                    "example": "66e19b71c8f2a2b4d1234567"
+                },
+                "categoryName": {
+                    "type": "string",
+                    "example": "Robbery"
+                },
+                "categorySlug": {
+                    "type": "string",
+                    "example": "robbery"
+                },
+                "countries": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Ghana"
+                    ]
+                },
+                "districts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Accra Metropolitan"
+                    ]
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Greater Accra"
+                    ]
+                }
+            }
+        },
         "disaster_alert_backend_internal_dto.RegisterRequest": {
             "type": "object",
             "required": [
@@ -4151,7 +4779,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "reason": {
-                    "description": "Reason explains why the privilege code is being revoked.",
                     "type": "string",
                     "example": "Access no longer needed"
                 }
@@ -4236,6 +4863,134 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.UpdateAccessCategoryRequest": {
+            "type": "object",
+            "properties": {
+                "allowedActions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "reports:read",
+                        "sos:read",
+                        "chats:send"
+                    ]
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Robbery, theft, armed robbery, and related security cases"
+                },
+                "isActive": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "public",
+                        "access",
+                        "both"
+                    ],
+                    "example": "both"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Robbery"
+                },
+                "ownerOrganisationId": {
+                    "type": "string",
+                    "example": "ghana_police_service"
+                },
+                "ownerOrganisationName": {
+                    "type": "string",
+                    "example": "Ghana Police Service"
+                },
+                "preferenceKey": {
+                    "type": "string",
+                    "example": "robbery"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "robbery"
+                },
+                "visibility": {
+                    "type": "string",
+                    "enum": [
+                        "private",
+                        "shared"
+                    ],
+                    "example": "private"
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.UpdateAdminPrivilegeCodeRequest": {
+            "type": "object",
+            "properties": {
+                "accessMode": {
+                    "type": "string",
+                    "enum": [
+                        "global",
+                        "owned_only",
+                        "assigned_only",
+                        "scoped"
+                    ],
+                    "example": "assigned_only"
+                },
+                "expiresAt": {
+                    "description": "Optional.\nOmit to keep existing expiry.\nSend empty string \"\" to clear expiry.\nSend RFC3339 datetime to set expiry.",
+                    "type": "string",
+                    "example": "2026-09-30T23:59:00Z"
+                },
+                "grants": {
+                    "description": "Optional.\nIf supplied, this replaces the existing grants.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/disaster_alert_backend_internal_dto.PrivilegeGrantRequest"
+                    }
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Police Robbery Access Updated"
+                },
+                "levelId": {
+                    "type": "string",
+                    "example": "traffic_unit"
+                },
+                "levelName": {
+                    "type": "string",
+                    "example": "Traffic Unit"
+                },
+                "organisationId": {
+                    "type": "string",
+                    "example": "ghana_police_service"
+                },
+                "organisationName": {
+                    "type": "string",
+                    "example": "Ghana Police Service"
+                },
+                "organisationType": {
+                    "type": "string",
+                    "example": "police"
+                },
+                "permissions": {
+                    "description": "Optional.\nIf supplied, this replaces the existing flat permissions.\nIf grants are also supplied, backend merges permissions with grants.actions.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "reports:read",
+                        "sos:read",
+                        "chats:send"
+                    ]
+                },
+                "purpose": {
+                    "type": "string",
+                    "example": "Updated purpose for Police robbery access"
                 }
             }
         },
@@ -4443,7 +5198,6 @@ const docTemplate = `{
             ],
             "properties": {
                 "uuid": {
-                    "description": "UUID is the full privilege code returned during creation.\n\nDo not use codePrefix here.",
                     "type": "string",
                     "example": "4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e"
                 }
@@ -4476,7 +5230,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "Disaster Alert API",
-	Description:      "Disaster Alert API is a mission-control backend for disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, public alerts, chats, notifications, and administrator response operations.\n\n================================\nQUICK START\n================================\n\nUse this Swagger page to test the API safely.\n\nFor mobile/user endpoints:\n1. Register or login using /auth/register or /auth/login.\n2. Copy the token from the login response.\n3. Click Authorize.\n4. Paste it like this: Bearer YOUR_JWT_TOKEN.\n5. Test endpoints such as /reports, /alerts, /sos, /assistance, /notifications, and /chats.\n\nFor admin endpoints:\n1. Enter the Admin API Key under AdminApiKeyAuth.\n2. Create or validate a privilege code.\n3. Enter the full privilege code under PrivilegeCodeAuth.\n4. Test admin endpoints such as /admin/reports, /admin/alerts, /admin/sos, /admin/assistance, and /admin/chats.\n\n================================\nAUTHENTICATION GUIDE\n================================\n\n1. Mobile/User endpoints use BearerAuth.\nRequired header:\nAuthorization: Bearer <JWT_TOKEN>\n\n2. Basic admin management endpoints use AdminApiKeyAuth.\nRequired header:\nSigtrack-Admin-API-Key: <ADMIN_API_KEY>\n\n3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\nRequired headers:\nSigtrack-Admin-API-Key: <ADMIN_API_KEY>\nX-Privilege-Code: <GENERATED_UUID>\n\n================================\nADMIN PRIVILEGE CODE FLOW\n================================\n\nStep 1: Click Authorize in Swagger.\nStep 2: Enter your Admin API Key under AdminApiKeyAuth.\nStep 3: Call POST /admin/privilege-codes to generate a privilege UUID.\nStep 4: Copy the full UUID from data.code in the response.\nStep 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.\nStep 6: Test protected admin endpoints.\n\nImportant:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.\n\n================================\nCOMMON REQUEST NOTES\n================================\n\nPOST and PUT endpoints usually require a request body.\nOpen the endpoint in Swagger and check the Parameters section.\nFor JSON endpoints, send Content-Type: application/json.\nFor upload endpoints, send Content-Type: multipart/form-data.\n\nRequired fields are marked as required in the request schema or form fields.\nOptional fields can be omitted unless your frontend needs them.\nDate/time fields should use ISO format where possible, for example: 2026-09-10T08:30:00Z.\n\n================================\nADMIN PERMISSION CATALOG\n================================\n\nReports:\n- reports:read\n- reports:approve\n\nAssistance:\n- assistance:read\n- assistance:update_status\n\nSOS:\n- sos:read\n- sos:update_status\n\nAlerts:\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n\nChats:\n- chats:read\n- chats:send\n\nNotifications:\n- notifications:read\n- notifications:send\n\nPrivilege Management:\n- privilege_codes:create\n- privilege_codes:read\n- privilege_codes:revoke\n- audit_logs:read",
+	Description:      "Disaster Alert API is a mission-control backend for disaster intelligence, community incident reports, SOS escalation, assistance coordination, emergency messaging, public alerts, chats, notifications, and administrator response operations.\n\n================================\nQUICK START\n================================\n\nUse this Swagger page to test the API safely.\n\nFor mobile/user endpoints:\n1. Register or login using /auth/register or /auth/login.\n2. Copy the token from the login response.\n3. Click Authorize.\n4. Paste it like this: Bearer YOUR_JWT_TOKEN.\n5. Test endpoints such as /reports, /alerts, /sos, /assistance, /notifications, and /chats.\n\nFor admin endpoints:\n1. Enter the Admin API Key under AdminApiKeyAuth.\n2. Create or validate a privilege code.\n3. Enter the full privilege code under PrivilegeCodeAuth.\n4. Test admin endpoints such as /admin/reports, /admin/alerts, /admin/sos, /admin/assistance, and /admin/chats.\n\n================================\nAUTHENTICATION GUIDE\n================================\n\n1. Mobile/User endpoints use BearerAuth.\nRequired header:\nAuthorization: Bearer <JWT_TOKEN>\n\n2. Basic admin management endpoints use AdminApiKeyAuth.\nRequired header:\nSigtrack-Admin-API-Key: <ADMIN_API_KEY>\n\n3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.\nRequired headers:\nSigtrack-Admin-API-Key: <ADMIN_API_KEY>\nX-Privilege-Code: <GENERATED_UUID>\n\n================================\nADMIN PRIVILEGE CODE FLOW\n================================\n\nStep 1: Click Authorize in Swagger.\nStep 2: Enter your Admin API Key under AdminApiKeyAuth.\nStep 3: Call POST /admin/privilege-codes to generate a privilege UUID.\nStep 4: Copy the full UUID from data.uuid in the response.\nStep 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.\nStep 6: Test protected admin endpoints.\n\nImportant:\nThe full UUID is returned only once during creation.\ncodePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.\n\n================================\nCATEGORY AND PRIVILEGE GRANT FLOW\n================================\n\nExisting public/system categories are seeded from the alert preference categories already used in the app:\nfire, flood, weather, earthquake, health, conflict, drought, protests, robbery, munitions, galamsey, unverified_activity, and critical_alerts.\n\nAdmins can also create new access categories with /admin/access-categories.\nA privilege UUID can then include grants that connect a category to selected actions.\n\nExample:\ncategory: robbery\nactions: reports:read, sos:read, sos:update_status, chats:send\naccessMode: assigned_only\n\nThis means the UUID can perform only those actions under that category.\nFull organisation isolation is completed when reports, SOS, assistance, and alerts also include ownerOrganisationId, assignedOrgIds, visibleToOrgIds, and accessCategorySlug.\n\n================================\nCOMMON REQUEST NOTES\n================================\n\nPOST and PUT endpoints usually require a request body.\nOpen the endpoint in Swagger and check the Parameters section.\nFor JSON endpoints, send Content-Type: application/json.\nFor upload endpoints, send Content-Type: multipart/form-data.\n\nRequired fields are marked as required in the request schema or form fields.\nOptional fields can be omitted unless your frontend needs them.\nDate/time fields should use ISO format where possible, for example: 2026-09-10T08:30:00Z.\n\n================================\nADMIN PERMISSION CATALOG\n================================\n\nReports:\n- reports:read\n- reports:approve\n\nAssistance:\n- assistance:read\n- assistance:update_status\n\nSOS:\n- sos:read\n- sos:update_status\n\nAlerts:\n- alerts:read\n- alerts:create\n- alerts:update\n- alerts:delete\n\nChats:\n- chats:read\n- chats:send\n\nNotifications:\n- notifications:read\n- notifications:send\n\nPrivilege Management:\n- privilege_codes:create\n- privilege_codes:read\n- privilege_codes:revoke\n- audit_logs:read",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

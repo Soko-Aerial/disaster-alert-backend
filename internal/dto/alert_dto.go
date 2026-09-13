@@ -22,6 +22,32 @@ type CreateAlertRequest struct {
 	// flood, fire, weather, health, security, earthquake, conflict, other
 	Category string `json:"category" validate:"required" example:"flood" enums:"flood,fire,weather,health,security,earthquake,conflict,other"`
 
+	// AccessCategoryID is optional.
+	// If omitted, the backend will auto-route using category.
+	AccessCategoryID string `json:"accessCategoryId,omitempty" example:"66e19b71c8f2a2b4d1234567"`
+
+	// AccessCategorySlug is the operational category used for organisation access control.
+	// If omitted, backend uses category.
+	// Examples: fire, flood, weather, health, robbery, security, conflict, galamsey.
+	AccessCategorySlug string `json:"accessCategorySlug,omitempty" example:"weather"`
+
+	// AccessCategoryName is the readable category name.
+	// If omitted, backend generates it from accessCategorySlug.
+	AccessCategoryName string `json:"accessCategoryName,omitempty" example:"Weather"`
+
+	// OwnerOrganisationID is optional for admin-created alerts.
+	// If omitted, backend uses system.
+	OwnerOrganisationID string `json:"ownerOrganisationId,omitempty" example:"nadmo"`
+
+	// LeadOrganisationID is the main organisation responsible for the alert.
+	LeadOrganisationID string `json:"leadOrganisationId,omitempty" example:"nadmo"`
+
+	// AssignedOrgIDs are organisations allowed to work on this alert.
+	AssignedOrgIDs []string `json:"assignedOrgIds,omitempty" example:"nadmo,ghana_police_service"`
+
+	// VisibleToOrgIDs are organisations allowed to view this alert.
+	VisibleToOrgIDs []string `json:"visibleToOrgIds,omitempty" example:"nadmo,ghana_police_service,ghana_fire_service"`
+
 	// Severity describes how serious the alert is.
 	//
 	// Allowed values:

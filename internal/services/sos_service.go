@@ -5,8 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
+	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/websocket"
 
@@ -45,20 +47,47 @@ func (s *SOSService) CreateSOSRequest(
 
 	now := time.Now().UTC()
 
+	emergencyType := strings.TrimSpace(req.EmergencyType)
+
+	accessCategorySlug := strings.TrimSpace(req.AccessCategorySlug)
+	if accessCategorySlug == "" {
+		accessCategorySlug = emergencyType
+	}
+
+	route := ResolveAutoRoute(
+		req.AccessCategoryID,
+		req.AccessCategorySlug,
+		req.AccessCategoryName,
+		emergencyType,
+	)
+
 	sos := models.SOSRequest{
 		UserID:        objectID,
-		EmergencyType: strings.TrimSpace(req.EmergencyType),
+		EmergencyType: emergencyType,
 		Message:       strings.TrimSpace(req.Message),
+
+		AccessCategoryID:   route.AccessCategoryID,
+		AccessCategorySlug: route.AccessCategorySlug,
+		AccessCategoryName: route.AccessCategoryName,
+
+		OwnerOrganisationID: route.OwnerOrganisationID,
+		LeadOrganisationID:  route.LeadOrganisationID,
+		AssignedOrgIDs:      route.AssignedOrgIDs,
+		VisibleToOrgIDs:     route.VisibleToOrgIDs,
+
 		Location: models.SOSLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
 			Address:   strings.TrimSpace(req.Address),
 			Accuracy:  req.Accuracy,
+			Country:   strings.TrimSpace(req.Country),
+			Region:    strings.TrimSpace(req.Region),
 		},
+
 		Status:         "active",
 		IsLiveTracking: req.IsLiveTracking,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	createdSOS, err := s.sosRepo.Create(sos)
@@ -92,6 +121,32 @@ func (s *SOSService) CreateSOSRequest(
 	}
 
 	return createdSOS, nil
+}
+
+func (s *SOSService) UpdateSOSStatusForPrivilege(
+	sosID string,
+	status string,
+	privilegeCtx *authz.PrivilegeContext,
+) (map[string]interface{}, error) {
+	objectID, err := primitive.ObjectIDFromHex(sosID)
+	if err != nil {
+		return nil, errors.New("invalid sos request id")
+	}
+
+	sos, err := s.sosRepo.FindByID(objectID)
+	if err != nil || sos == nil {
+		return nil, errors.New("sos request not found")
+	}
+
+	if !authz.CanAccessRecord(
+		privilegeCtx,
+		permissions.SOSUpdateStatus,
+		sosScope(sos),
+	) {
+		return nil, errors.New("you do not have access to update this sos request")
+	}
+
+	return s.UpdateSOSStatus(sosID, status)
 }
 
 func (s *SOSService) GetSOSRequests() ([]map[string]interface{}, error) {
@@ -167,16 +222,23 @@ func (s *SOSService) buildSOSResponse(
 	}
 
 	return map[string]interface{}{
-		"id":             sos.ID.Hex(),
-		"userId":         sos.UserID.Hex(),
-		"user":           s.buildUserSummary(sos.UserID),
-		"emergencyType":  sos.EmergencyType,
-		"message":        sos.Message,
-		"location":       sos.Location,
-		"status":         sos.Status,
-		"isLiveTracking": sos.IsLiveTracking,
-		"createdAt":      sos.CreatedAt,
-		"updatedAt":      sos.UpdatedAt,
+		"id":                  sos.ID.Hex(),
+		"userId":              sos.UserID.Hex(),
+		"user":                s.buildUserSummary(sos.UserID),
+		"emergencyType":       sos.EmergencyType,
+		"accessCategoryId":    sos.AccessCategoryID,
+		"accessCategorySlug":  sos.AccessCategorySlug,
+		"accessCategoryName":  sos.AccessCategoryName,
+		"ownerOrganisationId": sos.OwnerOrganisationID,
+		"leadOrganisationId":  sos.LeadOrganisationID,
+		"assignedOrgIds":      sos.AssignedOrgIDs,
+		"visibleToOrgIds":     sos.VisibleToOrgIDs,
+		"message":             sos.Message,
+		"location":            sos.Location,
+		"status":              sos.Status,
+		"isLiveTracking":      sos.IsLiveTracking,
+		"createdAt":           sos.CreatedAt,
+		"updatedAt":           sos.UpdatedAt,
 	}
 }
 
@@ -236,4 +298,68 @@ func getUserDisplayName(userData map[string]interface{}) string {
 	}
 
 	return "User"
+}
+
+func (s *SOSService) GetSOSRequestsForPrivilege(
+	privilegeCtx *authz.PrivilegeContext,
+) ([]map[string]interface{}, error) {
+	filter := authz.BuildMongoScopeFilter(
+		privilegeCtx,
+		permissions.SOSRead,
+		"accessCategorySlug",
+		"location.country",
+		"location.region",
+	)
+
+	requests, err := s.sosRepo.FindAllWithFilter(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(requests))
+
+	for i := range requests {
+		response = append(response, s.buildSOSResponse(&requests[i]))
+	}
+
+	return response, nil
+}
+
+func (s *SOSService) GetSOSByIDForPrivilege(
+	sosID string,
+	privilegeCtx *authz.PrivilegeContext,
+) (map[string]interface{}, error) {
+	objectID, err := primitive.ObjectIDFromHex(sosID)
+	if err != nil {
+		return nil, errors.New("invalid sos request id")
+	}
+
+	sos, err := s.sosRepo.FindByID(objectID)
+	if err != nil || sos == nil {
+		return nil, errors.New("sos request not found")
+	}
+
+	if !authz.CanAccessRecord(privilegeCtx, permissions.SOSRead, sosScope(sos)) {
+		return nil, errors.New("you do not have access to this sos request")
+	}
+
+	return s.buildSOSResponse(sos), nil
+}
+
+func sosScope(sos *models.SOSRequest) authz.RecordScope {
+	if sos == nil {
+		return authz.RecordScope{}
+	}
+
+	return authz.RecordScope{
+		AccessCategoryID:    sos.AccessCategoryID,
+		AccessCategorySlug:  sos.AccessCategorySlug,
+		AccessCategoryName:  sos.AccessCategoryName,
+		OwnerOrganisationID: sos.OwnerOrganisationID,
+		LeadOrganisationID:  sos.LeadOrganisationID,
+		AssignedOrgIDs:      sos.AssignedOrgIDs,
+		VisibleToOrgIDs:     sos.VisibleToOrgIDs,
+		Country:             sos.Location.Country,
+		Region:              sos.Location.Region,
+	}
 }

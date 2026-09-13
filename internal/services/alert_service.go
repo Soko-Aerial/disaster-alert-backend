@@ -6,9 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/jobs"
 	"disaster_alert_backend/internal/models"
+	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/websocket"
 
@@ -98,13 +100,49 @@ func (s *AlertService) CreateAlert(
 		priorityLabel = manualAlertPriorityLabel(priorityScore)
 	}
 
+	category := strings.TrimSpace(req.Category)
+	accessCategorySlug := strings.TrimSpace(req.AccessCategorySlug)
+	if accessCategorySlug == "" {
+		accessCategorySlug = category
+	}
+
+	ownerOrganisationID := strings.TrimSpace(req.OwnerOrganisationID)
+	if ownerOrganisationID == "" {
+		ownerOrganisationID = "system"
+	}
+
+	route := ResolveAutoRoute(
+		req.AccessCategoryID,
+		req.AccessCategorySlug,
+		req.AccessCategoryName,
+		category,
+	)
+
+	route = ApplyAlertRoutingOverrides(
+		route,
+		req.OwnerOrganisationID,
+		req.LeadOrganisationID,
+		req.AssignedOrgIDs,
+		req.VisibleToOrgIDs,
+	)
+
 	alert := models.Alert{
 		Title:       strings.TrimSpace(req.Title),
 		Description: strings.TrimSpace(req.Description),
 		Summary:     summary,
-		Category:    strings.TrimSpace(req.Category),
-		Severity:    strings.TrimSpace(req.Severity),
-		Status:      status,
+
+		Category:           category,
+		AccessCategoryID:   route.AccessCategoryID,
+		AccessCategorySlug: route.AccessCategorySlug,
+		AccessCategoryName: route.AccessCategoryName,
+
+		OwnerOrganisationID: route.OwnerOrganisationID,
+		LeadOrganisationID:  route.LeadOrganisationID,
+		AssignedOrgIDs:      route.AssignedOrgIDs,
+		VisibleToOrgIDs:     route.VisibleToOrgIDs,
+
+		Severity: strings.TrimSpace(req.Severity),
+		Status:   status,
 		Location: models.AlertLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
@@ -120,7 +158,7 @@ func (s *AlertService) CreateAlert(
 		SourceURL:          strings.TrimSpace(req.SourceURL),
 		ImageURLs:          req.ImageURLs,
 		VideoURLs:          req.VideoURLs,
-		Tags:               normalizeAlertTags(req.Tags, req.Category, req.Severity, sourceName),
+		Tags:               normalizeAlertTags(req.Tags, category, req.Severity, sourceName),
 		PriorityScore:      priorityScore,
 		PriorityLabel:      priorityLabel,
 		IsBreaking:         priorityScore >= 85,
@@ -275,6 +313,32 @@ func (s *AlertService) UpdateAlertStatus(
 	return updatedAlert, nil
 }
 
+func (s *AlertService) UpdateAlertStatusForPrivilege(
+	alertID string,
+	status string,
+	privilegeCtx *authz.PrivilegeContext,
+) (*models.Alert, error) {
+	objectID, err := primitive.ObjectIDFromHex(alertID)
+	if err != nil {
+		return nil, errors.New("invalid alert id")
+	}
+
+	alert, err := s.alertRepo.FindByID(objectID)
+	if err != nil || alert == nil {
+		return nil, errors.New("alert not found")
+	}
+
+	if !authz.CanAccessRecord(
+		privilegeCtx,
+		permissions.AlertsUpdate,
+		alertScope(alert),
+	) {
+		return nil, errors.New("you do not have access to update this alert")
+	}
+
+	return s.UpdateAlertStatus(alertID, status)
+}
+
 func (s *AlertService) DeleteAlert(alertID string) error {
 	objectID, err := primitive.ObjectIDFromHex(alertID)
 	if err != nil {
@@ -282,6 +346,31 @@ func (s *AlertService) DeleteAlert(alertID string) error {
 	}
 
 	return s.alertRepo.Delete(objectID)
+}
+
+func (s *AlertService) DeleteAlertForPrivilege(
+	alertID string,
+	privilegeCtx *authz.PrivilegeContext,
+) error {
+	objectID, err := primitive.ObjectIDFromHex(alertID)
+	if err != nil {
+		return errors.New("invalid alert id")
+	}
+
+	alert, err := s.alertRepo.FindByID(objectID)
+	if err != nil || alert == nil {
+		return errors.New("alert not found")
+	}
+
+	if !authz.CanAccessRecord(
+		privilegeCtx,
+		permissions.AlertsDelete,
+		alertScope(alert),
+	) {
+		return errors.New("you do not have access to delete this alert")
+	}
+
+	return s.DeleteAlert(alertID)
 }
 
 func (s *AlertService) GetNearbyAlerts(
@@ -429,37 +518,44 @@ func buildAlertPayload(alert *models.Alert) map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"id":                 alert.ID.Hex(),
-		"title":              alert.Title,
-		"description":        alert.Description,
-		"summary":            alert.Summary,
-		"category":           alert.Category,
-		"severity":           alert.Severity,
-		"status":             alert.Status,
-		"latitude":           alert.Location.Latitude,
-		"longitude":          alert.Location.Longitude,
-		"address":            alert.Location.Address,
-		"country":            alert.Location.Country,
-		"region":             alert.Location.Region,
-		"radiusKm":           alert.RadiusKm,
-		"safetyInstructions": alert.SafetyInstructions,
-		"sourceType":         alert.SourceType,
-		"sourceName":         alert.SourceName,
-		"externalId":         alert.ExternalID,
-		"sourceUrl":          alert.SourceURL,
-		"imageUrls":          alert.ImageURLs,
-		"videoUrls":          alert.VideoURLs,
-		"tags":               alert.Tags,
-		"priorityScore":      alert.PriorityScore,
-		"priorityLabel":      alert.PriorityLabel,
-		"isBreaking":         alert.IsBreaking,
-		"isVerified":         alert.IsVerified,
-		"eventTime":          alert.EventTime,
-		"expiresAt":          alert.ExpiresAt,
-		"confidence":         alert.Confidence,
-		"lastSyncedAt":       alert.LastSyncedAt,
-		"createdAt":          alert.CreatedAt,
-		"updatedAt":          alert.UpdatedAt,
+		"id":                  alert.ID.Hex(),
+		"title":               alert.Title,
+		"description":         alert.Description,
+		"summary":             alert.Summary,
+		"category":            alert.Category,
+		"accessCategoryId":    alert.AccessCategoryID,
+		"accessCategorySlug":  alert.AccessCategorySlug,
+		"accessCategoryName":  alert.AccessCategoryName,
+		"ownerOrganisationId": alert.OwnerOrganisationID,
+		"leadOrganisationId":  alert.LeadOrganisationID,
+		"assignedOrgIds":      alert.AssignedOrgIDs,
+		"visibleToOrgIds":     alert.VisibleToOrgIDs,
+		"severity":            alert.Severity,
+		"status":              alert.Status,
+		"latitude":            alert.Location.Latitude,
+		"longitude":           alert.Location.Longitude,
+		"address":             alert.Location.Address,
+		"country":             alert.Location.Country,
+		"region":              alert.Location.Region,
+		"radiusKm":            alert.RadiusKm,
+		"safetyInstructions":  alert.SafetyInstructions,
+		"sourceType":          alert.SourceType,
+		"sourceName":          alert.SourceName,
+		"externalId":          alert.ExternalID,
+		"sourceUrl":           alert.SourceURL,
+		"imageUrls":           alert.ImageURLs,
+		"videoUrls":           alert.VideoURLs,
+		"tags":                alert.Tags,
+		"priorityScore":       alert.PriorityScore,
+		"priorityLabel":       alert.PriorityLabel,
+		"isBreaking":          alert.IsBreaking,
+		"isVerified":          alert.IsVerified,
+		"eventTime":           alert.EventTime,
+		"expiresAt":           alert.ExpiresAt,
+		"confidence":          alert.Confidence,
+		"lastSyncedAt":        alert.LastSyncedAt,
+		"createdAt":           alert.CreatedAt,
+		"updatedAt":           alert.UpdatedAt,
 	}
 }
 
@@ -531,4 +627,57 @@ func normalizeAlertTags(inputTags []string, category string, severity string, so
 	add(sourceName)
 
 	return tags
+}
+
+func (s *AlertService) GetAlertsForPrivilege(
+	privilegeCtx *authz.PrivilegeContext,
+) ([]models.Alert, error) {
+	filter := authz.BuildMongoScopeFilter(
+		privilegeCtx,
+		permissions.AlertsRead,
+		"accessCategorySlug",
+		"location.country",
+		"location.region",
+	)
+
+	return s.alertRepo.FindAllWithFilter(filter)
+}
+
+func (s *AlertService) GetAlertByIDForPrivilege(
+	alertID string,
+	privilegeCtx *authz.PrivilegeContext,
+) (*models.Alert, error) {
+	objectID, err := primitive.ObjectIDFromHex(alertID)
+	if err != nil {
+		return nil, errors.New("invalid alert id")
+	}
+
+	alert, err := s.alertRepo.FindByID(objectID)
+	if err != nil || alert == nil {
+		return nil, errors.New("alert not found")
+	}
+
+	if !authz.CanAccessRecord(privilegeCtx, permissions.AlertsRead, alertScope(alert)) {
+		return nil, errors.New("you do not have access to this alert")
+	}
+
+	return alert, nil
+}
+
+func alertScope(alert *models.Alert) authz.RecordScope {
+	if alert == nil {
+		return authz.RecordScope{}
+	}
+
+	return authz.RecordScope{
+		AccessCategoryID:    alert.AccessCategoryID,
+		AccessCategorySlug:  alert.AccessCategorySlug,
+		AccessCategoryName:  alert.AccessCategoryName,
+		OwnerOrganisationID: alert.OwnerOrganisationID,
+		LeadOrganisationID:  alert.LeadOrganisationID,
+		AssignedOrgIDs:      alert.AssignedOrgIDs,
+		VisibleToOrgIDs:     alert.VisibleToOrgIDs,
+		Country:             alert.Location.Country,
+		Region:              alert.Location.Region,
+	}
 }

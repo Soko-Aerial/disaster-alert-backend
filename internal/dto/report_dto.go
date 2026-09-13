@@ -39,6 +39,19 @@ type CreateReportRequest struct {
 	// Region is the region, state, or province where the incident happened.
 	Region string `json:"region" example:"Greater Accra"`
 
+	// AccessCategoryID is optional.
+	// If omitted, the backend will auto-route using category.
+	AccessCategoryID string `json:"accessCategoryId,omitempty" example:"66e19b71c8f2a2b4d1234567"`
+
+	// AccessCategorySlug is the operational category used for organisation access control.
+	// If omitted, backend uses category.
+	// Examples: fire, flood, robbery, security, medical, health, weather, accident.
+	AccessCategorySlug string `json:"accessCategorySlug,omitempty" example:"flood"`
+
+	// AccessCategoryName is the readable category name.
+	// If omitted, backend generates it from accessCategorySlug.
+	AccessCategoryName string `json:"accessCategoryName,omitempty" example:"Flood"`
+
 	// MediaURLs contains already-uploaded image or video links.
 	//
 	// For normal JSON reports, this can be empty.

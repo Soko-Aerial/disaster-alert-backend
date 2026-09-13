@@ -5,8 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
+	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/repositories"
 	"disaster_alert_backend/internal/websocket"
 
@@ -45,17 +47,42 @@ func (s *AssistanceService) CreateAssistanceRequest(
 
 	now := time.Now().UTC()
 
+	assistanceType := strings.TrimSpace(req.AssistanceType)
+	accessCategorySlug := strings.TrimSpace(req.AccessCategorySlug)
+	if accessCategorySlug == "" {
+		accessCategorySlug = assistanceType
+	}
+	route := ResolveAutoRoute(
+		req.AccessCategoryID,
+		req.AccessCategorySlug,
+		req.AccessCategoryName,
+		assistanceType,
+	)
+
 	assistanceRequest := models.AssistanceRequest{
 		UserID:              objectID,
-		AssistanceType:      strings.TrimSpace(req.AssistanceType),
+		AssistanceType:      assistanceType,
 		UrgencyLevel:        strings.TrimSpace(req.UrgencyLevel),
 		AffectedIndividuals: req.AffectedIndividuals,
 		OtherInformation:    strings.TrimSpace(req.OtherInformation),
+
+		AccessCategoryID:   route.AccessCategoryID,
+		AccessCategorySlug: route.AccessCategorySlug,
+		AccessCategoryName: route.AccessCategoryName,
+
+		OwnerOrganisationID: route.OwnerOrganisationID,
+		LeadOrganisationID:  route.LeadOrganisationID,
+		AssignedOrgIDs:      route.AssignedOrgIDs,
+		VisibleToOrgIDs:     route.VisibleToOrgIDs,
+
 		Location: models.AssistanceLocation{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
 			Address:   strings.TrimSpace(req.Address),
+			Country:   strings.TrimSpace(req.Country),
+			Region:    strings.TrimSpace(req.Region),
 		},
+
 		Status:    "pending",
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -74,10 +101,10 @@ func (s *AssistanceService) CreateAssistanceRequest(
 			floatToString(createdRequest.Location.Longitude)
 	}
 
-	assistanceType := createdRequest.AssistanceType
-	if assistanceType == "" {
-		assistanceType = "assistance"
-	}
+	// assistanceType := createdRequest.AssistanceType
+	// if assistanceType == "" {
+	// 	assistanceType = "assistance"
+	// }
 
 	response := s.buildAssistanceResponse(createdRequest)
 
@@ -97,6 +124,32 @@ func (s *AssistanceService) CreateAssistanceRequest(
 	}
 
 	return response, nil
+}
+
+func (s *AssistanceService) UpdateAssistanceStatusForPrivilege(
+	requestID string,
+	status string,
+	privilegeCtx *authz.PrivilegeContext,
+) (map[string]interface{}, error) {
+	objectID, err := primitive.ObjectIDFromHex(requestID)
+	if err != nil {
+		return nil, errors.New("invalid assistance request id")
+	}
+
+	request, err := s.assistanceRepo.FindByID(objectID)
+	if err != nil || request == nil {
+		return nil, errors.New("assistance request not found")
+	}
+
+	if !authz.CanAccessRecord(
+		privilegeCtx,
+		permissions.AssistanceUpdateStatus,
+		assistanceScope(request),
+	) {
+		return nil, errors.New("you do not have access to update this assistance request")
+	}
+
+	return s.UpdateAssistanceStatus(requestID, status)
 }
 
 func (s *AssistanceService) GetAssistanceRequests() ([]map[string]interface{}, error) {
@@ -185,6 +238,13 @@ func (s *AssistanceService) buildAssistanceResponse(
 		"userId":              request.UserID.Hex(),
 		"user":                s.buildUserSummary(request.UserID),
 		"assistanceType":      request.AssistanceType,
+		"accessCategoryId":    request.AccessCategoryID,
+		"accessCategorySlug":  request.AccessCategorySlug,
+		"accessCategoryName":  request.AccessCategoryName,
+		"ownerOrganisationId": request.OwnerOrganisationID,
+		"leadOrganisationId":  request.LeadOrganisationID,
+		"assignedOrgIds":      request.AssignedOrgIDs,
+		"visibleToOrgIds":     request.VisibleToOrgIDs,
 		"urgencyLevel":        request.UrgencyLevel,
 		"affectedIndividuals": request.AffectedIndividuals,
 		"otherInformation":    request.OtherInformation,
@@ -266,5 +326,69 @@ func getAssistanceStatusMessage(status string) string {
 		return "Your assistance request could not be accepted at this time."
 	default:
 		return "Your assistance request status has been updated."
+	}
+}
+
+func (s *AssistanceService) GetAssistanceRequestsForPrivilege(
+	privilegeCtx *authz.PrivilegeContext,
+) ([]map[string]interface{}, error) {
+	filter := authz.BuildMongoScopeFilter(
+		privilegeCtx,
+		permissions.AssistanceRead,
+		"accessCategorySlug",
+		"location.country",
+		"location.region",
+	)
+
+	requests, err := s.assistanceRepo.FindAllWithFilter(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]map[string]interface{}, 0, len(requests))
+
+	for i := range requests {
+		response = append(response, s.buildAssistanceResponse(&requests[i]))
+	}
+
+	return response, nil
+}
+
+func (s *AssistanceService) GetAssistanceRequestByIDForPrivilege(
+	requestID string,
+	privilegeCtx *authz.PrivilegeContext,
+) (map[string]interface{}, error) {
+	objectID, err := primitive.ObjectIDFromHex(requestID)
+	if err != nil {
+		return nil, errors.New("invalid assistance request id")
+	}
+
+	request, err := s.assistanceRepo.FindByID(objectID)
+	if err != nil || request == nil {
+		return nil, errors.New("assistance request not found")
+	}
+
+	if !authz.CanAccessRecord(privilegeCtx, permissions.AssistanceRead, assistanceScope(request)) {
+		return nil, errors.New("you do not have access to this assistance request")
+	}
+
+	return s.buildAssistanceResponse(request), nil
+}
+
+func assistanceScope(request *models.AssistanceRequest) authz.RecordScope {
+	if request == nil {
+		return authz.RecordScope{}
+	}
+
+	return authz.RecordScope{
+		AccessCategoryID:    request.AccessCategoryID,
+		AccessCategorySlug:  request.AccessCategorySlug,
+		AccessCategoryName:  request.AccessCategoryName,
+		OwnerOrganisationID: request.OwnerOrganisationID,
+		LeadOrganisationID:  request.LeadOrganisationID,
+		AssignedOrgIDs:      request.AssignedOrgIDs,
+		VisibleToOrgIDs:     request.VisibleToOrgIDs,
+		Country:             request.Location.Country,
+		Region:              request.Location.Region,
 	}
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/services"
 	"disaster_alert_backend/internal/utils"
 
@@ -78,6 +79,7 @@ func RequirePrivilegePermission(
 
 		if result == nil || !result.Allowed {
 			message := "You do not have permission to perform this action"
+
 			if result != nil && result.Message != "" {
 				message = result.Message
 			}
@@ -103,12 +105,19 @@ func RequirePrivilegePermission(
 		}
 
 		if result.Code != nil {
+			privilegeContext := authz.NewPrivilegeContext(result.Code)
+
+			c.Set("privilegeCode", result.Code)
 			c.Set("privilegeCodeId", result.Code.ID.Hex())
 			c.Set("organisationId", result.Code.OrganisationID)
 			c.Set("organisationName", result.Code.OrganisationName)
+			c.Set("organisationType", result.Code.OrganisationType)
 			c.Set("levelId", result.Code.LevelID)
 			c.Set("levelName", result.Code.LevelName)
 			c.Set("privilegePermissions", result.Code.Permissions)
+			c.Set("privilegeGrants", result.Code.Grants)
+			c.Set("privilegeAccessMode", result.Code.AccessMode)
+			c.Set(authz.PrivilegeContextKey, privilegeContext)
 		}
 
 		c.Next()
@@ -131,19 +140,18 @@ func capturePrivilegeMiddlewareEvent(
 
 	hub.WithScope(func(scope *sentry.Scope) {
 		scope.SetLevel(level)
-
 		scope.SetTag("security_area", "admin_privilege")
 		scope.SetTag("required_permission", requiredPermission)
 		scope.SetTag("endpoint", endpoint)
 		scope.SetTag("method", c.Request.Method)
 
 		contextData := map[string]interface{}{
-			"client_ip":           c.ClientIP(),
-			"user_agent":          c.GetHeader("User-Agent"),
-			"requiredPermission":  requiredPermission,
-			"endpoint":            endpoint,
-			"method":              c.Request.Method,
-			"hasPrivilegeHeader":  c.GetHeader(PrivilegeCodeHeader) != "",
+			"client_ip":          c.ClientIP(),
+			"user_agent":         c.GetHeader("User-Agent"),
+			"requiredPermission": requiredPermission,
+			"endpoint":           endpoint,
+			"method":             c.Request.Method,
+			"hasPrivilegeHeader": c.GetHeader(PrivilegeCodeHeader) != "",
 		}
 
 		if result != nil {
@@ -153,14 +161,18 @@ func capturePrivilegeMiddlewareEvent(
 			if result.Code != nil {
 				scope.SetTag("code_prefix", result.Code.CodePrefix)
 				scope.SetTag("organisation_id", result.Code.OrganisationID)
+				scope.SetTag("organisation_type", result.Code.OrganisationType)
 				scope.SetTag("level_id", result.Code.LevelID)
 
 				contextData["codePrefix"] = result.Code.CodePrefix
 				contextData["organisationId"] = result.Code.OrganisationID
 				contextData["organisationName"] = result.Code.OrganisationName
+				contextData["organisationType"] = result.Code.OrganisationType
 				contextData["levelId"] = result.Code.LevelID
 				contextData["levelName"] = result.Code.LevelName
 				contextData["permissions"] = result.Code.Permissions
+				contextData["grants"] = result.Code.Grants
+				contextData["accessMode"] = result.Code.AccessMode
 			}
 		}
 

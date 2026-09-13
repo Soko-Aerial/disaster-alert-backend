@@ -71,13 +71,31 @@ import (
 // @description Step 1: Click Authorize in Swagger.
 // @description Step 2: Enter your Admin API Key under AdminApiKeyAuth.
 // @description Step 3: Call POST /admin/privilege-codes to generate a privilege UUID.
-// @description Step 4: Copy the full UUID from data.code in the response.
+// @description Step 4: Copy the full UUID from data.uuid in the response.
 // @description Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
 // @description Step 6: Test protected admin endpoints.
 // @description
 // @description Important:
 // @description The full UUID is returned only once during creation.
 // @description codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+// @description
+// @description ================================
+// @description CATEGORY AND PRIVILEGE GRANT FLOW
+// @description ================================
+// @description
+// @description Existing public/system categories are seeded from the alert preference categories already used in the app:
+// @description fire, flood, weather, earthquake, health, conflict, drought, protests, robbery, munitions, galamsey, unverified_activity, and critical_alerts.
+// @description
+// @description Admins can also create new access categories with /admin/access-categories.
+// @description A privilege UUID can then include grants that connect a category to selected actions.
+// @description
+// @description Example:
+// @description category: robbery
+// @description actions: reports:read, sos:read, sos:update_status, chats:send
+// @description accessMode: assigned_only
+// @description
+// @description This means the UUID can perform only those actions under that category.
+// @description Full organisation isolation is completed when reports, SOS, assistance, and alerts also include ownerOrganisationId, assignedOrgIds, visibleToOrgIds, and accessCategorySlug.
 // @description
 // @description ================================
 // @description COMMON REQUEST NOTES
@@ -129,26 +147,21 @@ import (
 // @description - audit_logs:read
 // @BasePath /api/v1
 // @schemes http https
-
 // @securityDefinitions.apikey AdminApiKeyAuth
 // @in header
 // @name Sigtrack-Admin-API-Key
-
 // @securityDefinitions.apikey PrivilegeCodeAuth
 // @in header
 // @name X-Privilege-Code
-
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-
 func main() {
 	cfg := config.LoadConfig()
 
 	sentryDSN := cfg.SentryDSN
 
 	if sentryDSN != "" {
-
 		appEnv := strings.TrimSpace(cfg.AppEnv)
 		if appEnv == "" {
 			appEnv = "development"
@@ -156,7 +169,7 @@ func main() {
 
 		if err := sentry.Init(sentry.ClientOptions{
 			Dsn:                  cfg.SentryDSN,
-			Environment:          cfg.AppEnv,
+			Environment:          appEnv,
 			Debug:                cfg.SentryDebug,
 			SendDefaultPII:       false,
 			EnableTracing:        true,
@@ -189,6 +202,7 @@ func main() {
 	} else {
 		log.Println("SENTRY_DSN not set. Sentry disabled.")
 	}
+
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -237,6 +251,7 @@ func main() {
 
 	adminPrivilegeCodeRepository := repositories.NewAdminPrivilegeCodeRepository(db.Database)
 	adminPrivilegeLogRepository := repositories.NewAdminPrivilegeLogRepository(db.Database)
+	accessCategoryRepository := repositories.NewAccessCategoryRepository(db.Database)
 
 	// Indexes
 	if err := alertRepository.EnsureIndexes(); err != nil {
@@ -261,6 +276,12 @@ func main() {
 		log.Println("Failed to ensure admin privilege log indexes:", err)
 	} else {
 		log.Println("Admin privilege log indexes ensured successfully")
+	}
+
+	if err := accessCategoryRepository.EnsureIndexes(ctx); err != nil {
+		log.Println("Failed to ensure access category indexes:", err)
+	} else {
+		log.Println("Access category indexes ensured successfully")
 	}
 
 	// External alert sources
@@ -458,6 +479,16 @@ func main() {
 		adminPrivilegeLogRepository,
 	)
 
+	accessCategoryService := services.NewAccessCategoryService(
+		accessCategoryRepository,
+	)
+
+	if err := accessCategoryService.EnsureDefaultSystemCategories(ctx); err != nil {
+		log.Println("Failed to seed default access categories:", err)
+	} else {
+		log.Println("Default access categories ensured successfully")
+	}
+
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)
 
@@ -534,6 +565,10 @@ func main() {
 		adminPrivilegeCodeService,
 	)
 
+	accessCategoryHandler := handlers.NewAccessCategoryHandler(
+		accessCategoryService,
+	)
+
 	router := app.SetupRouter(
 		authHandler,
 		notificationHandler,
@@ -554,6 +589,7 @@ func main() {
 		chatHandler,
 		newsHandler,
 		adminPrivilegeCodeHandler,
+		accessCategoryHandler,
 		adminPrivilegeCodeService,
 		webSocketHandler,
 		jwtService,

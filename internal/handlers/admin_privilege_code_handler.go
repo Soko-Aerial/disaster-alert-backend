@@ -108,6 +108,38 @@ func NewAdminPrivilegeCodeHandler(
 // @Description - privilege_codes:read
 // @Description - privilege_codes:create
 // @Description - privilege_codes:revoke
+// @Description
+// @Description PRIVILEGE CODE EXPLANATION:
+// @Description A privilege code is like an organisation office key.
+// @Description It identifies which organisation is using the admin system, which categories it can handle, and which actions it can perform.
+// @Description
+// @Description PERMISSIONS VS GRANTS:
+// @Description permissions are the flat route-level actions such as reports:read, sos:update_status, alerts:update, and chats:send.
+// @Description grants are category-specific permissions.
+// @Description For example, a Police code may have reports:read under categorySlug=robbery.
+// @Description This means Police can read robbery reports assigned or visible to Police.
+// @Description
+// @Description IMPORTANT:
+// @Description The admin does not need to type permissions twice.
+// @Description The backend can derive the flat permissions list from grants.actions.
+// @Description
+// @Description CATEGORY GRANT EXAMPLE:
+// @Description {
+// @Description   "categorySlug": "robbery",
+// @Description   "categoryName": "Robbery",
+// @Description   "actions": ["reports:read", "sos:read", "sos:update_status", "chats:read", "chats:send"],
+// @Description   "accessMode": "assigned_only"
+// @Description }
+// @Description
+// @Description ACCESS MODE EXPLANATION:
+// @Description global means the code can access all records if it has the required permission.
+// @Description assigned_only means the organisation can only access records assigned or visible to it.
+// @Description owned_only means the organisation can only access records it owns.
+// @Description scoped means the organisation is restricted by category, geography, and visibility rules.
+// @Description
+// @Description SECURITY RULE:
+// @Description Category permission alone is not enough.
+// @Description The record must also be owned by, led by, assigned to, or visible to the organisation using the privilege code.
 // @Tags Admin Privilege Codes
 // @Security AdminApiKeyAuth
 // @Accept json
@@ -210,6 +242,91 @@ func (h *AdminPrivilegeCodeHandler) GetPrivilegeCodeByID(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Privilege code fetched successfully", code)
+}
+
+// UpdatePrivilegeCode godoc
+// @Summary Update a privilege-code record
+// @Description Updates privilege-code metadata, organisation details, accessMode, permissions, grants, or expiry.
+// @Description
+// @Description IMPORTANT:
+// @Description This does not change the UUID itself.
+// @Description This does not expose the full UUID again.
+// @Description If grants are supplied, backend automatically derives flat permissions from grants.actions.
+// @Description
+// @Description WHAT CAN BE UPDATED:
+// @Description - label
+// @Description - purpose
+// @Description - organisationId
+// @Description - organisationName
+// @Description - organisationType
+// @Description - levelId
+// @Description - levelName
+// @Description - permissions
+// @Description - grants
+// @Description - accessMode
+// @Description - expiresAt
+// @Description
+// @Description EXAMPLE REQUEST BODY:
+// @Description {
+// @Description   "label": "Police Robbery Access Updated",
+// @Description   "accessMode": "assigned_only",
+// @Description   "grants": [
+// @Description     {
+// @Description       "categorySlug": "robbery",
+// @Description       "categoryName": "Robbery",
+// @Description       "actions": [
+// @Description         "reports:read",
+// @Description         "sos:read",
+// @Description         "sos:update_status",
+// @Description         "chats:read",
+// @Description         "chats:send"
+// @Description       ],
+// @Description       "accessMode": "assigned_only"
+// @Description     }
+// @Description   ]
+// @Description }
+// @Tags Admin Privilege Codes
+// @Security AdminApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Privilege-code database ID."
+// @Param request body dto.UpdateAdminPrivilegeCodeRequest true "Privilege-code update payload."
+// @Success 200 {object} map[string]interface{} "Privilege code updated successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid request, invalid permission, invalid grant, or invalid expiry date."
+// @Failure 401 {object} map[string]interface{} "Admin API key missing or invalid."
+// @Failure 404 {object} map[string]interface{} "Privilege code not found."
+// @Router /admin/privilege-codes/{id} [put]
+func (h *AdminPrivilegeCodeHandler) UpdatePrivilegeCode(c *gin.Context) {
+	id := c.Param("id")
+
+	var req dto.UpdateAdminPrivilegeCodeRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request body", err.Error())
+		return
+	}
+
+	updatedBy := getAdminActor(c)
+
+	code, err := h.service.UpdatePrivilegeCode(
+		c.Request.Context(),
+		id,
+		req,
+		updatedBy,
+		c.ClientIP(),
+		c.GetHeader("User-Agent"),
+	)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Privilege code updated successfully",
+		code,
+	)
 }
 
 // ValidatePrivilegeCode godoc

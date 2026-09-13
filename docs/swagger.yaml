@@ -1,82 +1,137 @@
 basePath: /api/v1
 definitions:
+  disaster_alert_backend_internal_dto.CreateAccessCategoryRequest:
+    properties:
+      allowedActions:
+        example:
+        - reports:read
+        - sos:read
+        - chats:send
+        items:
+          type: string
+        type: array
+      description:
+        example: Robbery, theft, armed robbery, and related security cases
+        type: string
+      kind:
+        description: public, access, both
+        enum:
+        - public
+        - access
+        - both
+        example: both
+        type: string
+      name:
+        example: Robbery
+        type: string
+      ownerOrganisationId:
+        example: ghana_police_service
+        type: string
+      ownerOrganisationName:
+        example: Ghana Police Service
+        type: string
+      preferenceKey:
+        example: robbery
+        type: string
+      slug:
+        example: robbery
+        type: string
+      visibility:
+        description: private, shared
+        enum:
+        - private
+        - shared
+        example: private
+        type: string
+    required:
+    - name
+    type: object
   disaster_alert_backend_internal_dto.CreateAdminPrivilegeCodeRequest:
     properties:
+      accessMode:
+        enum:
+        - global
+        - owned_only
+        - assigned_only
+        - scoped
+        example: assigned_only
+        type: string
       expiresAt:
-        description: |-
-          ExpiresAt is the optional expiry date/time for the privilege code.
-
-          Recommended format:
-          2026-09-30T23:59:00Z
         example: "2026-09-30T23:59:00Z"
         type: string
+      grants:
+        description: Recommended for organisation-specific access.
+        items:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.PrivilegeGrantRequest'
+        type: array
       label:
-        description: |-
-          Label is the readable name of this privilege code.
-
-          Optional.
-          Example: Police Traffic Unit Access
         example: Police Traffic Unit Access
         type: string
       levelId:
-        description: |-
-          LevelID is the optional department, unit, role, or level identifier.
-
-          Optional.
-        example: firebase_traffic_unit_id
+        example: traffic_unit
         type: string
       levelName:
-        description: |-
-          LevelName is the readable department, unit, role, or level name.
-
-          Optional.
         example: Traffic Unit
         type: string
       organisationId:
-        description: |-
-          OrganisationID is the external/internal organisation identifier.
-
-          Optional.
-        example: firebase_police_org_id
+        example: ghana_police_service
         type: string
       organisationName:
-        description: |-
-          OrganisationName is the readable organisation name.
-
-          Optional.
         example: Ghana Police Service
+        type: string
+      organisationType:
+        example: police
         type: string
       permissions:
         description: |-
-          Permissions is the list of allowed admin actions for this privilege code.
-
-          Required.
+          Optional.
+          If omitted, backend derives permissions from grants.actions.
         example:
-        - dashboard:read
         - reports:read
         - sos:read
+        - chats:send
         items:
           type: string
-        minItems: 1
         type: array
       purpose:
-        description: |-
-          Purpose explains why this privilege code exists.
-
-          Optional.
         example: Allow Police Traffic Unit to view reports, respond to SOS, and send
           chat replies
         type: string
-    required:
-    - permissions
     type: object
   disaster_alert_backend_internal_dto.CreateAlertRequest:
     properties:
+      accessCategoryId:
+        description: |-
+          AccessCategoryID is optional.
+          If omitted, the backend will auto-route using category.
+        example: 66e19b71c8f2a2b4d1234567
+        type: string
+      accessCategoryName:
+        description: |-
+          AccessCategoryName is the readable category name.
+          If omitted, backend generates it from accessCategorySlug.
+        example: Weather
+        type: string
+      accessCategorySlug:
+        description: |-
+          AccessCategorySlug is the operational category used for organisation access control.
+          If omitted, backend uses category.
+          Examples: fire, flood, weather, health, robbery, security, conflict, galamsey.
+        example: weather
+        type: string
       address:
         description: Address is a readable location, landmark, town, street, or area
           name.
         example: Circle, Accra
         type: string
+      assignedOrgIds:
+        description: AssignedOrgIDs are organisations allowed to work on this alert.
+        example:
+        - nadmo
+        - ghana_police_service
+        items:
+          type: string
+        type: array
       category:
         description: |-
           Category describes the type of alert.
@@ -146,10 +201,21 @@ definitions:
         description: Latitude is the GPS latitude of the alert location.
         example: 5.6037
         type: number
+      leadOrganisationId:
+        description: LeadOrganisationID is the main organisation responsible for the
+          alert.
+        example: nadmo
+        type: string
       longitude:
         description: Longitude is the GPS longitude of the alert location.
         example: -0.187
         type: number
+      ownerOrganisationId:
+        description: |-
+          OwnerOrganisationID is optional for admin-created alerts.
+          If omitted, backend uses system.
+        example: nadmo
+        type: string
       priorityLabel:
         description: |-
           PriorityLabel is a readable priority level.
@@ -269,6 +335,15 @@ definitions:
         items:
           type: string
         type: array
+      visibleToOrgIds:
+        description: VisibleToOrgIDs are organisations allowed to view this alert.
+        example:
+        - nadmo
+        - ghana_police_service
+        - ghana_fire_service
+        items:
+          type: string
+        type: array
     required:
     - category
     - description
@@ -279,6 +354,25 @@ definitions:
     type: object
   disaster_alert_backend_internal_dto.CreateAssistanceRequest:
     properties:
+      accessCategoryId:
+        description: |-
+          AccessCategoryID is optional.
+          If omitted, the backend will auto-route using assistanceType.
+        example: 66e19b71c8f2a2b4d1234567
+        type: string
+      accessCategoryName:
+        description: |-
+          AccessCategoryName is the readable category name.
+          If omitted, backend generates it from accessCategorySlug.
+        example: Medical
+        type: string
+      accessCategorySlug:
+        description: |-
+          AccessCategorySlug is the operational category used for organisation access control.
+          If omitted, backend uses assistanceType.
+          Examples: medical, rescue, security, evacuation, food, shelter, other.
+        example: medical
+        type: string
       address:
         description: Address is the readable location, landmark, street, or area name.
         example: Circle, Accra
@@ -307,6 +401,10 @@ definitions:
         - other
         example: medical
         type: string
+      country:
+        description: Country is optional but helps with routing, filtering, and dashboards.
+        example: Ghana
+        type: string
       latitude:
         description: Latitude is the user's current GPS latitude.
         example: 5.6037
@@ -322,6 +420,11 @@ definitions:
           Example: injuries, blocked access, trapped people, security concern,
           food shortage, shelter need, or evacuation challenge.
         example: One person is injured and needs urgent medical support.
+        type: string
+      region:
+        description: Region is optional but helps with regional filtering and response
+          coordination.
+        example: Greater Accra
         type: string
       urgencyLevel:
         description: |-
@@ -466,6 +569,25 @@ definitions:
     type: object
   disaster_alert_backend_internal_dto.CreateSOSRequest:
     properties:
+      accessCategoryId:
+        description: |-
+          AccessCategoryID is optional.
+          If omitted, the backend will auto-route using emergencyType.
+        example: 66e19b71c8f2a2b4d1234567
+        type: string
+      accessCategoryName:
+        description: |-
+          AccessCategoryName is the readable category name.
+          If omitted, backend generates it from accessCategorySlug.
+        example: Medical
+        type: string
+      accessCategorySlug:
+        description: |-
+          AccessCategorySlug is the operational category used for organisation access control.
+          If omitted, backend uses emergencyType.
+          Examples: fire, medical, security, robbery, flood, accident.
+        example: medical
+        type: string
       accuracy:
         description: Accuracy is the GPS accuracy in meters, if available from the
           mobile device.
@@ -474,6 +596,10 @@ definitions:
       address:
         description: Address is the readable location, landmark, street, or area name.
         example: Circle, Accra
+        type: string
+      country:
+        description: Country is optional but helps with routing, filtering, and dashboards.
+        example: Ghana
         type: string
       emergencyType:
         description: |-
@@ -507,6 +633,11 @@ definitions:
       message:
         description: Message is an optional emergency message from the user.
         example: I need urgent help at my location.
+        type: string
+      region:
+        description: Region is optional but helps with regional filtering and response
+          coordination.
+        example: Greater Accra
         type: string
     required:
     - emergencyType
@@ -559,6 +690,55 @@ definitions:
           type: string
         type: array
     type: object
+  disaster_alert_backend_internal_dto.PrivilegeGrantRequest:
+    properties:
+      accessMode:
+        enum:
+        - global
+        - owned_only
+        - assigned_only
+        - scoped
+        example: assigned_only
+        type: string
+      actions:
+        example:
+        - reports:read
+        - sos:read
+        - chats:send
+        items:
+          type: string
+        minItems: 1
+        type: array
+      categoryId:
+        example: 66e19b71c8f2a2b4d1234567
+        type: string
+      categoryName:
+        example: Robbery
+        type: string
+      categorySlug:
+        example: robbery
+        type: string
+      countries:
+        example:
+        - Ghana
+        items:
+          type: string
+        type: array
+      districts:
+        example:
+        - Accra Metropolitan
+        items:
+          type: string
+        type: array
+      regions:
+        example:
+        - Greater Accra
+        items:
+          type: string
+        type: array
+    required:
+    - actions
+    type: object
   disaster_alert_backend_internal_dto.RegisterRequest:
     properties:
       email:
@@ -595,7 +775,6 @@ definitions:
   disaster_alert_backend_internal_dto.RevokeAdminPrivilegeCodeRequest:
     properties:
       reason:
-        description: Reason explains why the privilege code is being revoked.
         example: Access no longer needed
         type: string
     type: object
@@ -657,6 +836,110 @@ definitions:
     required:
     - body
     - title
+    type: object
+  disaster_alert_backend_internal_dto.UpdateAccessCategoryRequest:
+    properties:
+      allowedActions:
+        example:
+        - reports:read
+        - sos:read
+        - chats:send
+        items:
+          type: string
+        type: array
+      description:
+        example: Robbery, theft, armed robbery, and related security cases
+        type: string
+      isActive:
+        example: true
+        type: boolean
+      kind:
+        enum:
+        - public
+        - access
+        - both
+        example: both
+        type: string
+      name:
+        example: Robbery
+        type: string
+      ownerOrganisationId:
+        example: ghana_police_service
+        type: string
+      ownerOrganisationName:
+        example: Ghana Police Service
+        type: string
+      preferenceKey:
+        example: robbery
+        type: string
+      slug:
+        example: robbery
+        type: string
+      visibility:
+        enum:
+        - private
+        - shared
+        example: private
+        type: string
+    type: object
+  disaster_alert_backend_internal_dto.UpdateAdminPrivilegeCodeRequest:
+    properties:
+      accessMode:
+        enum:
+        - global
+        - owned_only
+        - assigned_only
+        - scoped
+        example: assigned_only
+        type: string
+      expiresAt:
+        description: |-
+          Optional.
+          Omit to keep existing expiry.
+          Send empty string "" to clear expiry.
+          Send RFC3339 datetime to set expiry.
+        example: "2026-09-30T23:59:00Z"
+        type: string
+      grants:
+        description: |-
+          Optional.
+          If supplied, this replaces the existing grants.
+        items:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.PrivilegeGrantRequest'
+        type: array
+      label:
+        example: Police Robbery Access Updated
+        type: string
+      levelId:
+        example: traffic_unit
+        type: string
+      levelName:
+        example: Traffic Unit
+        type: string
+      organisationId:
+        example: ghana_police_service
+        type: string
+      organisationName:
+        example: Ghana Police Service
+        type: string
+      organisationType:
+        example: police
+        type: string
+      permissions:
+        description: |-
+          Optional.
+          If supplied, this replaces the existing flat permissions.
+          If grants are also supplied, backend merges permissions with grants.actions.
+        example:
+        - reports:read
+        - sos:read
+        - chats:send
+        items:
+          type: string
+        type: array
+      purpose:
+        example: Updated purpose for Police robbery access
+        type: string
     type: object
   disaster_alert_backend_internal_dto.UpdateAlertPreferenceRequest:
     properties:
@@ -832,10 +1115,6 @@ definitions:
   disaster_alert_backend_internal_dto.ValidateAdminPrivilegeCodeRequest:
     properties:
       uuid:
-        description: |-
-          UUID is the full privilege code returned during creation.
-
-          Do not use codePrefix here.
         example: 4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e
         type: string
     required:
@@ -889,13 +1168,31 @@ info:
     Step 1: Click Authorize in Swagger.
     Step 2: Enter your Admin API Key under AdminApiKeyAuth.
     Step 3: Call POST /admin/privilege-codes to generate a privilege UUID.
-    Step 4: Copy the full UUID from data.code in the response.
+    Step 4: Copy the full UUID from data.uuid in the response.
     Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
     Step 6: Test protected admin endpoints.
 
     Important:
     The full UUID is returned only once during creation.
     codePrefix is only for display and audit logs. Do not use codePrefix as X-Privilege-Code.
+
+    ================================
+    CATEGORY AND PRIVILEGE GRANT FLOW
+    ================================
+
+    Existing public/system categories are seeded from the alert preference categories already used in the app:
+    fire, flood, weather, earthquake, health, conflict, drought, protests, robbery, munitions, galamsey, unverified_activity, and critical_alerts.
+
+    Admins can also create new access categories with /admin/access-categories.
+    A privilege UUID can then include grants that connect a category to selected actions.
+
+    Example:
+    category: robbery
+    actions: reports:read, sos:read, sos:update_status, chats:send
+    accessMode: assigned_only
+
+    This means the UUID can perform only those actions under that category.
+    Full organisation isolation is completed when reports, SOS, assistance, and alerts also include ownerOrganisationId, assignedOrgIds, visibleToOrgIds, and accessCategorySlug.
 
     ================================
     COMMON REQUEST NOTES
@@ -948,6 +1245,219 @@ info:
   title: Disaster Alert API
   version: 1.0.0
 paths:
+  /admin/access-categories:
+    get:
+      description: Returns system and admin-created access categories.
+      parameters:
+      - description: 'Filter by category kind: public, access, or both.'
+        in: query
+        name: kind
+        type: string
+      - description: Filter by owner organisation ID.
+        in: query
+        name: ownerOrganisationId
+        type: string
+      - description: Include inactive/deactivated categories.
+        in: query
+        name: includeInactive
+        type: boolean
+      - description: Maximum records to return. Default 100. Maximum 500.
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Access categories fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Privilege code missing or permission denied.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch access categories.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List access categories
+      tags:
+      - Admin Access Categories
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a public, access, or both-type category for user-facing reporting and/or organisation privilege grants.
+
+        Existing system categories are seeded from the current alert preference categories such as fire, flood, weather, health, conflict, protests, robbery, munitions, galamsey, unverified activity, and critical alerts.
+        Admin-created categories can be added later without changing code.
+      parameters:
+      - description: Access category creation payload.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.CreateAccessCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Access category created successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or invalid allowedActions.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Privilege code missing or permission denied.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Create an access category
+      tags:
+      - Admin Access Categories
+  /admin/access-categories/{id}:
+    delete:
+      description: Soft-deactivates an access category by setting isActive to false.
+      parameters:
+      - description: Access category ID.
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Access category deactivated successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Privilege code missing or permission denied.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Deactivate an access category
+      tags:
+      - Admin Access Categories
+    get:
+      description: Fetches one access category by MongoDB ObjectID.
+      parameters:
+      - description: Access category ID.
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Access category fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Privilege code missing or permission denied.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Access category not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Get one access category
+      tags:
+      - Admin Access Categories
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing access category.
+      parameters:
+      - description: Access category ID.
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Access category update payload.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateAccessCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Access category updated successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or invalid allowedActions.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Privilege code missing or permission denied.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Update an access category
+      tags:
+      - Admin Access Categories
   /admin/alerts:
     post:
       consumes:
@@ -1006,6 +1516,35 @@ paths:
         "expiresAt": "2026-09-11T18:00:00Z",
         "confidence": 0.95
         }
+
+        HOW ADMIN ALERT ROUTING WORKS:
+        Admin-created alerts also support auto-routing.
+        The backend checks the alert category and automatically fills the access-control routing fields unless the admin provides routing overrides.
+
+        CATEGORY ROUTING EXAMPLES:
+        - fire -> Ghana Fire Service
+        - flood -> NADMO
+        - weather -> NADMO
+        - drought -> NADMO
+        - earthquake -> NADMO
+        - health -> Ghana Health Service
+        - medical -> Ambulance or Health Service
+        - robbery -> Ghana Police Service
+        - security -> Ghana Police Service
+        - protests -> Ghana Police Service
+        - accident -> Police and Ambulance
+        - conflict -> National Security, Police, and Armed Forces
+        - munitions -> National Security, Police, and Armed Forces
+        - galamsey -> Police, Minerals Commission, and National Security
+        - other -> system/manual review
+
+        ADMIN OVERRIDE:
+        For manual alerts, an admin can optionally provide ownerOrganisationId, leadOrganisationId, assignedOrgIds, and visibleToOrgIds.
+        If those fields are omitted, the backend uses the default auto-routing rules.
+
+        TECHNICAL ACCESS RULE:
+        Read, update, and delete actions are protected by both permission checks and record-level scope checks.
+        For example, alerts:update allows the route to be called, but the alert must still be assigned or visible to that organisation before it can be updated.
       parameters:
       - description: Alert creation payload. title, description, category, severity,
           latitude, and longitude are required.
@@ -1620,6 +2159,38 @@ paths:
         - privilege_codes:read
         - privilege_codes:create
         - privilege_codes:revoke
+
+        PRIVILEGE CODE EXPLANATION:
+        A privilege code is like an organisation office key.
+        It identifies which organisation is using the admin system, which categories it can handle, and which actions it can perform.
+
+        PERMISSIONS VS GRANTS:
+        permissions are the flat route-level actions such as reports:read, sos:update_status, alerts:update, and chats:send.
+        grants are category-specific permissions.
+        For example, a Police code may have reports:read under categorySlug=robbery.
+        This means Police can read robbery reports assigned or visible to Police.
+
+        IMPORTANT:
+        The admin does not need to type permissions twice.
+        The backend can derive the flat permissions list from grants.actions.
+
+        CATEGORY GRANT EXAMPLE:
+        {
+        "categorySlug": "robbery",
+        "categoryName": "Robbery",
+        "actions": ["reports:read", "sos:read", "sos:update_status", "chats:read", "chats:send"],
+        "accessMode": "assigned_only"
+        }
+
+        ACCESS MODE EXPLANATION:
+        global means the code can access all records if it has the required permission.
+        assigned_only means the organisation can only access records assigned or visible to it.
+        owned_only means the organisation can only access records it owns.
+        scoped means the organisation is restricted by category, geography, and visibility rules.
+
+        SECURITY RULE:
+        Category permission alone is not enough.
+        The record must also be owned by, led by, assigned to, or visible to the organisation using the privilege code.
       parameters:
       - description: Privilege code creation payload. permissions is required. label,
           purpose, organisationId, organisationName, levelId, levelName, and expiresAt
@@ -1706,6 +2277,90 @@ paths:
       security:
       - AdminApiKeyAuth: []
       summary: Get one privilege-code record
+      tags:
+      - Admin Privilege Codes
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Updates privilege-code metadata, organisation details, accessMode, permissions, grants, or expiry.
+
+        IMPORTANT:
+        This does not change the UUID itself.
+        This does not expose the full UUID again.
+        If grants are supplied, backend automatically derives flat permissions from grants.actions.
+
+        WHAT CAN BE UPDATED:
+        - label
+        - purpose
+        - organisationId
+        - organisationName
+        - organisationType
+        - levelId
+        - levelName
+        - permissions
+        - grants
+        - accessMode
+        - expiresAt
+
+        EXAMPLE REQUEST BODY:
+        {
+        "label": "Police Robbery Access Updated",
+        "accessMode": "assigned_only",
+        "grants": [
+        {
+        "categorySlug": "robbery",
+        "categoryName": "Robbery",
+        "actions": [
+        "reports:read",
+        "sos:read",
+        "sos:update_status",
+        "chats:read",
+        "chats:send"
+        ],
+        "accessMode": "assigned_only"
+        }
+        ]
+        }
+      parameters:
+      - description: Privilege-code database ID.
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Privilege-code update payload.
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.UpdateAdminPrivilegeCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Privilege code updated successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request, invalid permission, invalid grant, or invalid
+            expiry date.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Admin API key missing or invalid.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Privilege code not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      summary: Update a privilege-code record
       tags:
       - Admin Privilege Codes
   /admin/privilege-codes/{id}/revoke:
@@ -2710,6 +3365,26 @@ paths:
         "longitude": -0.1870,
         "address": "Circle, Accra"
         }
+
+        HOW ASSISTANCE AUTO-ROUTING WORKS:
+        When a user requests assistance, the backend uses assistanceType to decide which organisation should receive it.
+        This means the correct agency can respond without waiting for a global/internal admin to assign the case manually.
+
+        ASSISTANCE TYPE ROUTING EXAMPLES:
+        - medical -> Ambulance Service and Ghana Health Service
+        - rescue -> NADMO or Fire Service depending on category rules
+        - food -> NADMO or relief coordination
+        - shelter -> NADMO or relief coordination
+        - security -> Ghana Police Service
+        - evacuation -> NADMO, Police, or Fire Service depending on routing rules
+        - other -> system/manual review
+
+        TECHNICAL EXPLANATION:
+        The backend stores accessCategorySlug, ownerOrganisationId, leadOrganisationId, assignedOrgIds, and visibleToOrgIds on the assistance record.
+        Organisation privilege codes use these fields to decide who can read or update the assistance request.
+
+        SECURITY RULE:
+        An organisation can only work on assistance requests assigned to it, visible to it, led by it, or owned by it.
       parameters:
       - description: Assistance request payload. assistanceType, urgencyLevel, affectedIndividuals,
           latitude, and longitude are required.
@@ -3941,6 +4616,47 @@ paths:
         - country: Country name.
         - region: Region/state name.
         - media: Optional image or video file.
+
+        HOW AUTO-ROUTING WORKS:
+        When a mobile user submits a report, the backend automatically checks the report category and routes the case to the correct organisation.
+        The user does not need to choose Police, Fire Service, NADMO, Health, or any other agency manually.
+
+        SIMPLE EXPLANATION:
+        The system works like an emergency call center with automatic dispatching.
+        If the report is fire-related, it goes to Ghana Fire Service.
+        If the report is robbery/security-related, it goes to Ghana Police Service.
+        If the report is flood/weather/drought/earthquake-related, it goes to NADMO.
+        If the report is medical/health-related, it goes to Health or Ambulance services.
+        If the category is unknown or unclear, it can be kept for system/manual review.
+
+        REPORT CATEGORY ROUTING EXAMPLES:
+        - fire -> Ghana Fire Service
+        - flood -> NADMO
+        - weather -> NADMO
+        - drought -> NADMO
+        - earthquake -> NADMO
+        - robbery -> Ghana Police Service
+        - security -> Ghana Police Service
+        - protests -> Ghana Police Service
+        - accident -> Ghana Police Service and Ambulance
+        - medical -> Ambulance or Health Service
+        - health -> Ghana Health Service
+        - conflict -> National Security, Police, and Armed Forces
+        - munitions -> National Security, Police, and Armed Forces
+        - galamsey -> Police, Minerals Commission, and National Security
+        - other -> system/manual review
+
+        TECHNICAL ACCESS-CONTROL EXPLANATION:
+        The backend saves routing fields on the record after creation.
+        accessCategorySlug stores the operational category such as fire, flood, robbery, medical, weather, or security.
+        ownerOrganisationId usually starts as system for user-created records.
+        leadOrganisationId is the main organisation responsible for handling the case.
+        assignedOrgIds contains organisations allowed to work on the case.
+        visibleToOrgIds contains organisations allowed to view the case.
+
+        IMPORTANT SECURITY RULE:
+        Having a category grant alone is not enough.
+        A privilege code must have the required permission and the record must also be owned by, led by, assigned to, or visible to that organisation.
       parameters:
       - description: 'Incident category. Allowed examples: flood, fire, security,
           health, weather, accident, other'
@@ -4069,6 +4785,27 @@ paths:
         "accuracy": 8.5,
         "isLiveTracking": true
         }
+
+        HOW SOS AUTO-ROUTING WORKS:
+        When a user triggers SOS, the backend uses emergencyType to decide which agency should receive the case immediately.
+        The global/internal admin does not need to be online to manually assign every SOS.
+
+        SIMPLE EXAMPLES:
+        - emergencyType=fire -> Ghana Fire Service
+        - emergencyType=medical -> Ambulance or Health Service
+        - emergencyType=security -> Ghana Police Service
+        - emergencyType=robbery -> Ghana Police Service
+        - emergencyType=flood -> NADMO
+        - emergencyType=accident -> Police and Ambulance
+        - emergencyType=other -> system/manual review
+
+        TECHNICAL EXPLANATION:
+        The backend converts emergencyType into accessCategorySlug.
+        Then it fills leadOrganisationId, assignedOrgIds, and visibleToOrgIds automatically.
+        This allows the correct organisation's privilege code to see and update the SOS immediately.
+
+        SECURITY RULE:
+        A Police privilege code cannot update a Fire Service SOS unless that SOS is assigned or visible to Police and the privilege code has the correct action grant.
       parameters:
       - description: SOS request payload. emergencyType, latitude, and longitude are
           required.

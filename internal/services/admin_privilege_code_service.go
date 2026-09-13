@@ -13,7 +13,9 @@ import (
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/repositories"
-	
+
+	"go.mongodb.org/mongo-driver/bson"
+
 	"github.com/google/uuid"
 )
 
@@ -45,11 +47,29 @@ func (s *AdminPrivilegeCodeService) CreatePrivilegeCode(
 	ipAddress string,
 	userAgent string,
 ) (*dto.AdminPrivilegeCodeResponse, error) {
-	req.Permissions = permissions.RemoveDuplicatePermissions(req.Permissions)
+	accessMode := normalizePrivilegeAccessMode(req.AccessMode)
 
-	invalid := permissions.InvalidPermissions(req.Permissions)
+	grants, grantActions, err := normalizePrivilegeGrants(req.Grants, accessMode)
+	if err != nil {
+		return nil, err
+	}
+
+	combinedPermissions := permissions.RemoveDuplicatePermissions(
+		append(req.Permissions, grantActions...),
+	)
+
+	if len(combinedPermissions) == 0 {
+		return nil, errors.New("at least one permission or one grant action is required")
+	}
+
+	invalid := permissions.InvalidPermissions(combinedPermissions)
 	if len(invalid) > 0 {
 		return nil, fmt.Errorf("invalid permissions: %s", strings.Join(invalid, ", "))
+	}
+
+	if accessMode != models.PrivilegeAccessModeGlobal &&
+		strings.TrimSpace(req.OrganisationID) == "" {
+		return nil, errors.New("organisationId is required unless accessMode is global")
 	}
 
 	rawUUID := uuid.NewString()
@@ -61,7 +81,7 @@ func (s *AdminPrivilegeCodeService) CreatePrivilegeCode(
 	if strings.TrimSpace(req.ExpiresAt) != "" {
 		parsed, err := time.Parse(time.RFC3339, req.ExpiresAt)
 		if err != nil {
-			return nil, errors.New("expiresAt must be a valid RFC3339 datetime, for example 2026-07-28T12:00:00Z")
+			return nil, errors.New("expiresAt must be a valid RFC3339 datetime, for example 2026-09-30T23:59:00Z")
 		}
 
 		expiresAt = &parsed
@@ -76,9 +96,12 @@ func (s *AdminPrivilegeCodeService) CreatePrivilegeCode(
 		Purpose:          strings.TrimSpace(req.Purpose),
 		OrganisationID:   strings.TrimSpace(req.OrganisationID),
 		OrganisationName: strings.TrimSpace(req.OrganisationName),
+		OrganisationType: strings.TrimSpace(req.OrganisationType),
 		LevelID:          strings.TrimSpace(req.LevelID),
 		LevelName:        strings.TrimSpace(req.LevelName),
-		Permissions:      req.Permissions,
+		Permissions:      combinedPermissions,
+		Grants:           grants,
+		AccessMode:       accessMode,
 		Status:           models.PrivilegeCodeStatusActive,
 		UsageCount:       0,
 		ExpiresAt:        expiresAt,
@@ -104,15 +127,165 @@ func (s *AdminPrivilegeCodeService) CreatePrivilegeCode(
 		UserAgent:        userAgent,
 		Message:          "Privilege code created",
 		Metadata: map[string]interface{}{
-			"label":       code.Label,
-			"purpose":     code.Purpose,
-			"permissions": code.Permissions,
-			"createdBy":   createdBy,
+			"label":            code.Label,
+			"purpose":          code.Purpose,
+			"permissions":      code.Permissions,
+			"grants":           code.Grants,
+			"accessMode":       code.AccessMode,
+			"organisationType": code.OrganisationType,
+			"createdBy":        createdBy,
 		},
 		CreatedAt: now,
 	})
 
 	return toPrivilegeCodeResponse(code, rawUUID), nil
+}
+
+func (s *AdminPrivilegeCodeService) UpdatePrivilegeCode(
+	ctx context.Context,
+	id string,
+	req dto.UpdateAdminPrivilegeCodeRequest,
+	updatedBy string,
+	ipAddress string,
+	userAgent string,
+) (*dto.AdminPrivilegeCodeResponse, error) {
+	existing, err := s.codeRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if existing == nil {
+		return nil, errors.New("privilege code not found")
+	}
+
+	if existing.Status != models.PrivilegeCodeStatusActive {
+		return nil, errors.New("only active privilege codes can be updated")
+	}
+
+	nextOrganisationID := existing.OrganisationID
+	nextAccessMode := normalizePrivilegeAccessMode(existing.AccessMode)
+
+	if req.OrganisationID != nil {
+		nextOrganisationID = strings.TrimSpace(*req.OrganisationID)
+	}
+
+	if req.AccessMode != nil {
+		nextAccessMode = normalizePrivilegeAccessMode(*req.AccessMode)
+	}
+
+	nextPermissions := existing.Permissions
+	nextGrants := existing.Grants
+
+	if req.Permissions != nil {
+		nextPermissions = permissions.RemoveDuplicatePermissions(req.Permissions)
+
+		invalid := permissions.InvalidPermissions(nextPermissions)
+		if len(invalid) > 0 {
+			return nil, fmt.Errorf("invalid permissions: %s", strings.Join(invalid, ", "))
+		}
+	}
+
+	if req.Grants != nil {
+		grants, grantActions, err := normalizePrivilegeGrants(req.Grants, nextAccessMode)
+		if err != nil {
+			return nil, err
+		}
+
+		nextGrants = grants
+		nextPermissions = permissions.RemoveDuplicatePermissions(
+			append(nextPermissions, grantActions...),
+		)
+	}
+
+	if len(nextPermissions) == 0 {
+		return nil, errors.New("at least one permission or one grant action is required")
+	}
+
+	if nextAccessMode != models.PrivilegeAccessModeGlobal &&
+		strings.TrimSpace(nextOrganisationID) == "" {
+		return nil, errors.New("organisationId is required unless accessMode is global")
+	}
+
+	setFields := bson.M{
+		"organisationId": nextOrganisationID,
+		"permissions":    nextPermissions,
+		"grants":         nextGrants,
+		"accessMode":     nextAccessMode,
+	}
+
+	unsetFields := bson.M{}
+
+	if req.Label != nil {
+		setFields["label"] = strings.TrimSpace(*req.Label)
+	}
+
+	if req.Purpose != nil {
+		setFields["purpose"] = strings.TrimSpace(*req.Purpose)
+	}
+
+	if req.OrganisationName != nil {
+		setFields["organisationName"] = strings.TrimSpace(*req.OrganisationName)
+	}
+
+	if req.OrganisationType != nil {
+		setFields["organisationType"] = strings.TrimSpace(*req.OrganisationType)
+	}
+
+	if req.LevelID != nil {
+		setFields["levelId"] = strings.TrimSpace(*req.LevelID)
+	}
+
+	if req.LevelName != nil {
+		setFields["levelName"] = strings.TrimSpace(*req.LevelName)
+	}
+
+	if req.ExpiresAt != nil {
+		value := strings.TrimSpace(*req.ExpiresAt)
+
+		if value == "" {
+			unsetFields["expiresAt"] = ""
+		} else {
+			parsed, err := time.Parse(time.RFC3339, value)
+			if err != nil {
+				return nil, errors.New("expiresAt must be a valid RFC3339 datetime, for example 2026-09-30T23:59:00Z")
+			}
+
+			setFields["expiresAt"] = &parsed
+		}
+	}
+
+	updated, err := s.codeRepo.Update(ctx, id, setFields, unsetFields)
+	if err != nil {
+		return nil, err
+	}
+
+	if updated == nil {
+		return nil, errors.New("privilege code not found")
+	}
+
+	_ = s.createLog(ctx, &models.AdminPrivilegeLog{
+		PrivilegeCodeID:  updated.ID.Hex(),
+		CodePrefix:       updated.CodePrefix,
+		OrganisationID:   updated.OrganisationID,
+		OrganisationName: updated.OrganisationName,
+		LevelID:          updated.LevelID,
+		LevelName:        updated.LevelName,
+		Action:           "code_updated",
+		Allowed:          true,
+		IPAddress:        ipAddress,
+		UserAgent:        userAgent,
+		Message:          "Privilege code updated",
+		Metadata: map[string]interface{}{
+			"updatedBy":        updatedBy,
+			"permissions":      updated.Permissions,
+			"grants":           updated.Grants,
+			"accessMode":       updated.AccessMode,
+			"organisationType": updated.OrganisationType,
+		},
+		CreatedAt: time.Now().UTC(),
+	})
+
+	return toPrivilegeCodeResponse(updated, ""), nil
 }
 
 func (s *AdminPrivilegeCodeService) GetPrivilegeCodes(
@@ -190,7 +363,6 @@ func (s *AdminPrivilegeCodeService) ValidatePrivilegeCode(
 		CreatedAt:        time.Now().UTC(),
 	})
 
-
 	return toPrivilegeCodeResponse(code, ""), nil
 }
 
@@ -225,7 +397,6 @@ func (s *AdminPrivilegeCodeService) RevokePrivilegeCode(
 		},
 		CreatedAt: time.Now().UTC(),
 	})
-
 
 	return toPrivilegeCodeResponse(code, ""), nil
 }
@@ -365,6 +536,21 @@ func toPrivilegeCodeResponse(
 	code *models.AdminPrivilegeCode,
 	rawUUID string,
 ) *dto.AdminPrivilegeCodeResponse {
+	grants := make([]dto.PrivilegeGrantResponse, 0, len(code.Grants))
+
+	for _, grant := range code.Grants {
+		grants = append(grants, dto.PrivilegeGrantResponse{
+			CategoryID:   grant.CategoryID,
+			CategorySlug: grant.CategorySlug,
+			CategoryName: grant.CategoryName,
+			Actions:      grant.Actions,
+			AccessMode:   grant.AccessMode,
+			Countries:    grant.Countries,
+			Regions:      grant.Regions,
+			Districts:    grant.Districts,
+		})
+	}
+
 	return &dto.AdminPrivilegeCodeResponse{
 		ID:               code.ID.Hex(),
 		UUID:             rawUUID,
@@ -373,9 +559,12 @@ func toPrivilegeCodeResponse(
 		Purpose:          code.Purpose,
 		OrganisationID:   code.OrganisationID,
 		OrganisationName: code.OrganisationName,
+		OrganisationType: code.OrganisationType,
 		LevelID:          code.LevelID,
 		LevelName:        code.LevelName,
 		Permissions:      code.Permissions,
+		Grants:           grants,
+		AccessMode:       code.AccessMode,
 		Status:           code.Status,
 		UsageCount:       code.UsageCount,
 		LastUsedAt:       code.LastUsedAt,
@@ -386,3 +575,87 @@ func toPrivilegeCodeResponse(
 	}
 }
 
+func normalizePrivilegeAccessMode(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case models.PrivilegeAccessModeGlobal:
+		return models.PrivilegeAccessModeGlobal
+	case models.PrivilegeAccessModeOwnedOnly:
+		return models.PrivilegeAccessModeOwnedOnly
+	case models.PrivilegeAccessModeScoped:
+		return models.PrivilegeAccessModeScoped
+	case models.PrivilegeAccessModeAssignedOnly:
+		return models.PrivilegeAccessModeAssignedOnly
+	default:
+		return models.PrivilegeAccessModeAssignedOnly
+	}
+}
+
+func normalizePrivilegeGrants(
+	input []dto.PrivilegeGrantRequest,
+	defaultAccessMode string,
+) ([]models.PrivilegeGrant, []string, error) {
+	grants := make([]models.PrivilegeGrant, 0, len(input))
+	allActions := []string{}
+
+	for _, item := range input {
+		actions := permissions.RemoveDuplicatePermissions(item.Actions)
+
+		if len(actions) == 0 {
+			return nil, nil, errors.New("each privilege grant must contain at least one action")
+		}
+
+		invalid := permissions.InvalidPermissions(actions)
+		if len(invalid) > 0 {
+			return nil, nil, fmt.Errorf("invalid grant actions: %s", strings.Join(invalid, ", "))
+		}
+
+		grantAccessMode := normalizePrivilegeAccessMode(item.AccessMode)
+		if strings.TrimSpace(item.AccessMode) == "" {
+			grantAccessMode = defaultAccessMode
+		}
+
+		grants = append(grants, models.PrivilegeGrant{
+			CategoryID:   strings.TrimSpace(item.CategoryID),
+			CategorySlug: normalizeCategorySlug(item.CategorySlug),
+			CategoryName: strings.TrimSpace(item.CategoryName),
+			Actions:      actions,
+			AccessMode:   grantAccessMode,
+			Countries:    normalizeStringList(item.Countries),
+			Regions:      normalizeStringList(item.Regions),
+			Districts:    normalizeStringList(item.Districts),
+		})
+
+		allActions = append(allActions, actions...)
+	}
+
+	return grants, permissions.RemoveDuplicatePermissions(allActions), nil
+}
+
+func normalizeStringList(input []string) []string {
+	result := []string{}
+	seen := map[string]bool{}
+
+	for _, value := range input {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+
+		key := strings.ToLower(value)
+		if seen[key] {
+			continue
+		}
+
+		seen[key] = true
+		result = append(result, value)
+	}
+
+	return result
+}
+
+func normalizeCategorySlug(input string) string {
+	value := strings.ToLower(strings.TrimSpace(input))
+	value = strings.ReplaceAll(value, " ", "_")
+	value = strings.ReplaceAll(value, "-", "_")
+	return value
+}

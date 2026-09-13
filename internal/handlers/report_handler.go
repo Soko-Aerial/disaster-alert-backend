@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"disaster_alert_backend/internal/authz"
 	"disaster_alert_backend/internal/dto"
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/services"
@@ -80,6 +81,47 @@ func NewReportHandler(
 // @Description - country: Country name.
 // @Description - region: Region/state name.
 // @Description - media: Optional image or video file.
+// @Description
+// @Description HOW AUTO-ROUTING WORKS:
+// @Description When a mobile user submits a report, the backend automatically checks the report category and routes the case to the correct organisation.
+// @Description The user does not need to choose Police, Fire Service, NADMO, Health, or any other agency manually.
+// @Description
+// @Description SIMPLE EXPLANATION:
+// @Description The system works like an emergency call center with automatic dispatching.
+// @Description If the report is fire-related, it goes to Ghana Fire Service.
+// @Description If the report is robbery/security-related, it goes to Ghana Police Service.
+// @Description If the report is flood/weather/drought/earthquake-related, it goes to NADMO.
+// @Description If the report is medical/health-related, it goes to Health or Ambulance services.
+// @Description If the category is unknown or unclear, it can be kept for system/manual review.
+// @Description
+// @Description REPORT CATEGORY ROUTING EXAMPLES:
+// @Description - fire -> Ghana Fire Service
+// @Description - flood -> NADMO
+// @Description - weather -> NADMO
+// @Description - drought -> NADMO
+// @Description - earthquake -> NADMO
+// @Description - robbery -> Ghana Police Service
+// @Description - security -> Ghana Police Service
+// @Description - protests -> Ghana Police Service
+// @Description - accident -> Ghana Police Service and Ambulance
+// @Description - medical -> Ambulance or Health Service
+// @Description - health -> Ghana Health Service
+// @Description - conflict -> National Security, Police, and Armed Forces
+// @Description - munitions -> National Security, Police, and Armed Forces
+// @Description - galamsey -> Police, Minerals Commission, and National Security
+// @Description - other -> system/manual review
+// @Description
+// @Description TECHNICAL ACCESS-CONTROL EXPLANATION:
+// @Description The backend saves routing fields on the record after creation.
+// @Description accessCategorySlug stores the operational category such as fire, flood, robbery, medical, weather, or security.
+// @Description ownerOrganisationId usually starts as system for user-created records.
+// @Description leadOrganisationId is the main organisation responsible for handling the case.
+// @Description assignedOrgIds contains organisations allowed to work on the case.
+// @Description visibleToOrgIds contains organisations allowed to view the case.
+// @Description
+// @Description IMPORTANT SECURITY RULE:
+// @Description Having a category grant alone is not enough.
+// @Description A privilege code must have the required permission and the record must also be owned by, led by, assigned to, or visible to that organisation.
 // @Tags User Reports
 // @Security BearerAuth
 // @Accept multipart/form-data
@@ -421,7 +463,14 @@ func (h *ReportHandler) GetReportByID(c *gin.Context) {
 func (h *ReportHandler) ApproveReport(c *gin.Context) {
 	reportID := c.Param("id")
 
-	alert, err := h.reportService.ApproveReport(reportID)
+	var alert *models.Alert
+	var err error
+
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		alert, err = h.reportService.ApproveReportForPrivilege(reportID, privilegeCtx)
+	} else {
+		alert, err = h.reportService.ApproveReport(reportID)
+	}
 	if err != nil {
 		statusCode := http.StatusBadRequest
 

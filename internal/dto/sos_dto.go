@@ -19,6 +19,25 @@ type CreateSOSRequest struct {
 	// Longitude is the user's current GPS longitude.
 	Longitude float64 `json:"longitude" validate:"required" example:"-0.1870"`
 
+	// Country is optional but helps with routing, filtering, and dashboards.
+	Country string `json:"country,omitempty" example:"Ghana"`
+
+	// Region is optional but helps with regional filtering and response coordination.
+	Region string `json:"region,omitempty" example:"Greater Accra"`
+
+	// AccessCategoryID is optional.
+	// If omitted, the backend will auto-route using emergencyType.
+	AccessCategoryID string `json:"accessCategoryId,omitempty" example:"66e19b71c8f2a2b4d1234567"`
+
+	// AccessCategorySlug is the operational category used for organisation access control.
+	// If omitted, backend uses emergencyType.
+	// Examples: fire, medical, security, robbery, flood, accident.
+	AccessCategorySlug string `json:"accessCategorySlug,omitempty" example:"medical"`
+
+	// AccessCategoryName is the readable category name.
+	// If omitted, backend generates it from accessCategorySlug.
+	AccessCategoryName string `json:"accessCategoryName,omitempty" example:"Medical"`
+
 	// Address is the readable location, landmark, street, or area name.
 	Address string `json:"address,omitempty" example:"Circle, Accra"`
 

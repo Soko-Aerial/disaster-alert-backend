@@ -40,24 +40,30 @@ func (r *ReportRepository) Create(report models.Report) (*models.Report, error) 
 }
 
 func (r *ReportRepository) FindAll() ([]models.Report, error) {
+	return r.FindAllWithFilter(bson.M{})
+}
+
+func (r *ReportRepository) FindAllWithFilter(filter bson.M) ([]models.Report, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	if filter == nil {
+		filter = bson.M{}
+	}
 
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "createdAt", Value: -1}})
 
-	cursor, err := r.collection.Find(ctx, bson.M{}, findOptions)
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
-
 	defer cursor.Close(ctx)
 
-	var reports []models.Report
+	reports := make([]models.Report, 0)
 
 	for cursor.Next(ctx) {
 		var report models.Report
-
 		if err := cursor.Decode(&report); err != nil {
 			return nil, err
 		}
@@ -105,7 +111,7 @@ func (r *ReportRepository) UpdateStatus(
 		},
 	}
 
-	options := options.FindOneAndUpdate().
+	opts := options.FindOneAndUpdate().
 		SetReturnDocument(options.After)
 
 	var report models.Report
@@ -114,7 +120,7 @@ func (r *ReportRepository) UpdateStatus(
 		ctx,
 		bson.M{"_id": reportID},
 		update,
-		options,
+		opts,
 	).Decode(&report)
 
 	if err != nil {

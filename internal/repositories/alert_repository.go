@@ -26,6 +26,8 @@ type AlertFilter struct {
 	Country        string
 	ExcludeCountry string
 	Limit          int
+
+	ScopeFilter bson.M
 }
 
 func NewAlertRepository(db *mongo.Database) *AlertRepository {
@@ -70,14 +72,22 @@ func (r *AlertRepository) Create(alert models.Alert) (*models.Alert, error) {
 }
 
 func (r *AlertRepository) FindAll() ([]models.Alert, error) {
+	return r.FindAllWithFilter(bson.M{})
+}
+
+func (r *AlertRepository) FindAllWithFilter(filter bson.M) ([]models.Alert, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	if filter == nil {
+		filter = bson.M{}
+	}
 
 	findOptions := options.Find()
 	findOptions.SetSort(alertPrioritySort())
 	findOptions.SetLimit(100)
 
-	cursor, err := r.collection.Find(ctx, bson.M{}, findOptions)
+	cursor, err := r.collection.Find(ctx, filter, findOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +124,15 @@ func (r *AlertRepository) FindActiveWithFilters(
 	defer cancel()
 
 	filter := buildActiveAlertFilter(filterOptions)
+
+	if len(filterOptions.ScopeFilter) > 0 {
+		filter = bson.M{
+			"$and": []bson.M{
+				filter,
+				filterOptions.ScopeFilter,
+			},
+		}
+	}
 
 	findOptions := options.Find()
 	findOptions.SetSort(alertPrioritySort())
@@ -223,6 +242,14 @@ func (r *AlertRepository) UpsertExternalAlert(
 		alert.Status = "active"
 	}
 
+	if alert.AccessCategorySlug == "" {
+		alert.AccessCategorySlug = alert.Category
+	}
+
+	if alert.OwnerOrganisationID == "" {
+		alert.OwnerOrganisationID = "system"
+	}
+
 	if alert.ExpiresAt == nil {
 		baseTime := now
 
@@ -248,28 +275,35 @@ func (r *AlertRepository) UpsertExternalAlert(
 
 	update := bson.M{
 		"$set": bson.M{
-			"title":              alert.Title,
-			"description":        alert.Description,
-			"summary":            alert.Summary,
-			"category":           alert.Category,
-			"severity":           alert.Severity,
-			"status":             alert.Status,
-			"location":           alert.Location,
-			"radiusKm":           alert.RadiusKm,
-			"safetyInstructions": alert.SafetyInstructions,
-			"sourceUrl":          alert.SourceURL,
-			"imageUrls":          alert.ImageURLs,
-			"videoUrls":          alert.VideoURLs,
-			"tags":               alert.Tags,
-			"priorityScore":      alert.PriorityScore,
-			"priorityLabel":      alert.PriorityLabel,
-			"isBreaking":         alert.IsBreaking,
-			"isVerified":         alert.IsVerified,
-			"eventTime":          alert.EventTime,
-			"expiresAt":          alert.ExpiresAt,
-			"confidence":         alert.Confidence,
-			"lastSyncedAt":       alert.LastSyncedAt,
-			"updatedAt":          alert.UpdatedAt,
+			"title":                alert.Title,
+			"description":          alert.Description,
+			"summary":              alert.Summary,
+			"category":             alert.Category,
+			"accessCategoryId":     alert.AccessCategoryID,
+			"accessCategorySlug":   alert.AccessCategorySlug,
+			"accessCategoryName":   alert.AccessCategoryName,
+			"ownerOrganisationId":  alert.OwnerOrganisationID,
+			"leadOrganisationId":   alert.LeadOrganisationID,
+			"assignedOrgIds":       alert.AssignedOrgIDs,
+			"visibleToOrgIds":      alert.VisibleToOrgIDs,
+			"severity":             alert.Severity,
+			"status":               alert.Status,
+			"location":             alert.Location,
+			"radiusKm":             alert.RadiusKm,
+			"safetyInstructions":   alert.SafetyInstructions,
+			"sourceUrl":            alert.SourceURL,
+			"imageUrls":            alert.ImageURLs,
+			"videoUrls":            alert.VideoURLs,
+			"tags":                 alert.Tags,
+			"priorityScore":        alert.PriorityScore,
+			"priorityLabel":        alert.PriorityLabel,
+			"isBreaking":           alert.IsBreaking,
+			"isVerified":           alert.IsVerified,
+			"eventTime":            alert.EventTime,
+			"expiresAt":            alert.ExpiresAt,
+			"confidence":           alert.Confidence,
+			"lastSyncedAt":         alert.LastSyncedAt,
+			"updatedAt":            alert.UpdatedAt,
 		},
 		"$setOnInsert": bson.M{
 			"sourceType": alert.SourceType,
@@ -314,6 +348,7 @@ func (r *AlertRepository) DeactivateExpiredExternalAlerts() (int64, error) {
 				"news",
 				"system",
 				"user_report",
+				"community_report",
 			},
 		},
 		"status": "active",
@@ -416,6 +451,15 @@ func (r *AlertRepository) EnsureIndexes() error {
 				{Key: "expiresAt", Value: 1},
 				{Key: "location.country", Value: 1},
 				{Key: "createdAt", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "accessCategorySlug", Value: 1},
+				{Key: "ownerOrganisationId", Value: 1},
+				{Key: "leadOrganisationId", Value: 1},
+				{Key: "assignedOrgIds", Value: 1},
+				{Key: "visibleToOrgIds", Value: 1},
 			},
 		},
 		{

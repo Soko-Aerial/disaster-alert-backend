@@ -2,107 +2,125 @@ package dto
 
 import "time"
 
-// CreateAdminPrivilegeCodeRequest is used to generate a new admin privilege UUID.
-//
-// The generated UUID is used in the X-Privilege-Code header when calling
-// protected admin endpoints such as reports, alerts, SOS, assistance, chats,
-// and notifications.
-type CreateAdminPrivilegeCodeRequest struct {
-	// Label is the readable name of this privilege code.
-	//
-	// Optional.
-	// Example: Police Traffic Unit Access
-	Label string `json:"label,omitempty" example:"Police Traffic Unit Access"`
+type PrivilegeGrantRequest struct {
+	CategoryID   string `json:"categoryId,omitempty" example:"66e19b71c8f2a2b4d1234567"`
+	CategorySlug string `json:"categorySlug,omitempty" example:"robbery"`
+	CategoryName string `json:"categoryName,omitempty" example:"Robbery"`
 
-	// Purpose explains why this privilege code exists.
-	//
-	// Optional.
+	Actions []string `json:"actions" validate:"required,min=1" example:"reports:read,sos:read,chats:send"`
+
+	AccessMode string `json:"accessMode,omitempty" example:"assigned_only" enums:"global,owned_only,assigned_only,scoped"`
+
+	Countries []string `json:"countries,omitempty" example:"Ghana"`
+	Regions   []string `json:"regions,omitempty" example:"Greater Accra"`
+	Districts []string `json:"districts,omitempty" example:"Accra Metropolitan"`
+}
+
+type CreateAdminPrivilegeCodeRequest struct {
+	Label   string `json:"label,omitempty" example:"Police Traffic Unit Access"`
 	Purpose string `json:"purpose,omitempty" example:"Allow Police Traffic Unit to view reports, respond to SOS, and send chat replies"`
 
-	// OrganisationID is the external/internal organisation identifier.
-	//
-	// Optional.
-	OrganisationID string `json:"organisationId,omitempty" example:"firebase_police_org_id"`
-
-	// OrganisationName is the readable organisation name.
-	//
-	// Optional.
+	OrganisationID   string `json:"organisationId,omitempty" example:"ghana_police_service"`
 	OrganisationName string `json:"organisationName,omitempty" example:"Ghana Police Service"`
+	OrganisationType string `json:"organisationType,omitempty" example:"police"`
 
-	// LevelID is the optional department, unit, role, or level identifier.
-	//
-	// Optional.
-	LevelID string `json:"levelId,omitempty" example:"firebase_traffic_unit_id"`
-
-	// LevelName is the readable department, unit, role, or level name.
-	//
-	// Optional.
+	LevelID   string `json:"levelId,omitempty" example:"traffic_unit"`
 	LevelName string `json:"levelName,omitempty" example:"Traffic Unit"`
 
-	// Permissions is the list of allowed admin actions for this privilege code.
-	//
-	// Required.
-	Permissions []string `json:"permissions" validate:"required,min=1" example:"dashboard:read,reports:read,sos:read"`
+	// Optional.
+	// If omitted, backend derives permissions from grants.actions.
+	Permissions []string `json:"permissions,omitempty" example:"reports:read,sos:read,chats:send"`
 
-	// ExpiresAt is the optional expiry date/time for the privilege code.
-	//
-	// Recommended format:
-	// 2026-09-30T23:59:00Z
+	// Recommended for organisation-specific access.
+	Grants []PrivilegeGrantRequest `json:"grants,omitempty"`
+
+	AccessMode string `json:"accessMode,omitempty" example:"assigned_only" enums:"global,owned_only,assigned_only,scoped"`
+
 	ExpiresAt string `json:"expiresAt,omitempty" example:"2026-09-30T23:59:00Z"`
 }
 
-// ValidateAdminPrivilegeCodeRequest is used to check if a privilege UUID is valid.
+type UpdateAdminPrivilegeCodeRequest struct {
+	Label   *string `json:"label,omitempty" example:"Police Robbery Access Updated"`
+	Purpose *string `json:"purpose,omitempty" example:"Updated purpose for Police robbery access"`
+
+	OrganisationID   *string `json:"organisationId,omitempty" example:"ghana_police_service"`
+	OrganisationName *string `json:"organisationName,omitempty" example:"Ghana Police Service"`
+	OrganisationType *string `json:"organisationType,omitempty" example:"police"`
+
+	LevelID   *string `json:"levelId,omitempty" example:"traffic_unit"`
+	LevelName *string `json:"levelName,omitempty" example:"Traffic Unit"`
+
+	// Optional.
+	// If supplied, this replaces the existing flat permissions.
+	// If grants are also supplied, backend merges permissions with grants.actions.
+	Permissions []string `json:"permissions,omitempty" example:"reports:read,sos:read,chats:send"`
+
+	// Optional.
+	// If supplied, this replaces the existing grants.
+	Grants []PrivilegeGrantRequest `json:"grants,omitempty"`
+
+	AccessMode *string `json:"accessMode,omitempty" example:"assigned_only" enums:"global,owned_only,assigned_only,scoped"`
+
+	// Optional.
+	// Omit to keep existing expiry.
+	// Send empty string "" to clear expiry.
+	// Send RFC3339 datetime to set expiry.
+	ExpiresAt *string `json:"expiresAt,omitempty" example:"2026-09-30T23:59:00Z"`
+}
+
 type ValidateAdminPrivilegeCodeRequest struct {
-	// UUID is the full privilege code returned during creation.
-	//
-	// Do not use codePrefix here.
 	UUID string `json:"uuid" validate:"required" example:"4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e"`
 }
 
-// RevokeAdminPrivilegeCodeRequest is used to revoke a privilege code.
 type RevokeAdminPrivilegeCodeRequest struct {
-	// Reason explains why the privilege code is being revoked.
 	Reason string `json:"reason,omitempty" example:"Access no longer needed"`
 }
 
-// AdminPrivilegeCodeResponse is returned when privilege code records are fetched.
-//
-// Important:
-// The full UUID is only returned once during creation.
-// List and detail endpoints return codePrefix only, not the full UUID.
+type PrivilegeGrantResponse struct {
+	CategoryID   string `json:"categoryId,omitempty"`
+	CategorySlug string `json:"categorySlug,omitempty"`
+	CategoryName string `json:"categoryName,omitempty"`
+
+	Actions    []string `json:"actions"`
+	AccessMode string   `json:"accessMode"`
+
+	Countries []string `json:"countries,omitempty"`
+	Regions   []string `json:"regions,omitempty"`
+	Districts []string `json:"districts,omitempty"`
+}
+
 type AdminPrivilegeCodeResponse struct {
 	ID string `json:"id" example:"66e19b71c8f2a2b4d1234567"`
 
-	// UUID is returned only when the code is first generated.
 	UUID string `json:"uuid,omitempty" example:"4e1b5a0a-71d7-40ad-9f30-9f1c4cbb1d9e"`
 
 	CodePrefix string `json:"codePrefix" example:"4e1b5a0a"`
 
-	Label string `json:"label" example:"Police Traffic Unit Access"`
-
+	Label   string `json:"label,omitempty" example:"Police Traffic Unit Access"`
 	Purpose string `json:"purpose,omitempty" example:"Allow Police Traffic Unit to view SOS and update SOS status"`
 
-	OrganisationID string `json:"organisationId" example:"firebase_police_org_id"`
+	OrganisationID   string `json:"organisationId,omitempty" example:"ghana_police_service"`
+	OrganisationName string `json:"organisationName,omitempty" example:"Ghana Police Service"`
+	OrganisationType string `json:"organisationType,omitempty" example:"police"`
 
-	OrganisationName string `json:"organisationName" example:"Ghana Police Service"`
-
-	LevelID string `json:"levelId,omitempty" example:"firebase_traffic_unit_id"`
-
+	LevelID   string `json:"levelId,omitempty" example:"traffic_unit"`
 	LevelName string `json:"levelName,omitempty" example:"Traffic Unit"`
 
 	Permissions []string `json:"permissions" example:"reports:read,reports:approve,alerts:read"`
+
+	Grants []PrivilegeGrantResponse `json:"grants,omitempty"`
+
+	AccessMode string `json:"accessMode" example:"assigned_only"`
 
 	Status string `json:"status" example:"active" enums:"active,revoked,expired"`
 
 	UsageCount int `json:"usageCount" example:"0"`
 
 	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
-
-	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	ExpiresAt  *time.Time `json:"expiresAt,omitempty"`
 
 	CreatedBy string `json:"createdBy,omitempty" example:"admin_api_key"`
 
 	CreatedAt time.Time `json:"createdAt"`
-
 	UpdatedAt time.Time `json:"updatedAt"`
 }
