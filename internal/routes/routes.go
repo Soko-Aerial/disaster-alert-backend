@@ -287,7 +287,7 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 		adminAlerts := admin.Group("/alerts")
 		{
 			adminAlerts.POST("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.CreateAlert)
-			adminAlerts.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlerts)
+			adminAlerts.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.AdminGetAlerts)
 
 			adminAlerts.POST("/preview-targeting", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.PreviewAlertTargeting)
 
@@ -303,7 +303,7 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 
 			adminAlerts.PUT("/:id/escalate", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsEscalate), alertHandler.EscalateAlert)
 
-			adminAlerts.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertByID)
+			adminAlerts.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.AdminGetAlertByID)
 			adminAlerts.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsUpdate), alertHandler.UpdateAlertStatus)
 			adminAlerts.DELETE("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsDelete), alertHandler.DeleteAlert)
 

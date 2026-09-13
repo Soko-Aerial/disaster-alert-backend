@@ -1647,6 +1647,43 @@ paths:
       tags:
       - Admin Access Categories
   /admin/alerts:
+    get:
+      description: |-
+        Returns alerts for the admin dashboard.
+
+        ACCESS CONTROL:
+        Super admin/global privilege codes can see all alerts.
+        Organisation privilege codes only see alerts allowed by their category grants and record scope.
+        For example, Fire Service can see fire alerts assigned or visible to Ghana Fire Service, while Police can see robbery/security alerts assigned or visible to Ghana Police Service.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Missing, revoked, expired, or unauthorized privilege code.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List admin alerts
+      tags:
+      - Admin Alerts
     post:
       consumes:
       - application/json
@@ -1838,6 +1875,55 @@ paths:
       - AdminApiKeyAuth: []
       - PrivilegeCodeAuth: []
       summary: Delete alert
+      tags:
+      - Admin Alerts
+    get:
+      description: |-
+        Fetches one alert for the admin dashboard.
+
+        ACCESS CONTROL:
+        The privilege code must have alerts:read permission.
+        The alert must also be inside the organisation/category scope unless the privilege code has global access.
+      parameters:
+      - description: Alert ID. This is the MongoDB ObjectID of the alert.
+        example: 66e19b71c8f2a2b4d1234567
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid alert ID.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Missing, revoked, expired, unauthorized privilege code, or
+            alert outside organisation scope.
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Alert not found.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Get admin alert by ID
       tags:
       - Admin Alerts
   /admin/alerts/{id}/delivery-history:

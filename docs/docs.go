@@ -339,6 +339,54 @@ const docTemplate = `{
             }
         },
         "/admin/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Returns alerts for the admin dashboard.\n\nACCESS CONTROL:\nSuper admin/global privilege codes can see all alerts.\nOrganisation privilege codes only see alerts allowed by their category grants and record scope.\nFor example, Fire Service can see fire alerts assigned or visible to Ghana Fire Service, while Police can see robbery/security alerts assigned or visible to Ghana Police Service.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "List admin alerts",
+                "responses": {
+                    "200": {
+                        "description": "Alerts fetched successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch alerts.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -480,6 +528,71 @@ const docTemplate = `{
             }
         },
         "/admin/alerts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Fetches one alert for the admin dashboard.\n\nACCESS CONTROL:\nThe privilege code must have alerts:read permission.\nThe alert must also be inside the organisation/category scope unless the privilege code has global access.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "Get admin alert by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "66e19b71c8f2a2b4d1234567",
+                        "description": "Alert ID. This is the MongoDB ObjectID of the alert.",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert fetched successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid alert ID.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, unauthorized privilege code, or alert outside organisation scope.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Alert not found.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {

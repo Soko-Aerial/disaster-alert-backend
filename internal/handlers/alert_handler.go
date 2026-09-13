@@ -400,6 +400,54 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	)
 }
 
+// AdminGetAlerts godoc
+// @Summary List admin alerts
+// @Description Returns alerts for the admin dashboard.
+// @Description
+// @Description ACCESS CONTROL:
+// @Description Super admin/global privilege codes can see all alerts.
+// @Description Organisation privilege codes only see alerts allowed by their category grants and record scope.
+// @Description For example, Fire Service can see fire alerts assigned or visible to Ghana Fire Service, while Police can see robbery/security alerts assigned or visible to Ghana Police Service.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Success 200 {object} map[string]interface{} "Alerts fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch alerts."
+// @Router /admin/alerts [get]
+func (h *AlertHandler) AdminGetAlerts(c *gin.Context) {
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetAlertsForPrivilege(privilegeCtx)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch alerts",
+			err.Error(),
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alerts fetched successfully",
+		alerts,
+	)
+}
+
 // GetActiveAlerts godoc
 // @Summary List active alerts
 // @Description Returns currently active alerts.
@@ -721,6 +769,64 @@ func (h *AlertHandler) GetHealthAlerts(c *gin.Context) {
 		http.StatusOK,
 		"Health alerts fetched successfully",
 		alerts,
+	)
+}
+
+// AdminGetAlertByID godoc
+// @Summary Get admin alert by ID
+// @Description Fetches one alert for the admin dashboard.
+// @Description
+// @Description ACCESS CONTROL:
+// @Description The privilege code must have alerts:read permission.
+// @Description The alert must also be inside the organisation/category scope unless the privilege code has global access.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param id path string true "Alert ID. This is the MongoDB ObjectID of the alert." example(66e19b71c8f2a2b4d1234567)
+// @Success 200 {object} map[string]interface{} "Alert fetched successfully."
+// @Failure 400 {object} map[string]interface{} "Invalid alert ID."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, unauthorized privilege code, or alert outside organisation scope."
+// @Failure 404 {object} map[string]interface{} "Alert not found."
+// @Router /admin/alerts/{id} [get]
+func (h *AlertHandler) AdminGetAlertByID(c *gin.Context) {
+	alertID := c.Param("id")
+
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alert, err := h.alertService.GetAlertByIDForPrivilege(alertID, privilegeCtx)
+	if err != nil {
+		statusCode := http.StatusNotFound
+
+		if strings.Contains(strings.ToLower(err.Error()), "access") ||
+			strings.Contains(strings.ToLower(err.Error()), "permission") {
+			statusCode = http.StatusForbidden
+		}
+
+		utils.ErrorResponse(
+			c,
+			statusCode,
+			"Alert not found or access denied",
+			err.Error(),
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alert fetched successfully",
+		alert,
 	)
 }
 
