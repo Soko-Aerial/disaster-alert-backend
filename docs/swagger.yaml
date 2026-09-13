@@ -1654,7 +1654,49 @@ paths:
         ACCESS CONTROL:
         Super admin/global privilege codes can see all alerts.
         Organisation privilege codes only see alerts allowed by their category grants and record scope.
-        For example, Fire Service can see fire alerts assigned or visible to Ghana Fire Service, while Police can see robbery/security alerts assigned or visible to Ghana Police Service.
+        Optional filters: category, severity, status, sourceName, sourceType, country, and limit.
+      parameters:
+      - description: Filter by category.
+        example: fire
+        in: query
+        name: category
+        type: string
+      - description: Filter by severity.
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: high
+        in: query
+        name: severity
+        type: string
+      - description: Filter by status.
+        example: active
+        in: query
+        name: status
+        type: string
+      - description: Filter by source name.
+        example: manual
+        in: query
+        name: sourceName
+        type: string
+      - description: Filter by source type.
+        example: internal
+        in: query
+        name: sourceType
+        type: string
+      - description: Filter by country name or country code.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 200, maximum is
+          500.
+        example: 200
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
@@ -1718,49 +1760,18 @@ paths:
         - imageUrls/videoUrls: Media links.
         - eventTime/expiresAt: ISO date/time values.
 
-        EXAMPLE REQUEST BODY:
-        {
-        "title": "Heavy rainfall warning",
-        "description": "Heavy rainfall is expected in Accra with possible flooding in low-lying areas.",
-        "summary": "Heavy rainfall expected in Accra with possible flooding.",
-        "category": "weather",
-        "severity": "high",
-        "status": "active",
-        "latitude": 5.6037,
-        "longitude": -0.1870,
-        "address": "Circle, Accra",
-        "country": "Ghana",
-        "region": "Greater Accra",
-        "radiusKm": 10,
-        "safetyInstructions": ["Move to higher ground", "Avoid flooded roads", "Follow official instructions"],
-        "sourceType": "admin",
-        "sourceName": "Admin Dashboard",
-        "priorityScore": 85,
-        "priorityLabel": "serious",
-        "eventTime": "2026-09-10T08:30:00Z",
-        "expiresAt": "2026-09-11T18:00:00Z",
-        "confidence": 0.95
-        }
-
         HOW ADMIN ALERT ROUTING WORKS:
-        Admin-created alerts also support auto-routing.
-        The backend checks the alert category and automatically fills the access-control routing fields unless the admin provides routing overrides.
+        Admin-created alerts support auto-routing.
+        The backend checks the alert category and automatically fills access-control routing fields unless the admin provides routing overrides.
 
         CATEGORY ROUTING EXAMPLES:
-        - fire -> Ghana Fire Service
-        - flood -> NADMO
-        - weather -> NADMO
-        - drought -> NADMO
-        - earthquake -> NADMO
-        - health -> Ghana Health Service
-        - medical -> Ambulance or Health Service
-        - robbery -> Ghana Police Service
-        - security -> Ghana Police Service
-        - protests -> Ghana Police Service
-        - accident -> Police and Ambulance
-        - conflict -> National Security, Police, and Armed Forces
-        - munitions -> National Security, Police, and Armed Forces
-        - galamsey -> Police, Minerals Commission, and National Security
+        - fire -> Fire Service
+        - flood/weather/drought/earthquake -> Disaster management agency
+        - health/medical -> Health or ambulance service
+        - robbery/security/protests -> Police/security agency
+        - accident -> Police and ambulance
+        - conflict/munitions -> National security, police, and armed forces
+        - galamsey -> Police, minerals/mining authority, and national security
         - other -> system/manual review
 
         ADMIN OVERRIDE:
@@ -1769,7 +1780,6 @@ paths:
 
         TECHNICAL ACCESS RULE:
         Read, update, and delete actions are protected by both permission checks and record-level scope checks.
-        For example, alerts:update allows the route to be called, but the alert must still be assigned or visible to that organisation before it can be updated.
       parameters:
       - description: Alert creation payload. title, description, category, severity,
           latitude, and longitude are required.
@@ -1818,19 +1828,9 @@ paths:
       description: |-
         Deletes an alert from the admin dashboard.
 
-        WHEN TO USE THIS ENDPOINT:
-        Use this when an admin needs to permanently remove an alert.
-
         IMPORTANT:
         For normal emergency operations, resolving or expiring an alert is usually better than deleting it.
         Delete should be used carefully because it may remove the alert from history depending on repository logic.
-
-        REQUIRED HEADERS:
-        - Sigtrack-Admin-API-Key: Your admin API key.
-        - X-Privilege-Code: A valid privilege code with `alerts:delete`.
-
-        REQUIRED PERMISSION:
-        alerts:delete
       parameters:
       - description: Alert ID. This is the MongoDB ObjectID of the alert.
         example: 66e19b71c8f2a2b4d1234567
@@ -2076,29 +2076,8 @@ paths:
       consumes:
       - application/json
       description: |-
-        Updates the status of an alert from the admin dashboard.
-
-        WHEN TO USE THIS ENDPOINT:
-        Use this when an admin wants to mark an alert as draft, active, resolved, expired, or cancelled.
-
-        REQUIRED HEADERS:
-        - Sigtrack-Admin-API-Key: Your admin API key.
-        - X-Privilege-Code: A valid privilege code with `alerts:update`.
-
-        REQUIRED PERMISSION:
-        alerts:update
-
-        ALLOWED STATUS VALUES:
-        - draft: Alert is saved but not active.
-        - active: Alert is currently active.
-        - resolved: The emergency has been resolved.
-        - expired: The alert is no longer valid.
-        - cancelled: The alert was cancelled.
-
-        EXAMPLE REQUEST BODY:
-        {
-        "status": "resolved"
-        }
+        Updates only the status of an alert from the admin dashboard.
+        This does not fully edit the alert content. It only changes status such as draft, active, resolved, expired, or cancelled.
       parameters:
       - description: Alert ID. This is the MongoDB ObjectID of the alert.
         example: 66e19b71c8f2a2b4d1234567
@@ -2131,7 +2110,8 @@ paths:
             additionalProperties: true
             type: object
         "403":
-          description: Missing, revoked, expired, or unauthorized privilege code.
+          description: Missing, revoked, expired, unauthorized privilege code, or
+            alert outside organisation scope.
           schema:
             additionalProperties: true
             type: object
@@ -2148,7 +2128,221 @@ paths:
       security:
       - AdminApiKeyAuth: []
       - PrivilegeCodeAuth: []
-      summary: Update alert status
+      summary: Update admin alert status
+      tags:
+      - Admin Alerts
+  /admin/alerts/active:
+    get:
+      description: |-
+        Returns currently active alerts for the admin dashboard.
+        Super admin can see all active alerts. Organisation privilege codes only see alerts inside their permitted scope.
+      parameters:
+      - description: Filter by category.
+        example: flood
+        in: query
+        name: category
+        type: string
+      - description: Filter by severity.
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: high
+        in: query
+        name: severity
+        type: string
+      - description: Filter by source name.
+        example: manual
+        in: query
+        name: sourceName
+        type: string
+      - description: Filter by source type.
+        example: internal
+        in: query
+        name: sourceType
+        type: string
+      - description: Filter by country name or country code.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch active alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List active admin alerts
+      tags:
+      - Admin Alerts
+  /admin/alerts/global:
+    get:
+      description: |-
+        Fetches active global alerts for the admin dashboard.
+        If country is supplied, alerts from that country are excluded. If country is omitted, all active scoped alerts are returned.
+      parameters:
+      - description: Optional country name or country code to exclude from global
+          view.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Global alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch global alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List global admin alerts
+      tags:
+      - Admin Alerts
+  /admin/alerts/health:
+    get:
+      description: Fetches active health-related alerts for the admin dashboard.
+      parameters:
+      - description: Optional country filter.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch health alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List health admin alerts
+      tags:
+      - Admin Alerts
+  /admin/alerts/local:
+    get:
+      description: |-
+        Fetches active local alerts for the admin dashboard using a country filter.
+        The country can be a country name or Alpha-2 country code.
+      parameters:
+      - description: Country name or country code used to filter local alerts.
+        example: Ghana
+        in: query
+        name: country
+        required: true
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Local alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Country query parameter is required.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch local alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List local admin alerts
       tags:
       - Admin Alerts
   /admin/alerts/preview-targeting:
@@ -2214,6 +2408,50 @@ paths:
       - AdminApiKeyAuth: []
       - PrivilegeCodeAuth: []
       summary: Preview alert recipients before sending
+      tags:
+      - Admin Alerts
+  /admin/alerts/weather:
+    get:
+      description: Fetches active weather-related alerts for the admin dashboard.
+      parameters:
+      - description: Optional country filter.
+        example: Ghana
+        in: query
+        name: country
+        type: string
+      - description: Maximum number of alerts to return. Default is 50, maximum is
+          200.
+        example: 50
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Weather alerts fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key.
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch weather alerts.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: List weather admin alerts
       tags:
       - Admin Alerts
   /admin/assistance:
@@ -3449,20 +3687,7 @@ paths:
       - WebSocket
   /alerts:
     get:
-      description: |-
-        Returns alerts from the system.
-
-        ADMIN USE:
-        When called from /admin/alerts, this is used by the admin dashboard to list all alerts.
-        Requires AdminApiKeyAuth and PrivilegeCodeAuth with `alerts:read` permission.
-
-        MOBILE USER USE:
-        When called from /alerts, this is used by the mobile app to show alerts to authenticated users.
-        Mobile users must provide BearerAuth.
-
-        NOTE:
-        This handler is currently shared by both mobile and admin routes.
-        Make sure your service response hides admin-only/internal fields from normal mobile users if required.
+      description: Returns alerts from the system for authenticated mobile users.
       produces:
       - application/json
       responses:
@@ -3488,14 +3713,8 @@ paths:
       - Alerts
   /alerts/{id}:
     get:
-      description: |-
-        Fetches details of a single alert by ID.
-
-        WHEN TO USE THIS ENDPOINT:
-        Use this when the mobile app or admin dashboard opens an alert detail screen.
-
-        PATH PARAMETER:
-        - id: MongoDB ObjectID of the alert.
+      description: Fetches details of a single alert by ID for authenticated mobile
+        users.
       parameters:
       - description: Alert ID. This is the MongoDB ObjectID of the alert.
         example: 66e19b71c8f2a2b4d1234567
@@ -3533,19 +3752,7 @@ paths:
       - Alerts
   /alerts/active:
     get:
-      description: |-
-        Returns currently active alerts.
-
-        QUERY FILTERS:
-        - category: Optional category filter such as flood, weather, fire, health, security.
-        - severity: Optional severity filter such as low, medium, high, critical.
-        - sourceName: Optional source name filter.
-        - sourceType: Optional source type filter such as admin, weather, health, external.
-        - country: Optional country filter such as Ghana.
-        - limit: Optional result limit. Default is 50. Maximum is 200.
-
-        MOBILE USE:
-        The mobile app can use this endpoint to show active alerts on the home screen, alert feed, and map.
+      description: Returns currently active alerts for authenticated mobile users.
       parameters:
       - description: Filter by category.
         example: flood
@@ -3563,21 +3770,12 @@ paths:
         name: severity
         type: string
       - description: Filter by source name.
-        example: Admin Dashboard
+        example: manual
         in: query
         name: sourceName
         type: string
       - description: Filter by source type.
-        enum:
-        - internal
-        - external
-        - system
-        - user_report
-        - weather
-        - health
-        - news
-        - admin
-        example: admin
+        example: internal
         in: query
         name: sourceType
         type: string
@@ -3617,15 +3815,7 @@ paths:
       - Alerts
   /alerts/global:
     get:
-      description: |-
-        Fetches global alerts.
-
-        WHEN TO USE THIS ENDPOINT:
-        Use this when the app or dashboard wants alerts that are not limited to one local country view.
-
-        OPTIONAL QUERY PARAMETERS:
-        - country: Optional country context depending on service logic.
-        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      description: Fetches global alerts for authenticated mobile users.
       parameters:
       - description: Optional country context.
         example: Ghana
@@ -3663,15 +3853,7 @@ paths:
       - Alerts
   /alerts/health:
     get:
-      description: |-
-        Fetches health-related alerts.
-
-        WHEN TO USE THIS ENDPOINT:
-        Use this for disease outbreaks, public health risks, contamination warnings, epidemic updates, or medical emergency alerts.
-
-        OPTIONAL QUERY PARAMETERS:
-        - country: Optional country filter. Example: Ghana.
-        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      description: Fetches health-related alerts for authenticated mobile users.
       parameters:
       - description: Optional country filter.
         example: Ghana
@@ -3709,20 +3891,8 @@ paths:
       - Alerts
   /alerts/local:
     get:
-      description: |-
-        Fetches alerts relevant to a specific country.
-
-        WHEN TO USE THIS ENDPOINT:
-        Use this when the app or admin dashboard wants alerts affecting a specific country.
-
-        EXAMPLE:
-        country=Ghana returns alerts affecting Ghana.
-
-        REQUIRED QUERY PARAMETER:
-        - country: Country name used to filter local alerts.
-
-        OPTIONAL QUERY PARAMETER:
-        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      description: Fetches alerts relevant to a specific country for authenticated
+        mobile users.
       parameters:
       - description: Country name used to filter local alerts.
         example: Ghana
@@ -3766,15 +3936,7 @@ paths:
       - Alerts
   /alerts/weather:
     get:
-      description: |-
-        Fetches weather-related alerts.
-
-        WHEN TO USE THIS ENDPOINT:
-        Use this for weather warnings such as storms, heavy rainfall, flooding risk, heat, wind, or severe weather.
-
-        OPTIONAL QUERY PARAMETERS:
-        - country: Optional country filter. Example: Ghana.
-        - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+      description: Fetches weather-related alerts for authenticated mobile users.
       parameters:
       - description: Optional country filter.
         example: Ghana

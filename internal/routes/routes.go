@@ -44,7 +44,6 @@ func RegisterRoutes(
 	jwtService *services.JWTService,
 	adminAPIKey string,
 ) {
-
 	router.GET("/health", func(c *gin.Context) {
 		utils.SuccessResponse(
 			c,
@@ -108,35 +107,7 @@ POST and PUT endpoints require data to be sent in the request.
 For JSON requests, use application/json.
 For upload requests, use multipart/form-data.
 Required fields are shown in each endpoint's Parameters section.
-Date/time values should use ISO format where possible, for example: 2026-09-10T08:30:00Z.
-
-	AUTHENTICATION GUIDE
-
-	1. Mobile/User endpoints use BearerAuth.
-	Header:
-	Authorization: Bearer <JWT_TOKEN>
-
-	2. Basic admin management endpoints use AdminApiKeyAuth only.
-	Header:
-	Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
-
-	3. Privileged admin operation endpoints require BOTH AdminApiKeyAuth and PrivilegeCodeAuth.
-	Headers:
-	Sigtrack-Admin-API-Key: <ADMIN_API_KEY>
-	X-Privilege-Code: <GENERATED_UUID>
-
-	ADMIN PRIVILEGE CODE FLOW
-
-	Step 1: Click Authorize.
-	Step 2: Enter your Admin API Key under AdminApiKeyAuth.
-	Step 3: Call POST /admin/privilege-codes.
-	Step 4: Copy the full UUID from data.code.
-	Step 5: Click Authorize again and paste the UUID under PrivilegeCodeAuth.
-	Step 6: Test protected admin endpoints.
-
-	IMPORTANT:
-	The full UUID is returned only once during creation.
-	codePrefix is only for display and logs. Do not use codePrefix as X-Privilege-Code.`
+Date/time values should use ISO format where possible, for example: 2026-09-10T08:30:00Z.`
 	docs.SwaggerInfo.Version = "1.0.0"
 	docs.SwaggerInfo.Host = "disaster-alert-backend-tiql.onrender.com"
 	docs.SwaggerInfo.BasePath = "/api/v1"
@@ -149,9 +120,13 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 	})
 
 	api := router.Group("/api/v1")
-	api.GET("/ws", middleware.WebSocketAuthMiddleware(jwtService), webSocketHandler.Connect)
 
-	// Health check
+	api.GET(
+		"/ws",
+		middleware.WebSocketAuthMiddleware(jwtService),
+		webSocketHandler.Connect,
+	)
+
 	api.GET("/health", func(c *gin.Context) {
 		utils.SuccessResponse(
 			c,
@@ -170,13 +145,16 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 	{
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
-		auth.GET("/me", middleware.AuthMiddleware(jwtService), authHandler.Me)
+		auth.GET(
+			"/me",
+			middleware.AuthMiddleware(jwtService),
+			authHandler.Me,
+		)
 	}
 
 	// -------------------------
 	// Public / Semi-public Routes
 	// -------------------------
-
 	weather := api.Group("/weather")
 	{
 		weather.GET("/alerts", weatherHandler.GetWeatherAlerts)
@@ -195,9 +173,8 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 	}
 
 	// -------------------------
-	// ADMIN API ROUTE
+	// Admin API Routes
 	// -------------------------
-
 	admin := api.Group("/admin")
 	admin.Use(middleware.AdminAPIKeyMiddleware(adminAPIKey))
 	{
@@ -265,66 +242,293 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 
 		adminReports := admin.Group("/reports")
 		{
-			adminReports.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ReportsRead), reportHandler.GetReports)
-			adminReports.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ReportsRead), reportHandler.GetReportByID)
-			adminReports.PUT("/:id/approve", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ReportsApprove), reportHandler.ApproveReport)
+			adminReports.GET(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ReportsRead,
+				),
+				reportHandler.GetReports,
+			)
+
+			adminReports.GET(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ReportsRead,
+				),
+				reportHandler.GetReportByID,
+			)
+
+			adminReports.PUT(
+				"/:id/approve",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ReportsApprove,
+				),
+				reportHandler.ApproveReport,
+			)
 		}
 
 		adminAssistance := admin.Group("/assistance")
 		{
-			adminAssistance.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AssistanceRead), assistanceHandler.GetAssistanceRequests)
-			adminAssistance.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AssistanceRead), assistanceHandler.GetAssistanceRequestByID)
-			adminAssistance.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AssistanceUpdateStatus), assistanceHandler.UpdateAssistanceStatus)
+			adminAssistance.GET(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AssistanceRead,
+				),
+				assistanceHandler.GetAssistanceRequests,
+			)
+
+			adminAssistance.GET(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AssistanceRead,
+				),
+				assistanceHandler.GetAssistanceRequestByID,
+			)
+
+			adminAssistance.PUT(
+				"/:id/status",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AssistanceUpdateStatus,
+				),
+				assistanceHandler.UpdateAssistanceStatus,
+			)
 		}
 
 		adminSOS := admin.Group("/sos")
 		{
-			adminSOS.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.SOSRead), sosHandler.GetSOSRequests)
-			adminSOS.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.SOSRead), sosHandler.GetSOSByID)
-			adminSOS.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.SOSUpdateStatus), sosHandler.UpdateSOSStatus)
+			adminSOS.GET(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.SOSRead,
+				),
+				sosHandler.GetSOSRequests,
+			)
+
+			adminSOS.GET(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.SOSRead,
+				),
+				sosHandler.GetSOSByID,
+			)
+
+			adminSOS.PUT(
+				"/:id/status",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.SOSUpdateStatus,
+				),
+				sosHandler.UpdateSOSStatus,
+			)
 		}
 
 		adminAlerts := admin.Group("/alerts")
 		{
-			adminAlerts.POST("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.CreateAlert)
-			adminAlerts.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.AdminGetAlerts)
+			adminAlerts.POST(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsCreate,
+				),
+				alertHandler.CreateAlert,
+			)
 
-			adminAlerts.POST("/preview-targeting", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.PreviewAlertTargeting)
+			adminAlerts.GET(
+				"",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetAlerts,
+			)
 
-			adminAlerts.GET("/active", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetActiveAlerts)
-			adminAlerts.POST("/sync-external", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), aggregatorHandler.SyncExternalAlerts)
-			adminAlerts.GET("/local", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetLocalAlerts)
-			adminAlerts.GET("/global", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetGlobalAlerts)
-			adminAlerts.GET("/weather", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetWeatherAlerts)
-			adminAlerts.GET("/health", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetHealthAlerts)
+			adminAlerts.POST(
+				"/preview-targeting",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsCreate,
+				),
+				alertHandler.PreviewAlertTargeting,
+			)
 
-			adminAlerts.GET("/:id/delivery-history", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertDeliveryHistory)
-			adminAlerts.GET("/:id/recipient-deliveries", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertRecipientDeliveries)
+			adminAlerts.GET(
+				"/active",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetActiveAlerts,
+			)
 
-			adminAlerts.PUT("/:id/escalate", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsEscalate), alertHandler.EscalateAlert)
+			adminAlerts.POST(
+				"/sync-external",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsCreate,
+				),
+				aggregatorHandler.SyncExternalAlerts,
+			)
 
-			adminAlerts.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.AdminGetAlertByID)
-			adminAlerts.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsUpdate), alertHandler.UpdateAlertStatus)
-			adminAlerts.DELETE("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsDelete), alertHandler.DeleteAlert)
+			adminAlerts.GET(
+				"/local",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetLocalAlerts,
+			)
 
+			adminAlerts.GET(
+				"/global",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetGlobalAlerts,
+			)
+
+			adminAlerts.GET(
+				"/weather",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetWeatherAlerts,
+			)
+
+			adminAlerts.GET(
+				"/health",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetHealthAlerts,
+			)
+
+			adminAlerts.GET(
+				"/:id/delivery-history",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.GetAlertDeliveryHistory,
+			)
+
+			adminAlerts.GET(
+				"/:id/recipient-deliveries",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.GetAlertRecipientDeliveries,
+			)
+
+			adminAlerts.PUT(
+				"/:id/escalate",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsEscalate,
+				),
+				alertHandler.EscalateAlert,
+			)
+
+			adminAlerts.GET(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsRead,
+				),
+				alertHandler.AdminGetAlertByID,
+			)
+
+			adminAlerts.PUT(
+				"/:id/status",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsUpdate,
+				),
+				alertHandler.AdminUpdateAlertStatus,
+			)
+
+			adminAlerts.DELETE(
+				"/:id",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsDelete,
+				),
+				alertHandler.DeleteAlert,
+			)
 		}
 
 		adminNotifications := admin.Group("/notifications")
 		{
-			adminNotifications.POST("/test/all", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.NotificationsSend), notificationHandler.SendTestToAll)
+			adminNotifications.POST(
+				"/test/all",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.NotificationsSend,
+				),
+				notificationHandler.SendTestToAll,
+			)
 		}
 
 		adminMaintenance := admin.Group("/maintenance")
 		{
-			adminMaintenance.POST("/cleanup-expired-alerts", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsUpdate), cleanupHandler.CleanupExpiredExternalAlerts)
+			adminMaintenance.POST(
+				"/cleanup-expired-alerts",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.AlertsUpdate,
+				),
+				cleanupHandler.CleanupExpiredExternalAlerts,
+			)
 		}
 
 		adminChats := admin.Group("/chats")
 		{
-			adminChats.GET("/conversations", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsRead), chatHandler.GetConversations)
-			adminChats.GET("/conversations/:id/messages", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsRead), chatHandler.GetConversationMessages)
-			adminChats.POST("/conversations/:id/messages", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsSend), chatHandler.SendMessage)
-			adminChats.PUT("/conversations/:id/read", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.ChatsRead), chatHandler.MarkConversationRead)
+			adminChats.GET(
+				"/conversations",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ChatsRead,
+				),
+				chatHandler.GetConversations,
+			)
+
+			adminChats.GET(
+				"/conversations/:id/messages",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ChatsRead,
+				),
+				chatHandler.GetConversationMessages,
+			)
+
+			adminChats.POST(
+				"/conversations/:id/messages",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ChatsSend,
+				),
+				chatHandler.SendMessage,
+			)
+
+			adminChats.PUT(
+				"/conversations/:id/read",
+				middleware.RequirePrivilegePermission(
+					adminPrivilegeCodeService,
+					permissions.ChatsRead,
+				),
+				chatHandler.MarkConversationRead,
+			)
 		}
 	}
 
@@ -339,7 +543,6 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 		{
 			notifications.POST("/token", notificationHandler.SaveFCMToken)
 			notifications.POST("/test/me", notificationHandler.SendTestToMe)
-			//notifications.POST("/test/all", notificationHandler.SendTestToAll)
 
 			notifications.GET("", appNotificationHandler.GetMyNotifications)
 			notifications.GET("/history", appNotificationHandler.GetMyNotificationHistory)
@@ -372,13 +575,11 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 		alerts := protected.Group("/alerts")
 		{
 			alerts.GET("", alertHandler.GetAlerts)
-
 			alerts.GET("/active", alertHandler.GetActiveAlerts)
 			alerts.GET("/local", alertHandler.GetLocalAlerts)
 			alerts.GET("/global", alertHandler.GetGlobalAlerts)
 			alerts.GET("/weather", alertHandler.GetWeatherAlerts)
 			alerts.GET("/health", alertHandler.GetHealthAlerts)
-
 			alerts.GET("/:id", alertHandler.GetAlertByID)
 		}
 
@@ -396,10 +597,8 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			emergencyMessages.POST("", emergencyMessageHandler.CreateMessage)
 			emergencyMessages.GET("", emergencyMessageHandler.GetMessages)
 			emergencyMessages.POST("/send", emergencyMessageHandler.SendMessage)
-
 			emergencyMessages.GET("/:id", emergencyMessageHandler.GetMessageByID)
 			emergencyMessages.DELETE("/:id", emergencyMessageHandler.DeleteMessage)
-
 		}
 
 		user := protected.Group("/user")

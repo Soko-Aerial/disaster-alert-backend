@@ -60,49 +60,18 @@ func NewAlertHandler(alertService *services.AlertService) *AlertHandler {
 // @Description - imageUrls/videoUrls: Media links.
 // @Description - eventTime/expiresAt: ISO date/time values.
 // @Description
-// @Description EXAMPLE REQUEST BODY:
-// @Description {
-// @Description   "title": "Heavy rainfall warning",
-// @Description   "description": "Heavy rainfall is expected in Accra with possible flooding in low-lying areas.",
-// @Description   "summary": "Heavy rainfall expected in Accra with possible flooding.",
-// @Description   "category": "weather",
-// @Description   "severity": "high",
-// @Description   "status": "active",
-// @Description   "latitude": 5.6037,
-// @Description   "longitude": -0.1870,
-// @Description   "address": "Circle, Accra",
-// @Description   "country": "Ghana",
-// @Description   "region": "Greater Accra",
-// @Description   "radiusKm": 10,
-// @Description   "safetyInstructions": ["Move to higher ground", "Avoid flooded roads", "Follow official instructions"],
-// @Description   "sourceType": "admin",
-// @Description   "sourceName": "Admin Dashboard",
-// @Description   "priorityScore": 85,
-// @Description   "priorityLabel": "serious",
-// @Description   "eventTime": "2026-09-10T08:30:00Z",
-// @Description   "expiresAt": "2026-09-11T18:00:00Z",
-// @Description   "confidence": 0.95
-// @Description }
-// @Description
 // @Description HOW ADMIN ALERT ROUTING WORKS:
-// @Description Admin-created alerts also support auto-routing.
-// @Description The backend checks the alert category and automatically fills the access-control routing fields unless the admin provides routing overrides.
+// @Description Admin-created alerts support auto-routing.
+// @Description The backend checks the alert category and automatically fills access-control routing fields unless the admin provides routing overrides.
 // @Description
 // @Description CATEGORY ROUTING EXAMPLES:
-// @Description - fire -> Ghana Fire Service
-// @Description - flood -> NADMO
-// @Description - weather -> NADMO
-// @Description - drought -> NADMO
-// @Description - earthquake -> NADMO
-// @Description - health -> Ghana Health Service
-// @Description - medical -> Ambulance or Health Service
-// @Description - robbery -> Ghana Police Service
-// @Description - security -> Ghana Police Service
-// @Description - protests -> Ghana Police Service
-// @Description - accident -> Police and Ambulance
-// @Description - conflict -> National Security, Police, and Armed Forces
-// @Description - munitions -> National Security, Police, and Armed Forces
-// @Description - galamsey -> Police, Minerals Commission, and National Security
+// @Description - fire -> Fire Service
+// @Description - flood/weather/drought/earthquake -> Disaster management agency
+// @Description - health/medical -> Health or ambulance service
+// @Description - robbery/security/protests -> Police/security agency
+// @Description - accident -> Police and ambulance
+// @Description - conflict/munitions -> National security, police, and armed forces
+// @Description - galamsey -> Police, minerals/mining authority, and national security
 // @Description - other -> system/manual review
 // @Description
 // @Description ADMIN OVERRIDE:
@@ -111,7 +80,6 @@ func NewAlertHandler(alertService *services.AlertService) *AlertHandler {
 // @Description
 // @Description TECHNICAL ACCESS RULE:
 // @Description Read, update, and delete actions are protected by both permission checks and record-level scope checks.
-// @Description For example, alerts:update allows the route to be called, but the alert must still be assigned or visible to that organisation before it can be updated.
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Security PrivilegeCodeAuth
@@ -360,19 +328,7 @@ func (h *AlertHandler) EscalateAlert(c *gin.Context) {
 
 // GetAlerts godoc
 // @Summary List alerts
-// @Description Returns alerts from the system.
-// @Description
-// @Description ADMIN USE:
-// @Description When called from /admin/alerts, this is used by the admin dashboard to list all alerts.
-// @Description Requires AdminApiKeyAuth and PrivilegeCodeAuth with `alerts:read` permission.
-// @Description
-// @Description MOBILE USER USE:
-// @Description When called from /alerts, this is used by the mobile app to show alerts to authenticated users.
-// @Description Mobile users must provide BearerAuth.
-// @Description
-// @Description NOTE:
-// @Description This handler is currently shared by both mobile and admin routes.
-// @Description Make sure your service response hides admin-only/internal fields from normal mobile users if required.
+// @Description Returns alerts from the system for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
@@ -407,11 +363,18 @@ func (h *AlertHandler) GetAlerts(c *gin.Context) {
 // @Description ACCESS CONTROL:
 // @Description Super admin/global privilege codes can see all alerts.
 // @Description Organisation privilege codes only see alerts allowed by their category grants and record scope.
-// @Description For example, Fire Service can see fire alerts assigned or visible to Ghana Fire Service, while Police can see robbery/security alerts assigned or visible to Ghana Police Service.
+// @Description Optional filters: category, severity, status, sourceName, sourceType, country, and limit.
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Security PrivilegeCodeAuth
 // @Produce json
+// @Param category query string false "Filter by category." example(fire)
+// @Param severity query string false "Filter by severity." Enums(low, medium, high, critical) example(high)
+// @Param status query string false "Filter by status." example(active)
+// @Param sourceName query string false "Filter by source name." example(manual)
+// @Param sourceType query string false "Filter by source type." example(internal)
+// @Param country query string false "Filter by country name or country code." example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 200, maximum is 500." example(200)
 // @Success 200 {object} map[string]interface{} "Alerts fetched successfully."
 // @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
 // @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code."
@@ -440,6 +403,9 @@ func (h *AlertHandler) AdminGetAlerts(c *gin.Context) {
 		return
 	}
 
+	limit := parseAlertLimit(c, 200, 500)
+	alerts = filterAdminAlertsFromQuery(c, alerts, "", false, false, false, limit)
+
 	utils.SuccessResponse(
 		c,
 		http.StatusOK,
@@ -448,27 +414,275 @@ func (h *AlertHandler) AdminGetAlerts(c *gin.Context) {
 	)
 }
 
+// AdminGetActiveAlerts godoc
+// @Summary List active admin alerts
+// @Description Returns currently active alerts for the admin dashboard.
+// @Description Super admin can see all active alerts. Organisation privilege codes only see alerts inside their permitted scope.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param category query string false "Filter by category." example(flood)
+// @Param severity query string false "Filter by severity." Enums(low, medium, high, critical) example(high)
+// @Param sourceName query string false "Filter by source name." example(manual)
+// @Param sourceType query string false "Filter by source type." example(internal)
+// @Param country query string false "Filter by country name or country code." example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200." example(50)
+// @Success 200 {object} map[string]interface{} "Active alerts fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch active alerts."
+// @Router /admin/alerts/active [get]
+func (h *AlertHandler) AdminGetActiveAlerts(c *gin.Context) {
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetAlertsForPrivilege(privilegeCtx)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch active alerts",
+			err.Error(),
+		)
+		return
+	}
+
+	limit := parseAlertLimit(c, 50, 200)
+	alerts = filterAdminAlertsFromQuery(c, alerts, "", true, false, false, limit)
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Active alerts fetched successfully",
+		alerts,
+	)
+}
+
+// AdminGetLocalAlerts godoc
+// @Summary List local admin alerts
+// @Description Fetches active local alerts for the admin dashboard using a country filter.
+// @Description The country can be a country name or Alpha-2 country code.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param country query string true "Country name or country code used to filter local alerts." example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200." example(50)
+// @Success 200 {object} map[string]interface{} "Local alerts fetched successfully."
+// @Failure 400 {object} map[string]interface{} "Country query parameter is required."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch local alerts."
+// @Router /admin/alerts/local [get]
+func (h *AlertHandler) AdminGetLocalAlerts(c *gin.Context) {
+	country := strings.TrimSpace(c.Query("country"))
+	if country == "" {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Country is required for local alerts",
+			nil,
+		)
+		return
+	}
+
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetAlertsForPrivilege(privilegeCtx)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch local alerts",
+			err.Error(),
+		)
+		return
+	}
+
+	limit := parseAlertLimit(c, 50, 200)
+	alerts = filterAdminAlertsFromQuery(c, alerts, "", true, true, false, limit)
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Local alerts fetched successfully",
+		alerts,
+	)
+}
+
+// AdminGetGlobalAlerts godoc
+// @Summary List global admin alerts
+// @Description Fetches active global alerts for the admin dashboard.
+// @Description If country is supplied, alerts from that country are excluded. If country is omitted, all active scoped alerts are returned.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param country query string false "Optional country name or country code to exclude from global view." example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200." example(50)
+// @Success 200 {object} map[string]interface{} "Global alerts fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch global alerts."
+// @Router /admin/alerts/global [get]
+func (h *AlertHandler) AdminGetGlobalAlerts(c *gin.Context) {
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetAlertsForPrivilege(privilegeCtx)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch global alerts",
+			err.Error(),
+		)
+		return
+	}
+
+	limit := parseAlertLimit(c, 50, 200)
+	alerts = filterAdminAlertsFromQuery(c, alerts, "", true, false, true, limit)
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Global alerts fetched successfully",
+		alerts,
+	)
+}
+
+// AdminGetWeatherAlerts godoc
+// @Summary List weather admin alerts
+// @Description Fetches active weather-related alerts for the admin dashboard.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param country query string false "Optional country filter." example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200." example(50)
+// @Success 200 {object} map[string]interface{} "Weather alerts fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch weather alerts."
+// @Router /admin/alerts/weather [get]
+func (h *AlertHandler) AdminGetWeatherAlerts(c *gin.Context) {
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetAlertsForPrivilege(privilegeCtx)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch weather alerts",
+			err.Error(),
+		)
+		return
+	}
+
+	limit := parseAlertLimit(c, 50, 200)
+	alerts = filterAdminAlertsFromQuery(c, alerts, "weather", true, false, false, limit)
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Weather alerts fetched successfully",
+		alerts,
+	)
+}
+
+// AdminGetHealthAlerts godoc
+// @Summary List health admin alerts
+// @Description Fetches active health-related alerts for the admin dashboard.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param country query string false "Optional country filter." example(Ghana)
+// @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200." example(50)
+// @Success 200 {object} map[string]interface{} "Health alerts fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch health alerts."
+// @Router /admin/alerts/health [get]
+func (h *AlertHandler) AdminGetHealthAlerts(c *gin.Context) {
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alerts, err := h.alertService.GetAlertsForPrivilege(privilegeCtx)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch health alerts",
+			err.Error(),
+		)
+		return
+	}
+
+	limit := parseAlertLimit(c, 50, 200)
+	alerts = filterAdminAlertsFromQuery(c, alerts, "health", true, false, false, limit)
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Health alerts fetched successfully",
+		alerts,
+	)
+}
+
 // GetActiveAlerts godoc
 // @Summary List active alerts
-// @Description Returns currently active alerts.
-// @Description
-// @Description QUERY FILTERS:
-// @Description - category: Optional category filter such as flood, weather, fire, health, security.
-// @Description - severity: Optional severity filter such as low, medium, high, critical.
-// @Description - sourceName: Optional source name filter.
-// @Description - sourceType: Optional source type filter such as admin, weather, health, external.
-// @Description - country: Optional country filter such as Ghana.
-// @Description - limit: Optional result limit. Default is 50. Maximum is 200.
-// @Description
-// @Description MOBILE USE:
-// @Description The mobile app can use this endpoint to show active alerts on the home screen, alert feed, and map.
+// @Description Returns currently active alerts for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
 // @Param category query string false "Filter by category." example(flood)
 // @Param severity query string false "Filter by severity." Enums(low, medium, high, critical) example(high)
-// @Param sourceName query string false "Filter by source name." example(Admin Dashboard)
-// @Param sourceType query string false "Filter by source type." Enums(internal, external, system, user_report, weather, health, news, admin) example(admin)
+// @Param sourceName query string false "Filter by source name." example(manual)
+// @Param sourceType query string false "Filter by source type." example(internal)
 // @Param country query string false "Filter by country." example(Ghana)
 // @Param limit query int false "Maximum number of alerts to return. Default is 50, maximum is 200." example(50)
 // @Success 200 {object} map[string]interface{} "Active alerts fetched successfully."
@@ -523,6 +737,18 @@ func (h *AlertHandler) GetActiveAlerts(c *gin.Context) {
 func (h *AlertHandler) GetAlertDeliveryHistory(c *gin.Context) {
 	alertID := c.Param("id")
 
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		if _, err := h.alertService.GetAlertByIDForPrivilege(alertID, privilegeCtx); err != nil {
+			utils.ErrorResponse(
+				c,
+				http.StatusForbidden,
+				"Alert not found or access denied",
+				err.Error(),
+			)
+			return
+		}
+	}
+
 	history, err := h.alertService.GetAlertDeliveryHistory(alertID)
 	if err != nil {
 		utils.ErrorResponse(
@@ -560,6 +786,18 @@ func (h *AlertHandler) GetAlertDeliveryHistory(c *gin.Context) {
 func (h *AlertHandler) GetAlertRecipientDeliveries(c *gin.Context) {
 	alertID := c.Param("id")
 
+	if privilegeCtx, ok := authz.FromGin(c); ok {
+		if _, err := h.alertService.GetAlertByIDForPrivilege(alertID, privilegeCtx); err != nil {
+			utils.ErrorResponse(
+				c,
+				http.StatusForbidden,
+				"Alert not found or access denied",
+				err.Error(),
+			)
+			return
+		}
+	}
+
 	limit := int64(500)
 
 	if value := c.Query("limit"); value != "" {
@@ -590,19 +828,7 @@ func (h *AlertHandler) GetAlertRecipientDeliveries(c *gin.Context) {
 
 // GetLocalAlerts godoc
 // @Summary List local alerts
-// @Description Fetches alerts relevant to a specific country.
-// @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this when the app or admin dashboard wants alerts affecting a specific country.
-// @Description
-// @Description EXAMPLE:
-// @Description country=Ghana returns alerts affecting Ghana.
-// @Description
-// @Description REQUIRED QUERY PARAMETER:
-// @Description - country: Country name used to filter local alerts.
-// @Description
-// @Description OPTIONAL QUERY PARAMETER:
-// @Description - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+// @Description Fetches alerts relevant to a specific country for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
@@ -617,7 +843,7 @@ func (h *AlertHandler) GetLocalAlerts(c *gin.Context) {
 	country := c.Query("country")
 	limit := parseAlertLimit(c, 50, 200)
 
-	if country == "" {
+	if strings.TrimSpace(country) == "" {
 		utils.ErrorResponse(
 			c,
 			http.StatusBadRequest,
@@ -648,14 +874,7 @@ func (h *AlertHandler) GetLocalAlerts(c *gin.Context) {
 
 // GetGlobalAlerts godoc
 // @Summary List global alerts
-// @Description Fetches global alerts.
-// @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this when the app or dashboard wants alerts that are not limited to one local country view.
-// @Description
-// @Description OPTIONAL QUERY PARAMETERS:
-// @Description - country: Optional country context depending on service logic.
-// @Description - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+// @Description Fetches global alerts for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
@@ -690,14 +909,7 @@ func (h *AlertHandler) GetGlobalAlerts(c *gin.Context) {
 
 // GetWeatherAlerts godoc
 // @Summary List weather alerts
-// @Description Fetches weather-related alerts.
-// @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this for weather warnings such as storms, heavy rainfall, flooding risk, heat, wind, or severe weather.
-// @Description
-// @Description OPTIONAL QUERY PARAMETERS:
-// @Description - country: Optional country filter. Example: Ghana.
-// @Description - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+// @Description Fetches weather-related alerts for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
@@ -732,14 +944,7 @@ func (h *AlertHandler) GetWeatherAlerts(c *gin.Context) {
 
 // GetHealthAlerts godoc
 // @Summary List health alerts
-// @Description Fetches health-related alerts.
-// @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this for disease outbreaks, public health risks, contamination warnings, epidemic updates, or medical emergency alerts.
-// @Description
-// @Description OPTIONAL QUERY PARAMETERS:
-// @Description - country: Optional country filter. Example: Ghana.
-// @Description - limit: Maximum number of alerts to return. Default is 50. Maximum is 200.
+// @Description Fetches health-related alerts for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
@@ -832,13 +1037,7 @@ func (h *AlertHandler) AdminGetAlertByID(c *gin.Context) {
 
 // GetAlertByID godoc
 // @Summary Get one alert
-// @Description Fetches details of a single alert by ID.
-// @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this when the mobile app or admin dashboard opens an alert detail screen.
-// @Description
-// @Description PATH PARAMETER:
-// @Description - id: MongoDB ObjectID of the alert.
+// @Description Fetches details of a single alert by ID for authenticated mobile users.
 // @Tags Alerts
 // @Security BearerAuth
 // @Produce json
@@ -878,31 +1077,10 @@ func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 	)
 }
 
-// UpdateAlertStatus godoc
-// @Summary Update alert status
-// @Description Updates the status of an alert from the admin dashboard.
-// @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this when an admin wants to mark an alert as draft, active, resolved, expired, or cancelled.
-// @Description
-// @Description REQUIRED HEADERS:
-// @Description - Sigtrack-Admin-API-Key: Your admin API key.
-// @Description - X-Privilege-Code: A valid privilege code with `alerts:update`.
-// @Description
-// @Description REQUIRED PERMISSION:
-// @Description alerts:update
-// @Description
-// @Description ALLOWED STATUS VALUES:
-// @Description - draft: Alert is saved but not active.
-// @Description - active: Alert is currently active.
-// @Description - resolved: The emergency has been resolved.
-// @Description - expired: The alert is no longer valid.
-// @Description - cancelled: The alert was cancelled.
-// @Description
-// @Description EXAMPLE REQUEST BODY:
-// @Description {
-// @Description   "status": "resolved"
-// @Description }
+// AdminUpdateAlertStatus godoc
+// @Summary Update admin alert status
+// @Description Updates only the status of an alert from the admin dashboard.
+// @Description This does not fully edit the alert content. It only changes status such as draft, active, resolved, expired, or cancelled.
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Security PrivilegeCodeAuth
@@ -913,10 +1091,80 @@ func (h *AlertHandler) GetAlertByID(c *gin.Context) {
 // @Success 200 {object} map[string]interface{} "Alert status updated successfully."
 // @Failure 400 {object} map[string]interface{} "Invalid request body, validation error, or invalid alert status."
 // @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key."
-// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code."
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, unauthorized privilege code, or alert outside organisation scope."
 // @Failure 404 {object} map[string]interface{} "Alert not found."
 // @Failure 500 {object} map[string]interface{} "Server error while updating alert status."
 // @Router /admin/alerts/{id}/status [put]
+func (h *AlertHandler) AdminUpdateAlertStatus(c *gin.Context) {
+	alertID := c.Param("id")
+
+	var req dto.UpdateAlertStatusRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Invalid request body",
+			err.Error(),
+		)
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Validation failed",
+			err.Error(),
+		)
+		return
+	}
+
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alert, err := h.alertService.UpdateAlertStatusForPrivilege(
+		alertID,
+		req.Status,
+		privilegeCtx,
+	)
+	if err != nil {
+		statusCode := http.StatusBadRequest
+
+		if strings.Contains(strings.ToLower(err.Error()), "access") ||
+			strings.Contains(strings.ToLower(err.Error()), "permission") {
+			statusCode = http.StatusForbidden
+		}
+
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		utils.ErrorResponse(
+			c,
+			statusCode,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alert status updated successfully",
+		alert,
+	)
+}
+
 func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 	alertID := c.Param("id")
 
@@ -965,19 +1213,9 @@ func (h *AlertHandler) UpdateAlertStatus(c *gin.Context) {
 // @Summary Delete alert
 // @Description Deletes an alert from the admin dashboard.
 // @Description
-// @Description WHEN TO USE THIS ENDPOINT:
-// @Description Use this when an admin needs to permanently remove an alert.
-// @Description
 // @Description IMPORTANT:
 // @Description For normal emergency operations, resolving or expiring an alert is usually better than deleting it.
 // @Description Delete should be used carefully because it may remove the alert from history depending on repository logic.
-// @Description
-// @Description REQUIRED HEADERS:
-// @Description - Sigtrack-Admin-API-Key: Your admin API key.
-// @Description - X-Privilege-Code: A valid privilege code with `alerts:delete`.
-// @Description
-// @Description REQUIRED PERMISSION:
-// @Description alerts:delete
 // @Tags Admin Alerts
 // @Security AdminApiKeyAuth
 // @Security PrivilegeCodeAuth
@@ -1004,7 +1242,8 @@ func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 	if err != nil {
 		statusCode := http.StatusBadRequest
 
-		if strings.Contains(strings.ToLower(err.Error()), "do not have access") {
+		if strings.Contains(strings.ToLower(err.Error()), "do not have access") ||
+			strings.Contains(strings.ToLower(err.Error()), "permission") {
 			statusCode = http.StatusForbidden
 		}
 
@@ -1026,6 +1265,96 @@ func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 		http.StatusOK,
 		"Alert deleted successfully",
 		nil,
+	)
+}
+
+func filterAdminAlertsFromQuery(
+	c *gin.Context,
+	alerts []models.Alert,
+	forcedCategory string,
+	activeOnly bool,
+	requireCountryMatch bool,
+	excludeCountry bool,
+	limit int,
+) []models.Alert {
+	category := strings.TrimSpace(c.Query("category"))
+	if forcedCategory != "" {
+		category = forcedCategory
+	}
+
+	severity := strings.TrimSpace(c.Query("severity"))
+	status := strings.TrimSpace(c.Query("status"))
+	sourceName := strings.TrimSpace(c.Query("sourceName"))
+	sourceType := strings.TrimSpace(c.Query("sourceType"))
+	country := strings.TrimSpace(c.Query("country"))
+
+	filtered := make([]models.Alert, 0, len(alerts))
+
+	for _, alert := range alerts {
+		if activeOnly && !strings.EqualFold(strings.TrimSpace(alert.Status), "active") {
+			continue
+		}
+
+		if category != "" && !strings.EqualFold(strings.TrimSpace(alert.Category), category) {
+			continue
+		}
+
+		if severity != "" && !strings.EqualFold(strings.TrimSpace(alert.Severity), severity) {
+			continue
+		}
+
+		if status != "" && !strings.EqualFold(strings.TrimSpace(alert.Status), status) {
+			continue
+		}
+
+		if sourceName != "" && !strings.EqualFold(strings.TrimSpace(alert.SourceName), sourceName) {
+			continue
+		}
+
+		if sourceType != "" && !strings.EqualFold(strings.TrimSpace(alert.SourceType), sourceType) {
+			continue
+		}
+
+		if requireCountryMatch && country != "" && !alertCountryMatches(alert, country) {
+			continue
+		}
+
+		if !requireCountryMatch && country != "" && !excludeCountry && !alertCountryMatches(alert, country) {
+			continue
+		}
+
+		if excludeCountry && country != "" && alertCountryMatches(alert, country) {
+			continue
+		}
+
+		filtered = append(filtered, alert)
+
+		if limit > 0 && len(filtered) >= limit {
+			break
+		}
+	}
+
+	return filtered
+}
+
+func alertCountryMatches(alert models.Alert, country string) bool {
+	queryCountry := utils.NormalizeCountryCode(country)
+	alertCountry := utils.NormalizeCountryCode(alert.Location.Country)
+
+	if alertCountry == "" {
+		alertCountry = utils.NormalizeCountryCode(alert.Targeting.Country)
+	}
+
+	if queryCountry != "" && alertCountry != "" {
+		return queryCountry == alertCountry
+	}
+
+	return strings.EqualFold(
+		strings.TrimSpace(country),
+		strings.TrimSpace(alert.Location.Country),
+	) || strings.EqualFold(
+		strings.TrimSpace(country),
+		strings.TrimSpace(alert.Targeting.Country),
 	)
 }
 

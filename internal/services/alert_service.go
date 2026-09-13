@@ -12,6 +12,7 @@ import (
 	"disaster_alert_backend/internal/models"
 	"disaster_alert_backend/internal/permissions"
 	"disaster_alert_backend/internal/repositories"
+	"disaster_alert_backend/internal/utils"
 	"disaster_alert_backend/internal/websocket"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -48,6 +49,7 @@ func (s *AlertService) SetAlertDeliveryRepository(
 ) {
 	s.alertDeliveryRepo = alertDeliveryRepo
 }
+
 func (s *AlertService) SetFCMTokenRepository(
 	fcmTokenRepo *repositories.FCMTokenRepository,
 ) {
@@ -233,6 +235,41 @@ func (s *AlertService) GetAlerts() ([]models.Alert, error) {
 	return s.alertRepo.FindAll()
 }
 
+func (s *AlertService) GetAlertsForPrivilege(
+	privilegeCtx *authz.PrivilegeContext,
+) ([]models.Alert, error) {
+	if privilegeCtx == nil {
+		return nil, errors.New("privilege context not found")
+	}
+
+	if !authz.HasPermission(privilegeCtx, permissions.AlertsRead) {
+		return nil, errors.New("you do not have permission to read alerts")
+	}
+
+	alerts, err := s.alertRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	if authz.IsGlobal(privilegeCtx) {
+		return alerts, nil
+	}
+
+	filteredAlerts := make([]models.Alert, 0)
+
+	for i := range alerts {
+		if canPrivilegeAccessAlert(
+			privilegeCtx,
+			&alerts[i],
+			permissions.AlertsRead,
+		) {
+			filteredAlerts = append(filteredAlerts, alerts[i])
+		}
+	}
+
+	return filteredAlerts, nil
+}
+
 func (s *AlertService) GetActiveAlerts() ([]models.Alert, error) {
 	return s.alertRepo.FindActive()
 }
@@ -324,6 +361,43 @@ func (s *AlertService) GetAlertByID(alertID string) (*models.Alert, error) {
 	return s.alertRepo.FindByID(objectID)
 }
 
+func (s *AlertService) GetAlertByIDForPrivilege(
+	alertID string,
+	privilegeCtx *authz.PrivilegeContext,
+) (*models.Alert, error) {
+	if privilegeCtx == nil {
+		return nil, errors.New("privilege context not found")
+	}
+
+	if !authz.HasPermission(privilegeCtx, permissions.AlertsRead) {
+		return nil, errors.New("you do not have permission to read alerts")
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(alertID)
+	if err != nil {
+		return nil, errors.New("invalid alert id")
+	}
+
+	alert, err := s.alertRepo.FindByID(objectID)
+	if err != nil || alert == nil {
+		return nil, errors.New("alert not found")
+	}
+
+	if authz.IsGlobal(privilegeCtx) {
+		return alert, nil
+	}
+
+	if !canPrivilegeAccessAlert(
+		privilegeCtx,
+		alert,
+		permissions.AlertsRead,
+	) {
+		return nil, errors.New("you do not have access to this alert")
+	}
+
+	return alert, nil
+}
+
 func (s *AlertService) UpdateAlertStatus(
 	alertID string,
 	status string,
@@ -375,10 +449,10 @@ func (s *AlertService) UpdateAlertStatusForPrivilege(
 		return nil, errors.New("alert not found")
 	}
 
-	if !authz.CanAccessRecord(
+	if !canPrivilegeAccessAlert(
 		privilegeCtx,
+		alert,
 		permissions.AlertsUpdate,
-		alertScope(alert),
 	) {
 		return nil, errors.New("you do not have access to update this alert")
 	}
@@ -409,10 +483,10 @@ func (s *AlertService) DeleteAlertForPrivilege(
 		return errors.New("alert not found")
 	}
 
-	if !authz.CanAccessRecord(
+	if !canPrivilegeAccessAlert(
 		privilegeCtx,
+		alert,
 		permissions.AlertsDelete,
-		alertScope(alert),
 	) {
 		return errors.New("you do not have access to delete this alert")
 	}
@@ -549,9 +623,11 @@ func buildAlertTargetingFromRequest(req dto.CreateAlertRequest) models.AlertTarg
 			mode = models.AlertTargetingModePolygon
 		} else if req.Targeting.RadiusKm > 0 || req.RadiusKm > 0 {
 			mode = models.AlertTargetingModeRadius
-		} else if strings.TrimSpace(req.Targeting.Region) != "" || strings.TrimSpace(req.Region) != "" {
+		} else if strings.TrimSpace(req.Targeting.Region) != "" ||
+			strings.TrimSpace(req.Region) != "" {
 			mode = models.AlertTargetingModeRegion
-		} else if strings.TrimSpace(req.Targeting.Country) != "" || strings.TrimSpace(req.Country) != "" {
+		} else if strings.TrimSpace(req.Targeting.Country) != "" ||
+			strings.TrimSpace(req.Country) != "" {
 			mode = models.AlertTargetingModeCountry
 		} else {
 			mode = models.AlertTargetingModeRadius
@@ -766,39 +842,177 @@ func normalizeAlertTags(
 	return tags
 }
 
-func (s *AlertService) GetAlertsForPrivilege(
+func canPrivilegeAccessAlert(
 	privilegeCtx *authz.PrivilegeContext,
-) ([]models.Alert, error) {
-	filter := authz.BuildMongoScopeFilter(
-		privilegeCtx,
-		permissions.AlertsRead,
-		"accessCategorySlug",
-		"location.country",
-		"location.region",
-	)
+	alert *models.Alert,
+	requiredAction string,
+) bool {
+	if privilegeCtx == nil || alert == nil {
+		return false
+	}
 
-	return s.alertRepo.FindAllWithFilter(filter)
+	if !authz.HasPermission(privilegeCtx, requiredAction) {
+		return false
+	}
+
+	if authz.IsGlobal(privilegeCtx) {
+		return true
+	}
+
+	orgID := normalizeAlertAccessText(privilegeCtx.OrganisationID)
+	if orgID == "" {
+		return false
+	}
+
+	categorySlug := normalizeAlertAccessText(alert.AccessCategorySlug)
+	if categorySlug == "" {
+		categorySlug = normalizeAlertAccessText(alert.Category)
+	}
+
+	if categorySlug == "" {
+		return false
+	}
+
+	if !privilegeGrantAllowsAlertAction(
+		privilegeCtx,
+		categorySlug,
+		alert,
+		requiredAction,
+	) {
+		return false
+	}
+
+	if orgID == normalizeAlertAccessText(alert.OwnerOrganisationID) {
+		return true
+	}
+
+	if orgID == normalizeAlertAccessText(alert.LeadOrganisationID) {
+		return true
+	}
+
+	if containsNormalizedAlertAccessText(alert.AssignedOrgIDs, orgID) {
+		return true
+	}
+
+	if containsNormalizedAlertAccessText(alert.VisibleToOrgIDs, orgID) {
+		return true
+	}
+
+	return false
 }
 
-func (s *AlertService) GetAlertByIDForPrivilege(
-	alertID string,
+func privilegeGrantAllowsAlertAction(
 	privilegeCtx *authz.PrivilegeContext,
-) (*models.Alert, error) {
-	objectID, err := primitive.ObjectIDFromHex(alertID)
-	if err != nil {
-		return nil, errors.New("invalid alert id")
+	categorySlug string,
+	alert *models.Alert,
+	requiredAction string,
+) bool {
+	if privilegeCtx == nil {
+		return false
 	}
 
-	alert, err := s.alertRepo.FindByID(objectID)
-	if err != nil || alert == nil {
-		return nil, errors.New("alert not found")
+	// If there are no grants, allow organisation/record scope to decide,
+	// as long as the flat permission already exists.
+	if len(privilegeCtx.Grants) == 0 {
+		return true
 	}
 
-	if !authz.CanAccessRecord(privilegeCtx, permissions.AlertsRead, alertScope(alert)) {
-		return nil, errors.New("you do not have access to this alert")
+	for _, grant := range privilegeCtx.Grants {
+		grantCategorySlug := normalizeAlertAccessText(grant.CategorySlug)
+
+		if grantCategorySlug != "" && grantCategorySlug != categorySlug {
+			continue
+		}
+
+		if !containsNormalizedAlertAccessText(grant.Actions, requiredAction) {
+			continue
+		}
+
+		if !grantLocationAllowsAlert(grant, alert) {
+			continue
+		}
+
+		return true
 	}
 
-	return alert, nil
+	return false
+}
+
+func grantLocationAllowsAlert(
+	grant models.PrivilegeGrant,
+	alert *models.Alert,
+) bool {
+	if alert == nil {
+		return false
+	}
+
+	// If no countries are specified in the grant, do not restrict by country.
+	if len(grant.Countries) > 0 {
+		alertCountry := utils.NormalizeCountryCode(alert.Location.Country)
+		if alertCountry == "" {
+			alertCountry = utils.NormalizeCountryCode(alert.Targeting.Country)
+		}
+
+		if !grantCountriesContainCountry(grant.Countries, alertCountry) {
+			return false
+		}
+	}
+
+	// If no regions are specified in the grant, do not restrict by region.
+	if len(grant.Regions) > 0 {
+		alertRegion := normalizeAlertAccessText(alert.Location.Region)
+		if alertRegion == "" {
+			alertRegion = normalizeAlertAccessText(alert.Targeting.Region)
+		}
+
+		if !containsNormalizedAlertAccessText(grant.Regions, alertRegion) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func grantCountriesContainCountry(
+	grantCountries []string,
+	alertCountry string,
+) bool {
+	alertCountry = utils.NormalizeCountryCode(alertCountry)
+
+	if alertCountry == "" {
+		return false
+	}
+
+	for _, grantCountry := range grantCountries {
+		if utils.NormalizeCountryCode(grantCountry) == alertCountry {
+			return true
+		}
+	}
+
+	return false
+}
+
+func containsNormalizedAlertAccessText(
+	values []string,
+	target string,
+) bool {
+	target = normalizeAlertAccessText(target)
+
+	if target == "" {
+		return false
+	}
+
+	for _, value := range values {
+		if normalizeAlertAccessText(value) == target {
+			return true
+		}
+	}
+
+	return false
+}
+
+func normalizeAlertAccessText(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func alertScope(alert *models.Alert) authz.RecordScope {
@@ -806,15 +1020,30 @@ func alertScope(alert *models.Alert) authz.RecordScope {
 		return authz.RecordScope{}
 	}
 
+	categorySlug := strings.TrimSpace(alert.AccessCategorySlug)
+	if categorySlug == "" {
+		categorySlug = strings.TrimSpace(alert.Category)
+	}
+
+	country := utils.NormalizeCountryCode(alert.Location.Country)
+	if country == "" {
+		country = utils.NormalizeCountryCode(alert.Targeting.Country)
+	}
+
+	region := strings.TrimSpace(alert.Location.Region)
+	if region == "" {
+		region = strings.TrimSpace(alert.Targeting.Region)
+	}
+
 	return authz.RecordScope{
 		AccessCategoryID:    alert.AccessCategoryID,
-		AccessCategorySlug:  alert.AccessCategorySlug,
+		AccessCategorySlug:  categorySlug,
 		AccessCategoryName:  alert.AccessCategoryName,
 		OwnerOrganisationID: alert.OwnerOrganisationID,
 		LeadOrganisationID:  alert.LeadOrganisationID,
 		AssignedOrgIDs:      alert.AssignedOrgIDs,
 		VisibleToOrgIDs:     alert.VisibleToOrgIDs,
-		Country:             alert.Location.Country,
-		Region:              alert.Location.Region,
+		Country:             country,
+		Region:              region,
 	}
 }
