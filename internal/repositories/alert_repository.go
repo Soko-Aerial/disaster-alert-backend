@@ -493,6 +493,14 @@ func (r *AlertRepository) EnsureIndexes() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Old bad index. It included two array fields in one compound index:
+	// assignedOrgIds + visibleToOrgIds.
+	// MongoDB rejects documents that contain both arrays.
+	_, _ = r.collection.Indexes().DropOne(
+		ctx,
+		"accessCategorySlug_1_ownerOrganisationId_1_leadOrganisationId_1_assignedOrgIds_1_visibleToOrgIds_1",
+	)
+
 	indexes := []mongo.IndexModel{
 		{
 			Keys: bson.D{
@@ -507,7 +515,17 @@ func (r *AlertRepository) EnsureIndexes() error {
 				{Key: "accessCategorySlug", Value: 1},
 				{Key: "ownerOrganisationId", Value: 1},
 				{Key: "leadOrganisationId", Value: 1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "accessCategorySlug", Value: 1},
 				{Key: "assignedOrgIds", Value: 1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "accessCategorySlug", Value: 1},
 				{Key: "visibleToOrgIds", Value: 1},
 			},
 		},
