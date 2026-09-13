@@ -289,6 +289,8 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			adminAlerts.POST("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.CreateAlert)
 			adminAlerts.GET("", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlerts)
 
+			adminAlerts.POST("/preview-targeting", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), alertHandler.PreviewAlertTargeting)
+
 			adminAlerts.GET("/active", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetActiveAlerts)
 			adminAlerts.POST("/sync-external", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsCreate), aggregatorHandler.SyncExternalAlerts)
 			adminAlerts.GET("/local", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetLocalAlerts)
@@ -296,9 +298,15 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			adminAlerts.GET("/weather", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetWeatherAlerts)
 			adminAlerts.GET("/health", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetHealthAlerts)
 
+			adminAlerts.GET("/:id/delivery-history", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertDeliveryHistory)
+			adminAlerts.GET("/:id/recipient-deliveries", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertRecipientDeliveries)
+
+			adminAlerts.PUT("/:id/escalate", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsEscalate), alertHandler.EscalateAlert)
+
 			adminAlerts.GET("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsRead), alertHandler.GetAlertByID)
 			adminAlerts.PUT("/:id/status", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsUpdate), alertHandler.UpdateAlertStatus)
 			adminAlerts.DELETE("/:id", middleware.RequirePrivilegePermission(adminPrivilegeCodeService, permissions.AlertsDelete), alertHandler.DeleteAlert)
+
 		}
 
 		adminNotifications := admin.Group("/notifications")
@@ -334,6 +342,7 @@ Date/time values should use ISO format where possible, for example: 2026-09-10T0
 			//notifications.POST("/test/all", notificationHandler.SendTestToAll)
 
 			notifications.GET("", appNotificationHandler.GetMyNotifications)
+			notifications.GET("/history", appNotificationHandler.GetMyNotificationHistory)
 			notifications.GET("/unread-count", appNotificationHandler.GetUnreadCount)
 			notifications.PUT("/read", appNotificationHandler.MarkRead)
 			notifications.PUT("/read-all", appNotificationHandler.MarkAllRead)

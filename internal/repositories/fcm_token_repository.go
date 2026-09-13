@@ -117,3 +117,66 @@ func (r *FCMTokenRepository) FindAllActiveTokens() ([]string, error) {
 
 	return tokens, nil
 }
+
+func (r *FCMTokenRepository) HasActiveTokenByUserID(
+	userID primitive.ObjectID,
+) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if userID.IsZero() {
+		return false, nil
+	}
+
+	count, err := r.collection.CountDocuments(ctx, bson.M{
+		"userId":   userID,
+		"isActive": true,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (r *FCMTokenRepository) FindActiveUserIDMap(
+	userIDs []primitive.ObjectID,
+) (map[primitive.ObjectID]bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result := map[primitive.ObjectID]bool{}
+
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+
+	cursor, err := r.collection.Find(ctx, bson.M{
+		"userId": bson.M{
+			"$in": userIDs,
+		},
+		"isActive": true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var token models.FCMToken
+
+		if err := cursor.Decode(&token); err != nil {
+			return nil, err
+		}
+
+		if !token.UserID.IsZero() {
+			result[token.UserID] = true
+		}
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

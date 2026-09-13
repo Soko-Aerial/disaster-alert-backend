@@ -28,6 +28,7 @@ type Alert struct {
 	LeadOrganisationID  string        `bson:"leadOrganisationId,omitempty" json:"leadOrganisationId,omitempty"`
 	AssignedOrgIDs      []string      `bson:"assignedOrgIds,omitempty" json:"assignedOrgIds,omitempty"`
 	VisibleToOrgIDs     []string      `bson:"visibleToOrgIds,omitempty" json:"visibleToOrgIds,omitempty"`
+	Targeting AlertTargeting `bson:"targeting,omitempty" json:"targeting,omitempty"`
 	Severity            string        `bson:"severity" json:"severity"`
 	Status              string        `bson:"status" json:"status"`
 	Location            AlertLocation `bson:"location" json:"location"`

@@ -26,11 +26,22 @@ func NewAppNotificationService(
 	}
 }
 
+// GetUserNotifications returns the main notification inbox.
+// Old read notifications are hidden by the repository.
 func (s *AppNotificationService) GetUserNotifications(
 	userID primitive.ObjectID,
 	limit int,
 ) ([]models.AppNotification, error) {
 	return s.notificationRepo.FindByRecipientID(userID, limit)
+}
+
+// GetUserNotificationHistory returns longer notification history.
+// Use this for a separate History screen/tab.
+func (s *AppNotificationService) GetUserNotificationHistory(
+	userID primitive.ObjectID,
+	limit int,
+) ([]models.AppNotification, error) {
+	return s.notificationRepo.FindHistoryByRecipientID(userID, limit)
 }
 
 func (s *AppNotificationService) GetUnreadCount(
@@ -63,6 +74,19 @@ func (s *AppNotificationService) MarkAllRead(
 	return s.notificationRepo.MarkAllRead(userID)
 }
 
+func (s *AppNotificationService) ArchiveOldReadNotificationsForUser(
+	userID primitive.ObjectID,
+	hours int,
+) error {
+	return s.notificationRepo.ArchiveReadNotificationsOlderThan(userID, hours)
+}
+
+func (s *AppNotificationService) CleanupOldReadNotifications(
+	days int,
+) (int64, error) {
+	return s.notificationRepo.CleanupReadNotificationsOlderThan(days)
+}
+
 func (s *AppNotificationService) CreateForUser(
 	userID primitive.ObjectID,
 	title string,
@@ -80,6 +104,7 @@ func (s *AppNotificationService) CreateForUser(
 		ReferenceID:   referenceID,
 		Data:          data,
 		IsRead:        false,
+		IsArchived:    false,
 	}
 
 	createdNotification, err := s.notificationRepo.Create(notification)
@@ -109,6 +134,7 @@ func (s *AppNotificationService) CreateForAdmin(
 		ReferenceID:   referenceID,
 		Data:          data,
 		IsRead:        false,
+		IsArchived:    false,
 	}
 
 	createdNotification, err := s.notificationRepo.Create(notification)
@@ -141,6 +167,7 @@ func (s *AppNotificationService) CreateManyForUsers(
 			ReferenceID:   referenceID,
 			Data:          data,
 			IsRead:        false,
+			IsArchived:    false,
 		})
 	}
 
@@ -148,8 +175,8 @@ func (s *AppNotificationService) CreateManyForUsers(
 		return err
 	}
 
-	for _, notification := range notifications {
-		s.broadcastNotification(&notification)
+	for index := range notifications {
+		s.broadcastNotification(&notifications[index])
 	}
 
 	return nil
@@ -174,6 +201,10 @@ func (s *AppNotificationService) broadcastNotification(
 			"referenceId":   notification.ReferenceID,
 			"data":          notification.Data,
 			"isRead":        notification.IsRead,
+			"readAt":        notification.ReadAt,
+			"isArchived":    notification.IsArchived,
+			"archivedAt":    notification.ArchivedAt,
+			"expiresAt":     notification.ExpiresAt,
 			"createdAt":     notification.CreatedAt,
 			"updatedAt":     notification.UpdatedAt,
 		},

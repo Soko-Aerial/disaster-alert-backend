@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"math"
+	"strings"
 	"time"
 
 	"disaster_alert_backend/internal/models"
@@ -275,35 +276,35 @@ func (r *AlertRepository) UpsertExternalAlert(
 
 	update := bson.M{
 		"$set": bson.M{
-			"title":                alert.Title,
-			"description":          alert.Description,
-			"summary":              alert.Summary,
-			"category":             alert.Category,
-			"accessCategoryId":     alert.AccessCategoryID,
-			"accessCategorySlug":   alert.AccessCategorySlug,
-			"accessCategoryName":   alert.AccessCategoryName,
-			"ownerOrganisationId":  alert.OwnerOrganisationID,
-			"leadOrganisationId":   alert.LeadOrganisationID,
-			"assignedOrgIds":       alert.AssignedOrgIDs,
-			"visibleToOrgIds":      alert.VisibleToOrgIDs,
-			"severity":             alert.Severity,
-			"status":               alert.Status,
-			"location":             alert.Location,
-			"radiusKm":             alert.RadiusKm,
-			"safetyInstructions":   alert.SafetyInstructions,
-			"sourceUrl":            alert.SourceURL,
-			"imageUrls":            alert.ImageURLs,
-			"videoUrls":            alert.VideoURLs,
-			"tags":                 alert.Tags,
-			"priorityScore":        alert.PriorityScore,
-			"priorityLabel":        alert.PriorityLabel,
-			"isBreaking":           alert.IsBreaking,
-			"isVerified":           alert.IsVerified,
-			"eventTime":            alert.EventTime,
-			"expiresAt":            alert.ExpiresAt,
-			"confidence":           alert.Confidence,
-			"lastSyncedAt":         alert.LastSyncedAt,
-			"updatedAt":            alert.UpdatedAt,
+			"title":               alert.Title,
+			"description":         alert.Description,
+			"summary":             alert.Summary,
+			"category":            alert.Category,
+			"accessCategoryId":    alert.AccessCategoryID,
+			"accessCategorySlug":  alert.AccessCategorySlug,
+			"accessCategoryName":  alert.AccessCategoryName,
+			"ownerOrganisationId": alert.OwnerOrganisationID,
+			"leadOrganisationId":  alert.LeadOrganisationID,
+			"assignedOrgIds":      alert.AssignedOrgIDs,
+			"visibleToOrgIds":     alert.VisibleToOrgIDs,
+			"severity":            alert.Severity,
+			"status":              alert.Status,
+			"location":            alert.Location,
+			"radiusKm":            alert.RadiusKm,
+			"safetyInstructions":  alert.SafetyInstructions,
+			"sourceUrl":           alert.SourceURL,
+			"imageUrls":           alert.ImageURLs,
+			"videoUrls":           alert.VideoURLs,
+			"tags":                alert.Tags,
+			"priorityScore":       alert.PriorityScore,
+			"priorityLabel":       alert.PriorityLabel,
+			"isBreaking":          alert.IsBreaking,
+			"isVerified":          alert.IsVerified,
+			"eventTime":           alert.EventTime,
+			"expiresAt":           alert.ExpiresAt,
+			"confidence":          alert.Confidence,
+			"lastSyncedAt":        alert.LastSyncedAt,
+			"updatedAt":           alert.UpdatedAt,
 		},
 		"$setOnInsert": bson.M{
 			"sourceType": alert.SourceType,
@@ -438,6 +439,54 @@ func (r *AlertRepository) FindCriticalGlobal(
 		Severity: "critical",
 		Limit:    limit,
 	})
+}
+
+func (r *AlertRepository) UpdateTargetingAndSeverity(
+	alertID primitive.ObjectID,
+	severity string,
+	targeting models.AlertTargeting,
+	radiusKm float64,
+	priorityScore int,
+	priorityLabel string,
+) (*models.Alert, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	setFields := bson.M{
+		"targeting":     targeting,
+		"priorityScore": priorityScore,
+		"priorityLabel": priorityLabel,
+		"isBreaking":    priorityScore >= 85,
+		"updatedAt":     time.Now().UTC(),
+	}
+
+	if strings.TrimSpace(severity) != "" {
+		setFields["severity"] = strings.ToLower(strings.TrimSpace(severity))
+	}
+
+	if radiusKm > 0 {
+		setFields["radiusKm"] = radiusKm
+	}
+
+	opts := options.FindOneAndUpdate().
+		SetReturnDocument(options.After)
+
+	var updatedAlert models.Alert
+
+	err := r.collection.FindOneAndUpdate(
+		ctx,
+		bson.M{"_id": alertID},
+		bson.M{
+			"$set": setFields,
+		},
+		opts,
+	).Decode(&updatedAlert)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &updatedAlert, nil
 }
 
 func (r *AlertRepository) EnsureIndexes() error {

@@ -48,6 +48,13 @@ type CreateAlertRequest struct {
 	// VisibleToOrgIDs are organisations allowed to view this alert.
 	VisibleToOrgIDs []string `json:"visibleToOrgIds,omitempty" example:"nadmo,ghana_police_service,ghana_fire_service"`
 
+	// Targeting controls who receives push notifications.
+	// The alert itself may still appear on the map/feed, but push notifications should only go to users in the target area.
+	//
+	// Supported modes:
+	// radius, polygon, region, country, national
+	Targeting AlertTargetingRequest `json:"targeting,omitempty"`
+
 	// Severity describes how serious the alert is.
 	//
 	// Allowed values:
@@ -76,7 +83,8 @@ type CreateAlertRequest struct {
 
 	// RadiusKm is the approximate affected area around the latitude/longitude.
 	//
-	// Example: 10 means users within about 10km may be affected.
+	// Example:
+	// 10 means users within about 10km may be affected.
 	RadiusKm float64 `json:"radiusKm,omitempty" example:"10"`
 
 	// SafetyInstructions are clear actions users should take.

@@ -20,6 +20,8 @@ import (
 type AlertService struct {
 	alertRepo              *repositories.AlertRepository
 	userRepo               *repositories.UserRepository
+	fcmTokenRepo           *repositories.FCMTokenRepository
+	alertDeliveryRepo      *repositories.AlertDeliveryRepository
 	notificationDispatcher NotificationDispatcher
 	appNotificationService *AppNotificationService
 	broadcaster            *websocket.Broadcaster
@@ -39,6 +41,17 @@ func NewAlertService(
 		appNotificationService: appNotificationService,
 		broadcaster:            broadcaster,
 	}
+}
+
+func (s *AlertService) SetAlertDeliveryRepository(
+	alertDeliveryRepo *repositories.AlertDeliveryRepository,
+) {
+	s.alertDeliveryRepo = alertDeliveryRepo
+}
+func (s *AlertService) SetFCMTokenRepository(
+	fcmTokenRepo *repositories.FCMTokenRepository,
+) {
+	s.fcmTokenRepo = fcmTokenRepo
 }
 
 func (s *AlertService) CreateAlert(
@@ -90,9 +103,11 @@ func (s *AlertService) CreateAlert(
 		summary = strings.TrimSpace(req.Description)
 	}
 
+	category := strings.TrimSpace(req.Category)
+
 	priorityScore := req.PriorityScore
 	if priorityScore <= 0 {
-		priorityScore = manualAlertPriorityScore(req.Severity, req.Category)
+		priorityScore = manualAlertPriorityScore(req.Severity, category)
 	}
 
 	priorityLabel := strings.TrimSpace(req.PriorityLabel)
@@ -100,16 +115,7 @@ func (s *AlertService) CreateAlert(
 		priorityLabel = manualAlertPriorityLabel(priorityScore)
 	}
 
-	category := strings.TrimSpace(req.Category)
-	accessCategorySlug := strings.TrimSpace(req.AccessCategorySlug)
-	if accessCategorySlug == "" {
-		accessCategorySlug = category
-	}
-
-	ownerOrganisationID := strings.TrimSpace(req.OwnerOrganisationID)
-	if ownerOrganisationID == "" {
-		ownerOrganisationID = "system"
-	}
+	targeting := buildAlertTargetingFromRequest(req)
 
 	route := ResolveAutoRoute(
 		req.AccessCategoryID,
@@ -140,6 +146,8 @@ func (s *AlertService) CreateAlert(
 		LeadOrganisationID:  route.LeadOrganisationID,
 		AssignedOrgIDs:      route.AssignedOrgIDs,
 		VisibleToOrgIDs:     route.VisibleToOrgIDs,
+
+		Targeting: targeting,
 
 		Severity: strings.TrimSpace(req.Severity),
 		Status:   status,
@@ -177,7 +185,7 @@ func (s *AlertService) CreateAlert(
 	}
 
 	if createdAlert.Status == "active" {
-		go s.notifyUsersInAlertCountry(createdAlert)
+		go s.notifyUsersInAlertTarget(createdAlert, models.AlertDeliveryTypeInitial)
 	}
 
 	if createdAlert.Status == "active" && s.broadcaster != nil {
@@ -188,6 +196,37 @@ func (s *AlertService) CreateAlert(
 	}
 
 	return createdAlert, nil
+}
+
+func (s *AlertService) GetAlertDeliveryHistory(
+	alertID string,
+) ([]models.AlertDeliveryBatch, error) {
+	if s.alertDeliveryRepo == nil {
+		return []models.AlertDeliveryBatch{}, nil
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(alertID)
+	if err != nil {
+		return nil, errors.New("invalid alert id")
+	}
+
+	return s.alertDeliveryRepo.FindBatchesByAlertID(objectID)
+}
+
+func (s *AlertService) GetAlertRecipientDeliveries(
+	alertID string,
+	limit int64,
+) ([]models.AlertRecipientDelivery, error) {
+	if s.alertDeliveryRepo == nil {
+		return []models.AlertRecipientDelivery{}, nil
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(alertID)
+	if err != nil {
+		return nil, errors.New("invalid alert id")
+	}
+
+	return s.alertDeliveryRepo.FindRecipientsByAlertID(objectID, limit)
 }
 
 func (s *AlertService) GetAlerts() ([]models.Alert, error) {
@@ -294,13 +333,21 @@ func (s *AlertService) UpdateAlertStatus(
 		return nil, errors.New("invalid alert id")
 	}
 
+	existingAlert, err := s.alertRepo.FindByID(objectID)
+	if err != nil {
+		return nil, err
+	}
+
 	updatedAlert, err := s.alertRepo.UpdateStatus(objectID, status)
 	if err != nil {
 		return nil, err
 	}
 
-	if updatedAlert.Status == "active" {
-		go s.notifyUsersInAlertCountry(updatedAlert)
+	wasNotActive := existingAlert == nil || existingAlert.Status != "active"
+	isNowActive := updatedAlert.Status == "active"
+
+	if wasNotActive && isNowActive {
+		go s.notifyUsersInAlertTarget(updatedAlert, models.AlertDeliveryTypeInitial)
 	}
 
 	if updatedAlert.Status == "active" && s.broadcaster != nil {
@@ -494,6 +541,90 @@ func (s *AlertService) notifyUsersInAlertCountry(alert *models.Alert) {
 	}
 }
 
+func buildAlertTargetingFromRequest(req dto.CreateAlertRequest) models.AlertTargeting {
+	mode := strings.TrimSpace(req.Targeting.Mode)
+
+	if mode == "" {
+		if len(req.Targeting.Polygon) >= 3 {
+			mode = models.AlertTargetingModePolygon
+		} else if req.Targeting.RadiusKm > 0 || req.RadiusKm > 0 {
+			mode = models.AlertTargetingModeRadius
+		} else if strings.TrimSpace(req.Targeting.Region) != "" || strings.TrimSpace(req.Region) != "" {
+			mode = models.AlertTargetingModeRegion
+		} else if strings.TrimSpace(req.Targeting.Country) != "" || strings.TrimSpace(req.Country) != "" {
+			mode = models.AlertTargetingModeCountry
+		} else {
+			mode = models.AlertTargetingModeRadius
+		}
+	}
+
+	mode = strings.ToLower(strings.TrimSpace(mode))
+
+	radiusKm := req.Targeting.RadiusKm
+	if radiusKm <= 0 {
+		radiusKm = req.RadiusKm
+	}
+
+	if radiusKm <= 0 {
+		radiusKm = 5
+	}
+
+	awarenessRadiusKm := req.Targeting.AwarenessRadiusKm
+	if awarenessRadiusKm <= 0 {
+		awarenessRadiusKm = radiusKm * 2
+	}
+
+	if awarenessRadiusKm < radiusKm {
+		awarenessRadiusKm = radiusKm
+	}
+
+	locationFreshnessHours := req.Targeting.LocationFreshnessHours
+	if locationFreshnessHours <= 0 {
+		locationFreshnessHours = 24
+	}
+
+	polygon := make([]models.AlertGeoPoint, 0, len(req.Targeting.Polygon))
+	for _, point := range req.Targeting.Polygon {
+		polygon = append(polygon, models.AlertGeoPoint{
+			Latitude:  point.Latitude,
+			Longitude: point.Longitude,
+		})
+	}
+
+	country := strings.TrimSpace(req.Targeting.Country)
+	if country == "" {
+		country = strings.TrimSpace(req.Country)
+	}
+
+	region := strings.TrimSpace(req.Targeting.Region)
+	if region == "" {
+		region = strings.TrimSpace(req.Region)
+	}
+
+	targeting := models.AlertTargeting{
+		Mode: mode,
+
+		RadiusKm:          radiusKm,
+		AwarenessRadiusKm: awarenessRadiusKm,
+		Polygon:           polygon,
+
+		Country:  country,
+		Region:   region,
+		District: strings.TrimSpace(req.Targeting.District),
+
+		LocationFreshnessHours:      locationFreshnessHours,
+		RespectUserPreferences:      true,
+		CriticalOverridePreferences: true,
+
+		ConfirmNationalAlert: req.Targeting.ConfirmNationalAlert,
+		NationalAlertReason:  strings.TrimSpace(req.Targeting.NationalAlertReason),
+
+		NotificationStatus: models.AlertNotificationStatusDraft,
+	}
+
+	return targeting
+}
+
 func parseOptionalTime(value string) *time.Time {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -530,6 +661,7 @@ func buildAlertPayload(alert *models.Alert) map[string]interface{} {
 		"leadOrganisationId":  alert.LeadOrganisationID,
 		"assignedOrgIds":      alert.AssignedOrgIDs,
 		"visibleToOrgIds":     alert.VisibleToOrgIDs,
+		"targeting":           alert.Targeting,
 		"severity":            alert.Severity,
 		"status":              alert.Status,
 		"latitude":            alert.Location.Latitude,
@@ -604,7 +736,12 @@ func manualAlertPriorityLabel(score int) string {
 	}
 }
 
-func normalizeAlertTags(inputTags []string, category string, severity string, sourceName string) []string {
+func normalizeAlertTags(
+	inputTags []string,
+	category string,
+	severity string,
+	sourceName string,
+) []string {
 	seen := map[string]bool{}
 	tags := []string{}
 

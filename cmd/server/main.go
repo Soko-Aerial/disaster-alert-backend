@@ -241,6 +241,7 @@ func main() {
 	assistanceRepository := repositories.NewAssistanceRepository(db.Database)
 	sosRepository := repositories.NewSOSRepository(db.Database)
 	alertRepository := repositories.NewAlertRepository(db.Database)
+	alertDeliveryRepository := repositories.NewAlertDeliveryRepository(db.Database)
 
 	emergencyContactRepository := repositories.NewEmergencyContactRepository(db.Database)
 	emergencyMessageRepository := repositories.NewEmergencyMessageRepository(db.Database)
@@ -258,6 +259,11 @@ func main() {
 		log.Println("Failed to ensure alert indexes:", err)
 	} else {
 		log.Println("Alert indexes ensured successfully")
+	}
+	if err := alertDeliveryRepository.EnsureIndexes(); err != nil {
+		log.Println("Failed to ensure alert delivery indexes:", err)
+	} else {
+		log.Println("Alert delivery indexes ensured successfully")
 	}
 
 	if err := appNotificationRepository.EnsureIndexes(); err != nil {
@@ -439,6 +445,8 @@ func main() {
 		appNotificationService,
 		wsBroadcaster,
 	)
+
+	alertService.SetAlertDeliveryRepository(alertDeliveryRepository)
 
 	emergencyMessageService := services.NewEmergencyMessageService(
 		emergencyMessageRepository,

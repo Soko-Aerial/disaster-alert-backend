@@ -188,6 +188,176 @@ func (h *AlertHandler) CreateAlert(c *gin.Context) {
 	)
 }
 
+// PreviewAlertTargeting godoc
+// @Summary Preview alert recipients before sending
+// @Description Calculates how many users would receive a push notification before the admin sends the alert.
+// @Description
+// @Description WHY THIS ENDPOINT EXISTS:
+// @Description It prevents accidental mass panic.
+// @Description The admin can draw/select an affected area on the map and preview the number of users who will receive the alert.
+// @Description
+// @Description TARGETING MODES:
+// @Description radius - Notify users within a radius around latitude/longitude.
+// @Description polygon - Notify users inside a drawn map area.
+// @Description region - Notify users in a selected region.
+// @Description country - Notify users in a selected country.
+// @Description national - Restricted national alert preview.
+// @Description
+// @Description ZONES:
+// @Description Danger zone users receive the urgent alert.
+// @Description Awareness zone users receive softer nearby-warning messaging.
+// @Description
+// @Description IMPORTANT:
+// @Description This endpoint does not send push notifications.
+// @Description It only previews recipient counts.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.AlertTargetingPreviewRequest true "Alert targeting preview payload"
+// @Success 200 {object} dto.AlertTargetingPreviewResponse "Alert targeting preview calculated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body or targeting rules"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Missing, revoked, expired, or unauthorized privilege code"
+// @Failure 500 {object} map[string]interface{} "Failed to preview alert targeting"
+// @Router /admin/alerts/preview-targeting [post]
+func (h *AlertHandler) PreviewAlertTargeting(c *gin.Context) {
+	var req dto.AlertTargetingPreviewRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Invalid request body",
+			err.Error(),
+		)
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Validation failed",
+			err.Error(),
+		)
+		return
+	}
+
+	preview, err := h.alertService.PreviewAlertTargeting(req)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alert targeting preview calculated successfully",
+		preview,
+	)
+}
+
+// EscalateAlert godoc
+// @Summary Escalate an alert
+// @Description Escalates an existing alert when its affected area expands or severity becomes critical.
+// @Description
+// @Description ESCALATION RULES:
+// @Description If the alert area expands, only newly affected users receive a push notification.
+// @Description If severity is upgraded to critical, previous affected users and newly affected users receive an update.
+// @Description Duplicate delivery is blocked using alert delivery history.
+// @Description
+// @Description NATIONAL ALERT SAFETY:
+// @Description If targeting.mode is national, the privilege code must include alerts:send_national.
+// @Description confirmNationalAlert must be true and nationalAlertReason must be provided.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Param request body dto.AlertEscalationRequest true "Alert escalation payload"
+// @Success 200 {object} map[string]interface{} "Alert escalated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request body or escalation rules"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code"
+// @Failure 404 {object} map[string]interface{} "Alert not found"
+// @Router /admin/alerts/{id}/escalate [put]
+func (h *AlertHandler) EscalateAlert(c *gin.Context) {
+	alertID := c.Param("id")
+
+	var req dto.AlertEscalationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Invalid request body",
+			err.Error(),
+		)
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			"Validation failed",
+			err.Error(),
+		)
+		return
+	}
+
+	privilegeCtx, ok := authz.FromGin(c)
+	if !ok {
+		utils.ErrorResponse(
+			c,
+			http.StatusForbidden,
+			"Privilege context not found",
+			nil,
+		)
+		return
+	}
+
+	alert, err := h.alertService.EscalateAlertForPrivilege(
+		alertID,
+		req,
+		privilegeCtx,
+	)
+	if err != nil {
+		statusCode := http.StatusBadRequest
+
+		switch err.Error() {
+		case "alert not found":
+			statusCode = http.StatusNotFound
+		case "you do not have access to escalate this alert",
+			"national alerts require alerts:send_national permission":
+			statusCode = http.StatusForbidden
+		}
+
+		utils.ErrorResponse(
+			c,
+			statusCode,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alert escalated successfully",
+		alert,
+	)
+}
+
 // GetAlerts godoc
 // @Summary List alerts
 // @Description Returns alerts from the system.
@@ -285,6 +455,88 @@ func (h *AlertHandler) GetActiveAlerts(c *gin.Context) {
 		http.StatusOK,
 		"Active alerts fetched successfully",
 		alerts,
+	)
+}
+
+// GetAlertDeliveryHistory godoc
+// @Summary Get alert delivery history
+// @Description Returns delivery batch history for an alert.
+// @Description Shows how many users were targeted, sent, failed, or skipped.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Success 200 {object} map[string]interface{} "Alert delivery history fetched successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid alert ID"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code"
+// @Router /admin/alerts/{id}/delivery-history [get]
+func (h *AlertHandler) GetAlertDeliveryHistory(c *gin.Context) {
+	alertID := c.Param("id")
+
+	history, err := h.alertService.GetAlertDeliveryHistory(alertID)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alert delivery history fetched successfully",
+		history,
+	)
+}
+
+// GetAlertRecipientDeliveries godoc
+// @Summary Get alert recipient delivery records
+// @Description Returns recipient-level delivery records for an alert.
+// @Description This should be restricted because it exposes user-level notification delivery data.
+// @Tags Admin Alerts
+// @Security AdminApiKeyAuth
+// @Security PrivilegeCodeAuth
+// @Produce json
+// @Param id path string true "Alert ID"
+// @Param limit query int false "Maximum number of recipient records to return"
+// @Success 200 {object} map[string]interface{} "Alert recipient deliveries fetched successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid alert ID"
+// @Failure 401 {object} map[string]interface{} "Missing or invalid Admin API Key"
+// @Failure 403 {object} map[string]interface{} "Unauthorized privilege code"
+// @Router /admin/alerts/{id}/recipient-deliveries [get]
+func (h *AlertHandler) GetAlertRecipientDeliveries(c *gin.Context) {
+	alertID := c.Param("id")
+
+	limit := int64(500)
+
+	if value := c.Query("limit"); value != "" {
+		parsedLimit, err := strconv.ParseInt(value, 10, 64)
+		if err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	deliveries, err := h.alertService.GetAlertRecipientDeliveries(alertID, limit)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusBadRequest,
+			err.Error(),
+			nil,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Alert recipient deliveries fetched successfully",
+		deliveries,
 	)
 }
 

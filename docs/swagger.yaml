@@ -1,5 +1,183 @@
 basePath: /api/v1
 definitions:
+  disaster_alert_backend_internal_dto.AlertEscalationRequest:
+    properties:
+      message:
+        description: Message is an optional update message for the escalation.
+        example: The flood area has expanded. Move away from low-lying areas immediately.
+        type: string
+      radiusKm:
+        description: |-
+          RadiusKm is optional shortcut for expanding a radius alert.
+          If targeting.radiusKm is also provided, targeting.radiusKm takes priority.
+        example: 15
+        type: number
+      reason:
+        description: Reason explains why the alert is being escalated.
+        example: Water level has increased and affected area expanded.
+        type: string
+      severity:
+        description: |-
+          Severity is optional.
+          If changed to critical, the system sends an update to previous and new affected users.
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: critical
+        type: string
+      targeting:
+        allOf:
+        - $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertTargetingRequest'
+        description: |-
+          Targeting contains the new alert targeting area.
+          Use this to expand radius, change polygon, change region, or send national alert.
+    type: object
+  disaster_alert_backend_internal_dto.AlertGeoPointRequest:
+    properties:
+      latitude:
+        example: 5.6037
+        type: number
+      longitude:
+        example: -0.187
+        type: number
+    required:
+    - latitude
+    - longitude
+    type: object
+  disaster_alert_backend_internal_dto.AlertTargetingPreviewRequest:
+    properties:
+      category:
+        description: |-
+          Category is the alert category.
+          Examples: fire, flood, weather, robbery, security, medical, accident.
+        example: flood
+        type: string
+      latitude:
+        description: |-
+          Latitude is the main alert latitude.
+          Required for radius targeting.
+        example: 5.6037
+        type: number
+      longitude:
+        description: |-
+          Longitude is the main alert longitude.
+          Required for radius targeting.
+        example: -0.187
+        type: number
+      severity:
+        description: |-
+          Severity controls preference override and warning level.
+          Allowed values: low, medium, high, critical.
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: high
+        type: string
+      targeting:
+        allOf:
+        - $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertTargetingRequest'
+        description: Targeting contains the map-based delivery rules.
+    required:
+    - category
+    - severity
+    - targeting
+    type: object
+  disaster_alert_backend_internal_dto.AlertTargetingPreviewResponse:
+    properties:
+      awarenessRecipients:
+        type: integer
+      dangerRecipients:
+        type: integer
+      excludedNoFcmToken:
+        type: integer
+      excludedNoLocation:
+        type: integer
+      excludedOldLocation:
+        type: integer
+      excludedOutsideTarget:
+        type: integer
+      excludedPreferenceOff:
+        type: integer
+      locationFreshnessHours:
+        type: integer
+      respectUserPreferences:
+        type: boolean
+      scannedUsers:
+        type: integer
+      targetingMode:
+        type: string
+      totalPushRecipients:
+        type: integer
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  disaster_alert_backend_internal_dto.AlertTargetingRequest:
+    properties:
+      awarenessRadiusKm:
+        description: |-
+          AwarenessRadiusKm is wider than RadiusKm.
+          Users between RadiusKm and AwarenessRadiusKm receive softer awareness notification.
+        example: 10
+        type: number
+      confirmNationalAlert:
+        description: Required only for mode=national.
+        example: false
+        type: boolean
+      country:
+        description: Administrative targeting fields.
+        example: Ghana
+        type: string
+      criticalOverridePreferences:
+        description: CriticalOverridePreferences allows critical nearby alerts to
+          be sent even if category preference is off.
+        example: true
+        type: boolean
+      district:
+        example: Accra Metropolitan
+        type: string
+      locationFreshnessHours:
+        description: |-
+          LocationFreshnessHours prevents sending local alerts based on old user location.
+          Recommended default: 24 hours.
+        example: 24
+        type: integer
+      mode:
+        description: |-
+          Mode controls who receives push notifications.
+          Supported values: radius, polygon, region, country, national.
+        example: radius
+        type: string
+      nationalAlertReason:
+        description: Required only for mode=national.
+        example: Nationwide severe weather emergency
+        type: string
+      polygon:
+        description: |-
+          Polygon is used when mode=polygon.
+          The admin dashboard sends the drawn map boundary as points.
+        items:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertGeoPointRequest'
+        type: array
+      radiusKm:
+        description: |-
+          RadiusKm is used when mode=radius.
+          Users inside this radius receive danger-zone notification.
+        example: 5
+        type: number
+      region:
+        example: Greater Accra
+        type: string
+      respectUserPreferences:
+        description: RespectUserPreferences checks whether the user enabled this category.
+        example: true
+        type: boolean
+    type: object
   disaster_alert_backend_internal_dto.CreateAccessCategoryRequest:
     properties:
       allowedActions:
@@ -241,7 +419,8 @@ definitions:
         description: |-
           RadiusKm is the approximate affected area around the latitude/longitude.
 
-          Example: 10 means users within about 10km may be affected.
+          Example:
+          10 means users within about 10km may be affected.
         example: 10
         type: number
       region:
@@ -324,6 +503,15 @@ definitions:
         items:
           type: string
         type: array
+      targeting:
+        allOf:
+        - $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertTargetingRequest'
+        description: |-
+          Targeting controls who receives push notifications.
+          The alert itself may still appear on the map/feed, but push notifications should only go to users in the target area.
+
+          Supported modes:
+          radius, polygon, region, country, national
       title:
         description: Title is the short headline users will see first.
         example: Heavy rainfall warning
@@ -1652,6 +1840,151 @@ paths:
       summary: Delete alert
       tags:
       - Admin Alerts
+  /admin/alerts/{id}/delivery-history:
+    get:
+      description: |-
+        Returns delivery batch history for an alert.
+        Shows how many users were targeted, sent, failed, or skipped.
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert delivery history fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid alert ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Get alert delivery history
+      tags:
+      - Admin Alerts
+  /admin/alerts/{id}/escalate:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Escalates an existing alert when its affected area expands or severity becomes critical.
+
+        ESCALATION RULES:
+        If the alert area expands, only newly affected users receive a push notification.
+        If severity is upgraded to critical, previous affected users and newly affected users receive an update.
+        Duplicate delivery is blocked using alert delivery history.
+
+        NATIONAL ALERT SAFETY:
+        If targeting.mode is national, the privilege code must include alerts:send_national.
+        confirmNationalAlert must be true and nationalAlertReason must be provided.
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Alert escalation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertEscalationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert escalated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or escalation rules
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Alert not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Escalate an alert
+      tags:
+      - Admin Alerts
+  /admin/alerts/{id}/recipient-deliveries:
+    get:
+      description: |-
+        Returns recipient-level delivery records for an alert.
+        This should be restricted because it exposes user-level notification delivery data.
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Maximum number of recipient records to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert recipient deliveries fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid alert ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Unauthorized privilege code
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Get alert recipient delivery records
+      tags:
+      - Admin Alerts
   /admin/alerts/{id}/status:
     put:
       consumes:
@@ -1730,6 +2063,71 @@ paths:
       - AdminApiKeyAuth: []
       - PrivilegeCodeAuth: []
       summary: Update alert status
+      tags:
+      - Admin Alerts
+  /admin/alerts/preview-targeting:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Calculates how many users would receive a push notification before the admin sends the alert.
+
+        WHY THIS ENDPOINT EXISTS:
+        It prevents accidental mass panic.
+        The admin can draw/select an affected area on the map and preview the number of users who will receive the alert.
+
+        TARGETING MODES:
+        radius - Notify users within a radius around latitude/longitude.
+        polygon - Notify users inside a drawn map area.
+        region - Notify users in a selected region.
+        country - Notify users in a selected country.
+        national - Restricted national alert preview.
+
+        ZONES:
+        Danger zone users receive the urgent alert.
+        Awareness zone users receive softer nearby-warning messaging.
+
+        IMPORTANT:
+        This endpoint does not send push notifications.
+        It only previews recipient counts.
+      parameters:
+      - description: Alert targeting preview payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertTargetingPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Alert targeting preview calculated successfully
+          schema:
+            $ref: '#/definitions/disaster_alert_backend_internal_dto.AlertTargetingPreviewResponse'
+        "400":
+          description: Invalid request body or targeting rules
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing or invalid Admin API Key
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Missing, revoked, expired, or unauthorized privilege code
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to preview alert targeting
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminApiKeyAuth: []
+      - PrivilegeCodeAuth: []
+      summary: Preview alert recipients before sending
       tags:
       - Admin Alerts
   /admin/assistance:
@@ -4312,6 +4710,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Get my notifications
+      tags:
+      - User Notifications
+  /notifications/history:
+    get:
+      description: |
+        Returns longer in-app notification history for the authenticated user.
+
+        MAIN DIFFERENCE:
+        /notifications returns the active inbox.
+        /notifications/history returns older read notifications too.
+      parameters:
+      - description: Maximum number of notifications to return. Default is 100.
+        example: 100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Notification history fetched successfully.
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing, invalid, or expired user token.
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch notification history.
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get my notification history
       tags:
       - User Notifications
   /notifications/read:

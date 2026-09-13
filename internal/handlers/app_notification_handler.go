@@ -83,6 +83,60 @@ func (h *AppNotificationHandler) GetMyNotifications(c *gin.Context) {
 	)
 }
 
+// GetMyNotificationHistory godoc
+// @Summary Get my notification history
+// @Description Returns longer in-app notification history for the authenticated user.
+// @Description
+// @Description MAIN DIFFERENCE:
+// @Description /notifications returns the active inbox.
+// @Description /notifications/history returns older read notifications too.
+// @Description
+// @Tags User Notifications
+// @Security BearerAuth
+// @Produce json
+// @Param limit query int false "Maximum number of notifications to return. Default is 100." example(100)
+// @Success 200 {object} map[string]interface{} "Notification history fetched successfully."
+// @Failure 401 {object} map[string]interface{} "Missing, invalid, or expired user token."
+// @Failure 500 {object} map[string]interface{} "Failed to fetch notification history."
+// @Router /notifications/history [get]
+func (h *AppNotificationHandler) GetMyNotificationHistory(c *gin.Context) {
+	userID, ok := getUserIDFromContext(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized user", nil)
+		return
+	}
+
+	limit := 100
+
+	if limitQuery := c.Query("limit"); limitQuery != "" {
+		parsedLimit, err := strconv.Atoi(limitQuery)
+		if err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	notifications, err := h.appNotificationService.GetUserNotificationHistory(
+		userID,
+		limit,
+	)
+	if err != nil {
+		utils.ErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			"Failed to fetch notification history",
+			err,
+		)
+		return
+	}
+
+	utils.SuccessResponse(
+		c,
+		http.StatusOK,
+		"Notification history fetched successfully",
+		notifications,
+	)
+}
+
 // GetUnreadCount godoc
 // @Summary Get unread notification count
 // @Description Returns the number of unread in-app notifications for the authenticated user.
@@ -175,6 +229,7 @@ func (h *AppNotificationHandler) MarkRead(c *gin.Context) {
 		utils.ErrorResponse(c, http.StatusBadRequest, err.Error(), err)
 		return
 	}
+	_ = h.appNotificationService.ArchiveOldReadNotificationsForUser(userID, 48)
 
 	utils.SuccessResponse(
 		c,
@@ -217,6 +272,7 @@ func (h *AppNotificationHandler) MarkAllRead(c *gin.Context) {
 		)
 		return
 	}
+	_ = h.appNotificationService.ArchiveOldReadNotificationsForUser(userID, 48)
 
 	utils.SuccessResponse(
 		c,

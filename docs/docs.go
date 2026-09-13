@@ -409,6 +409,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/alerts/preview-targeting": {
+            "post": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Calculates how many users would receive a push notification before the admin sends the alert.\n\nWHY THIS ENDPOINT EXISTS:\nIt prevents accidental mass panic.\nThe admin can draw/select an affected area on the map and preview the number of users who will receive the alert.\n\nTARGETING MODES:\nradius - Notify users within a radius around latitude/longitude.\npolygon - Notify users inside a drawn map area.\nregion - Notify users in a selected region.\ncountry - Notify users in a selected country.\nnational - Restricted national alert preview.\n\nZONES:\nDanger zone users receive the urgent alert.\nAwareness zone users receive softer nearby-warning messaging.\n\nIMPORTANT:\nThis endpoint does not send push notifications.\nIt only previews recipient counts.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "Preview alert recipients before sending",
+                "parameters": [
+                    {
+                        "description": "Alert targeting preview payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertTargetingPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert targeting preview calculated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertTargetingPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or targeting rules",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Missing, revoked, expired, or unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to preview alert targeting",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/alerts/{id}": {
             "delete": {
                 "security": [
@@ -475,6 +545,208 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Server error while deleting alert.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alerts/{id}/delivery-history": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Returns delivery batch history for an alert.\nShows how many users were targeted, sent, failed, or skipped.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "Get alert delivery history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert delivery history fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid alert ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alerts/{id}/escalate": {
+            "put": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Escalates an existing alert when its affected area expands or severity becomes critical.\n\nESCALATION RULES:\nIf the alert area expands, only newly affected users receive a push notification.\nIf severity is upgraded to critical, previous affected users and newly affected users receive an update.\nDuplicate delivery is blocked using alert delivery history.\n\nNATIONAL ALERT SAFETY:\nIf targeting.mode is national, the privilege code must include alerts:send_national.\nconfirmNationalAlert must be true and nationalAlertReason must be provided.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "Escalate an alert",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Alert escalation payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertEscalationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert escalated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or escalation rules",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized privilege code",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Alert not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/alerts/{id}/recipient-deliveries": {
+            "get": {
+                "security": [
+                    {
+                        "AdminApiKeyAuth": []
+                    },
+                    {
+                        "PrivilegeCodeAuth": []
+                    }
+                ],
+                "description": "Returns recipient-level delivery records for an alert.\nThis should be restricted because it exposes user-level notification delivery data.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Alerts"
+                ],
+                "summary": "Get alert recipient delivery records",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of recipient records to return",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert recipient deliveries fetched successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid alert ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid Admin API Key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized privilege code",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -3343,6 +3615,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/notifications/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns longer in-app notification history for the authenticated user.\n\nMAIN DIFFERENCE:\n/notifications returns the active inbox.\n/notifications/history returns older read notifications too.\n",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User Notifications"
+                ],
+                "summary": "Get my notification history",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 100,
+                        "description": "Maximum number of notifications to return. Default is 100.",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification history fetched successfully.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Missing, invalid, or expired user token.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch notification history.",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/read": {
             "put": {
                 "security": [
@@ -3928,6 +4249,218 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "disaster_alert_backend_internal_dto.AlertEscalationRequest": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Message is an optional update message for the escalation.",
+                    "type": "string",
+                    "example": "The flood area has expanded. Move away from low-lying areas immediately."
+                },
+                "radiusKm": {
+                    "description": "RadiusKm is optional shortcut for expanding a radius alert.\nIf targeting.radiusKm is also provided, targeting.radiusKm takes priority.",
+                    "type": "number",
+                    "example": 15
+                },
+                "reason": {
+                    "description": "Reason explains why the alert is being escalated.",
+                    "type": "string",
+                    "example": "Water level has increased and affected area expanded."
+                },
+                "severity": {
+                    "description": "Severity is optional.\nIf changed to critical, the system sends an update to previous and new affected users.",
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                    ],
+                    "example": "critical"
+                },
+                "targeting": {
+                    "description": "Targeting contains the new alert targeting area.\nUse this to expand radius, change polygon, change region, or send national alert.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertTargetingRequest"
+                        }
+                    ]
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.AlertGeoPointRequest": {
+            "type": "object",
+            "required": [
+                "latitude",
+                "longitude"
+            ],
+            "properties": {
+                "latitude": {
+                    "type": "number",
+                    "example": 5.6037
+                },
+                "longitude": {
+                    "type": "number",
+                    "example": -0.187
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.AlertTargetingPreviewRequest": {
+            "type": "object",
+            "required": [
+                "category",
+                "severity",
+                "targeting"
+            ],
+            "properties": {
+                "category": {
+                    "description": "Category is the alert category.\nExamples: fire, flood, weather, robbery, security, medical, accident.",
+                    "type": "string",
+                    "example": "flood"
+                },
+                "latitude": {
+                    "description": "Latitude is the main alert latitude.\nRequired for radius targeting.",
+                    "type": "number",
+                    "example": 5.6037
+                },
+                "longitude": {
+                    "description": "Longitude is the main alert longitude.\nRequired for radius targeting.",
+                    "type": "number",
+                    "example": -0.187
+                },
+                "severity": {
+                    "description": "Severity controls preference override and warning level.\nAllowed values: low, medium, high, critical.",
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                    ],
+                    "example": "high"
+                },
+                "targeting": {
+                    "description": "Targeting contains the map-based delivery rules.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertTargetingRequest"
+                        }
+                    ]
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.AlertTargetingPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "awarenessRecipients": {
+                    "type": "integer"
+                },
+                "dangerRecipients": {
+                    "type": "integer"
+                },
+                "excludedNoFcmToken": {
+                    "type": "integer"
+                },
+                "excludedNoLocation": {
+                    "type": "integer"
+                },
+                "excludedOldLocation": {
+                    "type": "integer"
+                },
+                "excludedOutsideTarget": {
+                    "type": "integer"
+                },
+                "excludedPreferenceOff": {
+                    "type": "integer"
+                },
+                "locationFreshnessHours": {
+                    "type": "integer"
+                },
+                "respectUserPreferences": {
+                    "type": "boolean"
+                },
+                "scannedUsers": {
+                    "type": "integer"
+                },
+                "targetingMode": {
+                    "type": "string"
+                },
+                "totalPushRecipients": {
+                    "type": "integer"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "disaster_alert_backend_internal_dto.AlertTargetingRequest": {
+            "type": "object",
+            "properties": {
+                "awarenessRadiusKm": {
+                    "description": "AwarenessRadiusKm is wider than RadiusKm.\nUsers between RadiusKm and AwarenessRadiusKm receive softer awareness notification.",
+                    "type": "number",
+                    "example": 10
+                },
+                "confirmNationalAlert": {
+                    "description": "Required only for mode=national.",
+                    "type": "boolean",
+                    "example": false
+                },
+                "country": {
+                    "description": "Administrative targeting fields.",
+                    "type": "string",
+                    "example": "Ghana"
+                },
+                "criticalOverridePreferences": {
+                    "description": "CriticalOverridePreferences allows critical nearby alerts to be sent even if category preference is off.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "district": {
+                    "type": "string",
+                    "example": "Accra Metropolitan"
+                },
+                "locationFreshnessHours": {
+                    "description": "LocationFreshnessHours prevents sending local alerts based on old user location.\nRecommended default: 24 hours.",
+                    "type": "integer",
+                    "example": 24
+                },
+                "mode": {
+                    "description": "Mode controls who receives push notifications.\nSupported values: radius, polygon, region, country, national.",
+                    "type": "string",
+                    "example": "radius"
+                },
+                "nationalAlertReason": {
+                    "description": "Required only for mode=national.",
+                    "type": "string",
+                    "example": "Nationwide severe weather emergency"
+                },
+                "polygon": {
+                    "description": "Polygon is used when mode=polygon.\nThe admin dashboard sends the drawn map boundary as points.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertGeoPointRequest"
+                    }
+                },
+                "radiusKm": {
+                    "description": "RadiusKm is used when mode=radius.\nUsers inside this radius receive danger-zone notification.",
+                    "type": "number",
+                    "example": 5
+                },
+                "region": {
+                    "type": "string",
+                    "example": "Greater Accra"
+                },
+                "respectUserPreferences": {
+                    "description": "RespectUserPreferences checks whether the user enabled this category.",
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "disaster_alert_backend_internal_dto.CreateAccessCategoryRequest": {
             "type": "object",
             "required": [
@@ -4191,7 +4724,7 @@ const docTemplate = `{
                     "example": 85
                 },
                 "radiusKm": {
-                    "description": "RadiusKm is the approximate affected area around the latitude/longitude.\n\nExample: 10 means users within about 10km may be affected.",
+                    "description": "RadiusKm is the approximate affected area around the latitude/longitude.\n\nExample:\n10 means users within about 10km may be affected.",
                     "type": "number",
                     "example": 10
                 },
@@ -4275,6 +4808,14 @@ const docTemplate = `{
                         "flood",
                         "ghana",
                         "accra"
+                    ]
+                },
+                "targeting": {
+                    "description": "Targeting controls who receives push notifications.\nThe alert itself may still appear on the map/feed, but push notifications should only go to users in the target area.\n\nSupported modes:\nradius, polygon, region, country, national",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/disaster_alert_backend_internal_dto.AlertTargetingRequest"
+                        }
                     ]
                 },
                 "title": {

@@ -7,22 +7,30 @@ import (
 )
 
 type AppNotification struct {
-	ID 				primitive.ObjectID 	`json:"id" bson:"_id,omitempty"`
+	ID primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 
-	RecipientID 	primitive.ObjectID 	`json:"recipientId" bson:"recipientId"`
-	RecipientRole 	string 				`json:"recipientRole" bson:"recipientRole"`
+	RecipientID   primitive.ObjectID `json:"recipientId" bson:"recipientId"`
+	RecipientRole string             `json:"recipientRole" bson:"recipientRole"`
 
-	Title 			string 				`json:"title" bson:"title"`
-	Body  			string 				`json:"body" bson:"body"`
+	Title string `json:"title" bson:"title"`
+	Body  string `json:"body" bson:"body"`
 
-	Type 			string 				`json:"type" bson:"type"`
+	Type string `json:"type" bson:"type"`
 
-	ReferenceID 	string 				`json:"referenceId,omitempty" bson:"referenceId,omitempty"`
+	ReferenceID string `json:"referenceId,omitempty" bson:"referenceId,omitempty"`
 
-	Data 			map[string]string 	`json:"data,omitempty" bson:"data,omitempty"`
+	Data map[string]string `json:"data,omitempty" bson:"data,omitempty"`
 
-	IsRead 			bool 				`json:"isRead" bson:"isRead"`
+	IsRead bool `json:"isRead" bson:"isRead"`
 
-	CreatedAt 		time.Time			`json:"createdAt" bson:"createdAt"`
-	UpdatedAt 		time.Time 			`json:"updatedAt" bson:"updatedAt"`
+	ReadAt *time.Time `bson:"readAt,omitempty" json:"readAt,omitempty"`
+
+	IsArchived bool `bson:"isArchived" json:"isArchived"`
+
+	ArchivedAt *time.Time `bson:"archivedAt,omitempty" json:"archivedAt,omitempty"`
+
+	ExpiresAt *time.Time `bson:"expiresAt,omitempty" json:"expiresAt,omitempty"`
+
+	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt" bson:"updatedAt"`
 }

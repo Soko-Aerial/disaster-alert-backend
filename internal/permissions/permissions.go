@@ -1,10 +1,12 @@
 package permissions
 
 const (
-	AlertsRead   = "alerts:read"
-	AlertsCreate = "alerts:create"
-	AlertsUpdate = "alerts:update"
-	AlertsDelete = "alerts:delete"
+	AlertsRead         = "alerts:read"
+	AlertsCreate       = "alerts:create"
+	AlertsUpdate       = "alerts:update"
+	AlertsDelete       = "alerts:delete"
+	AlertsEscalate     = "alerts:escalate"
+	AlertsSendNational = "alerts:send_national"
 
 	ReportsRead    = "reports:read"
 	ReportsApprove = "reports:approve"
@@ -34,6 +36,8 @@ var AllPermissions = []string{
 	AlertsCreate,
 	AlertsUpdate,
 	AlertsDelete,
+	AlertsEscalate,
+	AlertsSendNational,
 
 	ReportsRead,
 	ReportsApprove,
